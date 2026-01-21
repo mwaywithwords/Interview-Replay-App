@@ -1,7 +1,7 @@
 'use server';
 
 import { getSignedReplayUrl, uploadReplay, deleteReplay } from '@/lib/supabase/storage';
-import { requireUser } from '@/lib/supabase/server';
+import { createClient, requireUser } from '@/lib/supabase/server';
 
 /**
  * Server Action: Get a signed URL for audio replay playback
@@ -23,6 +23,63 @@ export async function getReplayPlaybackUrl(sessionId: string) {
   }
 
   return { url, error: null };
+}
+
+/**
+ * Server Action: Create a signed URL for audio playback from a session's audio_storage_path
+ * 
+ * Security:
+ * - Validates the user is authenticated
+ * - Verifies the session belongs to the authenticated user
+ * - Only generates signed URL if audio_storage_path exists
+ * 
+ * @param sessionId - The session ID to get audio for
+ * @returns Signed URL with 60 second expiration, or error
+ */
+export async function createSignedAudioUrl(sessionId: string): Promise<{
+  url: string | null;
+  expiresAt: number | null;
+  error: string | null;
+}> {
+  // Get authenticated user
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  // Fetch the session and verify ownership
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('id, user_id, audio_storage_path')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError) {
+    return { url: null, expiresAt: null, error: 'Session not found' };
+  }
+
+  // Verify the session belongs to the authenticated user
+  if (session.user_id !== user.id) {
+    return { url: null, expiresAt: null, error: 'You do not have permission to access this session' };
+  }
+
+  // Check if audio_storage_path exists
+  if (!session.audio_storage_path) {
+    return { url: null, expiresAt: null, error: 'No audio recording found for this session' };
+  }
+
+  // Generate signed URL with 60 second expiration
+  const expiresIn = 60; // 60 seconds
+  const { data, error: signedUrlError } = await supabase.storage
+    .from('replays')
+    .createSignedUrl(session.audio_storage_path, expiresIn);
+
+  if (signedUrlError) {
+    return { url: null, expiresAt: null, error: `Failed to generate playback URL: ${signedUrlError.message}` };
+  }
+
+  // Calculate expiration timestamp (current time + expiresIn seconds)
+  const expiresAt = Date.now() + (expiresIn * 1000);
+
+  return { url: data.signedUrl, expiresAt, error: null };
 }
 
 /**

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
 import { AudioRecorder } from '@/components/AudioRecorder';
+import { AudioPlayer } from '@/components/AudioPlayer';
 import { VideoRecorder } from '@/components/VideoRecorder';
 
 interface SessionDetailProps {
@@ -238,6 +239,14 @@ export function SessionDetail({ session }: SessionDetailProps) {
                 console.log('Audio uploaded to:', storagePath);
                 router.refresh();
               }}
+            />
+          </div>
+
+          {/* Audio Player Section - for playback of recorded audio */}
+          <div className="mb-6">
+            <AudioPlayer
+              sessionId={session.id}
+              hasAudio={!!session.audio_storage_path}
             />
           </div>
 

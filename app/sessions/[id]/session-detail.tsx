@@ -35,6 +35,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
+import { AudioRecorder } from '@/components/AudioRecorder';
 
 interface SessionDetailProps {
   session: InterviewSession;
@@ -197,6 +198,15 @@ export function SessionDetail({ session }: SessionDetailProps) {
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Audio Recorder Section */}
+          <div className="mb-6">
+            <AudioRecorder
+              onRecordingComplete={(blob) => {
+                console.log('Recording complete:', blob.type, blob.size);
+              }}
+            />
+          </div>
 
           <Card className="border-slate-800 bg-slate-900/50">
             <CardHeader className="flex flex-row items-start justify-between space-y-0">

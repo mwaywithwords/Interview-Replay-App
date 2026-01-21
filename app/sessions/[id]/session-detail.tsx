@@ -49,6 +49,7 @@ import { EmptyState } from '@/components/layout/EmptyState';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BookmarksList } from '@/components/sessions/BookmarksList';
 import { SessionNoteEditor } from '@/components/sessions/SessionNoteEditor';
+import { TranscriptEditor } from '@/components/sessions/TranscriptEditor';
 import { cn } from '@/lib/utils';
 
 interface SessionDetailProps {
@@ -370,32 +371,7 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
 
             <TabsContent value="transcript" active={activeTab === 'transcript'}>
               <SectionCard title="Session Transcript" className="bg-card border-border">
-                {isReady ? (
-                  <div className="space-y-8 py-2">
-                    <div className="group relative pl-6 border-l-2 border-border hover:border-primary/30 transition-colors">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-muted border-2 border-background group-hover:bg-primary/20 transition-colors" />
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Interviewer • 00:12</span>
-                      <p className="text-foreground leading-relaxed font-bold">
-                        Can you tell me about a challenging project you worked on?
-                      </p>
-                    </div>
-                    <div className="group relative pl-6 border-l-2 border-border hover:border-primary/30 transition-colors">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-muted border-2 border-background group-hover:bg-primary/20 transition-colors" />
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Interviewee • 00:45</span>
-                      <p className="text-foreground leading-relaxed font-medium">
-                        Sure, I led the launch of a new feature that increased user
-                        engagement by 40%. We faced tight deadlines and had to adapt quickly. It taught
-                        me a lot about prioritization and teamwork.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={MessageSquare}
-                    title="Transcript Pending"
-                    description="Your transcript will appear here once the session is processed."
-                  />
-                )}
+                <TranscriptEditor sessionId={session.id} />
               </SectionCard>
             </TabsContent>
 

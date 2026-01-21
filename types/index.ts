@@ -266,3 +266,23 @@ export interface CreateBookmarkNoteInput {
   bookmark_id: string;
   content: string;
 }
+
+// ============================================
+// Transcript Types (manual transcripts)
+// ============================================
+
+export interface Transcript {
+  id: string;
+  user_id: string;
+  session_id: string;
+  provider: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveTranscriptInput {
+  session_id: string;
+  content: string;
+  provider?: string;
+}

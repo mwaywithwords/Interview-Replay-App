@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Clock, ArrowRight, FileText, Filter, Search, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Clock, ArrowRight, FileText, Filter, Search, AlertCircle, Loader2, Video, Mic } from 'lucide-react';
 import type {
   InterviewSessionWithGroupings,
   SessionMetadata,
@@ -75,6 +75,25 @@ function SessionCardSkeleton() {
   );
 }
 
+function RecordingTypeBadge({ recordingType }: { recordingType: string | null }) {
+  if (!recordingType) return null;
+  
+  const isVideo = recordingType === 'video';
+  const Icon = isVideo ? Video : Mic;
+  const label = isVideo ? 'Video' : 'Audio';
+  
+  return (
+    <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold ${
+      isVideo 
+        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+        : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+    }`}>
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
 function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
   const metadata = session.metadata as SessionMetadata;
   const sessionType = metadata?.session_type;
@@ -91,11 +110,12 @@ function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
           </div>
 
           <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground font-medium">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-xs font-bold text-foreground">
                 <FileText className="h-3 w-3" />
                 {getSessionTypeLabel(sessionType)}
               </span>
+              <RecordingTypeBadge recordingType={session.recording_type} />
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold">
                 <Clock className="h-3 w-3 text-muted-foreground/60" />
                 {new Date(session.created_at).toLocaleDateString('en-US', {

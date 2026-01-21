@@ -233,25 +233,25 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   // Empty state: No video recording exists
   if (!hasVideo) {
     return (
-      <Card className={cn("border-border bg-card", className)}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
-            <Video className="h-5 w-5 text-muted-foreground" />
+      <Card className={cn("border-border bg-card shadow-lg", className)}>
+        <CardHeader className="py-2 px-3">
+          <CardTitle className="flex items-center gap-2 text-sm text-foreground">
+            <Video className="h-4 w-4 text-primary" />
             Video Playback
           </CardTitle>
-          <CardDescription>
-            Watch your recorded interview video
-          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 rounded-full bg-muted p-6">
-              <VideoOff className="h-10 w-10 text-muted-foreground" />
+        <CardContent className="px-2 pb-2 pt-0">
+          {/* 16:9 aspect ratio container - taller card */}
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-muted/30 rounded-md border border-border">
+              <div className="mb-3 rounded-full bg-muted p-4">
+                <VideoOff className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-foreground font-medium text-sm">No video recording yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use the Video Recorder above to create a recording
+              </p>
             </div>
-            <p className="text-foreground font-medium">No video recording yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Use the Video Recorder above to create a recording for this session
-            </p>
           </div>
         </CardContent>
       </Card>
@@ -259,30 +259,29 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   }
 
   return (
-    <Card className={cn("border-border bg-card overflow-hidden", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
-          <Video className="h-5 w-5 text-muted-foreground" />
+    <Card className={cn("border-border bg-card overflow-hidden shadow-lg", className)}>
+      <CardHeader className="py-2 px-3">
+        <CardTitle className="flex items-center gap-2 text-sm text-foreground">
+          <Video className="h-4 w-4 text-primary" />
           Video Playback
         </CardTitle>
-        <CardDescription>
-          Watch your recorded interview video
-        </CardDescription>
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="p-6 pt-0 space-y-4">
-          {/* Loading State */}
-          {isLoading && !videoUrl && (
-            <div className="flex items-center justify-center py-20 bg-muted/30 rounded-lg border border-border">
+      <CardContent className="px-2 pb-2 pt-0">
+        {/* Loading State */}
+        {isLoading && !videoUrl && (
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/30 rounded-md border border-border">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-3 text-muted-foreground">Loading video...</span>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Error State */}
-          {error && !isLoading && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
-              <div className="flex flex-col items-center gap-3">
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
+            <div className="absolute inset-0 rounded-md border border-destructive/30 bg-destructive/10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 text-center">
                 <AlertCircle className="h-8 w-8 text-destructive flex-shrink-0" />
                 <p className="text-sm text-foreground font-medium">{error}</p>
                 <Button
@@ -296,42 +295,35 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                 </Button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Video Player */}
-          {videoUrl && !error && (
-            <div className="space-y-4 flex flex-col items-center">
-              {/* Video element with native controls */}
-              <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-border">
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="absolute inset-0 w-full h-full object-contain"
-                />
-                
-                {/* Loading overlay during URL refresh */}
-                {isLoading && (
-                  <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span className="text-sm font-medium">Refreshing URL...</span>
-                    </div>
+        {/* Video Player */}
+        {videoUrl && !error && (
+          <>
+            {/* 16:9 aspect ratio container with min-height for larger video */}
+            <div className="relative w-full rounded-md overflow-hidden bg-black" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                controls
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 w-full h-full object-contain"
+              />
+              
+              {/* Loading overlay during URL refresh */}
+              {isLoading && (
+                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-sm font-medium">Refreshing URL...</span>
                   </div>
-                )}
-              </div>
-
-              {/* URL refresh indicator */}
-              {expiresAt && (
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                  Playback URL refreshes automatically
-                </p>
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -8,6 +8,7 @@ import type {
   CreateSessionInput,
   UpdateSessionInput,
   SessionMetadata,
+  AudioUploadMetadata,
 } from '@/types';
 
 /**
@@ -168,4 +169,55 @@ export async function deleteSession(
 
   revalidatePath('/dashboard');
   redirect('/dashboard');
+}
+
+/**
+ * Server Action: Update session with audio metadata after successful upload
+ * Called after client-side upload to Storage completes
+ */
+export async function updateSessionAudioMetadata(
+  sessionId: string,
+  metadata: AudioUploadMetadata
+): Promise<{ session: InterviewSession | null; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  // Validate that the session belongs to the current user
+  const { data: existingSession, error: fetchError } = await supabase
+    .from('sessions')
+    .select('id, user_id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (fetchError || !existingSession) {
+    return {
+      session: null,
+      error: 'Session not found or you do not have permission to update it.',
+    };
+  }
+
+  // Update the session with audio metadata and set status to 'recorded'
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      audio_storage_path: metadata.audio_storage_path,
+      audio_duration_seconds: metadata.audio_duration_seconds,
+      audio_mime_type: metadata.audio_mime_type,
+      audio_file_size_bytes: metadata.audio_file_size_bytes,
+      status: 'recorded',
+      recorded_at: new Date().toISOString(),
+    })
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) {
+    return { session: null, error: error.message };
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath(`/sessions/${sessionId}`);
+  return { session: data as InterviewSession, error: null };
 }

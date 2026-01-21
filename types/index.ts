@@ -16,7 +16,7 @@ export interface AuthSession {
 // Session (Interview) Types
 // ============================================
 
-export type SessionStatus = 'draft' | 'recording' | 'processing' | 'ready' | 'archived';
+export type SessionStatus = 'draft' | 'recording' | 'recorded' | 'processing' | 'ready' | 'archived';
 export type SessionType = 'mock_interview' | 'technical' | 'behavioral' | 'custom';
 
 export interface InterviewSession {
@@ -29,6 +29,11 @@ export interface InterviewSession {
   video_url: string | null;
   audio_url: string | null;
   thumbnail_url: string | null;
+  // Audio file metadata (populated after upload)
+  audio_storage_path: string | null;
+  audio_duration_seconds: number | null;
+  audio_mime_type: string | null;
+  audio_file_size_bytes: number | null;
   metadata: SessionMetadata;
   tags: string[];
   is_public: boolean;
@@ -54,6 +59,13 @@ export interface UpdateSessionInput {
   session_type?: SessionType;
   prompt?: string;
   status?: SessionStatus;
+}
+
+export interface AudioUploadMetadata {
+  audio_storage_path: string;
+  audio_duration_seconds: number;
+  audio_mime_type: string;
+  audio_file_size_bytes: number;
 }
 
 // ============================================

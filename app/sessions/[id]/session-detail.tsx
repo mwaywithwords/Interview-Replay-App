@@ -203,8 +203,14 @@ export function SessionDetail({ session }: SessionDetailProps) {
           {/* Audio Recorder Section */}
           <div className="mb-6">
             <AudioRecorder
+              sessionId={session.id}
+              userId={session.user_id}
               onRecordingComplete={(blob) => {
                 console.log('Audio recording complete:', blob.type, blob.size);
+              }}
+              onUploadComplete={(storagePath) => {
+                console.log('Audio uploaded to:', storagePath);
+                router.refresh();
               }}
             />
           </div>

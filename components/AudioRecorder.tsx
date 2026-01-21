@@ -9,12 +9,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Mic, Square, Pause, Play, Trash2 } from 'lucide-react';
+import { Mic, Square, Pause, Play, Trash2, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
+import { updateSessionAudioMetadata } from '@/app/actions/sessions';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
+type UploadState = 'idle' | 'uploading' | 'success' | 'error';
 
 interface AudioRecorderProps {
+  sessionId: string;
+  userId: string;
   onRecordingComplete?: (blob: Blob) => void;
+  onUploadComplete?: (storagePath: string) => void;
 }
 
 /**
@@ -48,17 +54,21 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
+export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUploadComplete }: AudioRecorderProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [finalDuration, setFinalDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const durationRef = useRef<number>(0);
 
   // Cleanup object URLs on unmount
   useEffect(() => {
@@ -82,7 +92,11 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
       clearInterval(timerIntervalRef.current);
     }
     timerIntervalRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
+      setElapsedSeconds((prev) => {
+        const newValue = prev + 1;
+        durationRef.current = newValue;
+        return newValue;
+      });
     }, 1000);
   }, []);
 
@@ -93,8 +107,78 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
     }
   }, []);
 
+  /**
+   * Upload audio to Supabase Storage and update session metadata
+   */
+  const handleUpload = useCallback(async (blob: Blob, durationSeconds: number) => {
+    // Validate authentication
+    if (!userId) {
+      setUploadError('You must be signed in to upload recordings. Please sign in and try again.');
+      setUploadState('error');
+      return;
+    }
+
+    if (!sessionId) {
+      setUploadError('No session ID provided. Please create a session first.');
+      setUploadState('error');
+      return;
+    }
+
+    setUploadState('uploading');
+    setUploadError(null);
+
+    try {
+      // Upload to Supabase Storage
+      const { path, error: uploadErr } = await uploadReplayFromClient(
+        userId,
+        sessionId,
+        blob,
+        'audio.webm'
+      );
+
+      if (uploadErr) {
+        // Handle specific Supabase storage errors
+        const errorMessage = uploadErr.message.toLowerCase();
+        if (errorMessage.includes('not authenticated') || errorMessage.includes('jwt')) {
+          setUploadError('Your session has expired. Please sign in again to upload.');
+        } else if (errorMessage.includes('policy')) {
+          setUploadError('You do not have permission to upload to this location.');
+        } else if (errorMessage.includes('size')) {
+          setUploadError('The audio file is too large. Maximum size is 50MB.');
+        } else {
+          setUploadError(`Upload failed: ${uploadErr.message}`);
+        }
+        setUploadState('error');
+        return;
+      }
+
+      // Update session with audio metadata via server action
+      const { error: metadataErr } = await updateSessionAudioMetadata(sessionId, {
+        audio_storage_path: path,
+        audio_duration_seconds: durationSeconds,
+        audio_mime_type: blob.type || 'audio/webm',
+        audio_file_size_bytes: blob.size,
+      });
+
+      if (metadataErr) {
+        setUploadError(`Failed to save recording metadata: ${metadataErr}`);
+        setUploadState('error');
+        return;
+      }
+
+      setUploadState('success');
+      onUploadComplete?.(path);
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError('An unexpected error occurred during upload. Please try again.');
+      setUploadState('error');
+    }
+  }, [userId, sessionId, onUploadComplete]);
+
   const handleStart = useCallback(async () => {
     setError(null);
+    setUploadError(null);
+    setUploadState('idle');
 
     // Revoke previous audio URL if exists
     if (audioUrl) {
@@ -102,6 +186,8 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
       setAudioUrl(null);
     }
     setAudioBlob(null);
+    setFinalDuration(0);
+    durationRef.current = 0;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,6 +207,10 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
       };
 
       mediaRecorder.onstop = () => {
+        // Capture final duration before any state resets
+        const recordedDuration = durationRef.current;
+        setFinalDuration(recordedDuration);
+
         // Determine the actual MIME type used
         const actualMimeType =
           mediaRecorder.mimeType || mimeType || 'audio/webm';
@@ -138,6 +228,9 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
         // Stop all tracks
         stream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
+
+        // Automatically start upload
+        handleUpload(blob, recordedDuration);
       };
 
       mediaRecorder.onerror = () => {
@@ -164,7 +257,7 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
         setError('Failed to start recording');
       }
     }
-  }, [audioUrl, onRecordingComplete, startTimer, stopTimer]);
+  }, [audioUrl, onRecordingComplete, startTimer, stopTimer, handleUpload]);
 
   const handlePause = useCallback(() => {
     if (
@@ -207,14 +300,31 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
     setAudioUrl(null);
     setAudioBlob(null);
     setElapsedSeconds(0);
+    setFinalDuration(0);
+    durationRef.current = 0;
     setRecordingState('idle');
+    setUploadState('idle');
     setError(null);
+    setUploadError(null);
   }, [audioUrl]);
+
+  /**
+   * Retry upload for failed uploads
+   */
+  const handleRetryUpload = useCallback(() => {
+    if (audioBlob && finalDuration > 0) {
+      handleUpload(audioBlob, finalDuration);
+    }
+  }, [audioBlob, finalDuration, handleUpload]);
 
   const isIdle = recordingState === 'idle';
   const isRecording = recordingState === 'recording';
   const isPaused = recordingState === 'paused';
   const isStopped = recordingState === 'stopped';
+
+  const isUploading = uploadState === 'uploading';
+  const isUploadSuccess = uploadState === 'success';
+  const isUploadError = uploadState === 'error';
 
   return (
     <Card className="border-slate-700 bg-slate-800/50">
@@ -256,7 +366,7 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
           </div>
         )}
 
-        {/* Error Display */}
+        {/* Recording Error Display */}
         {error && (
           <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 space-y-3">
             <p className="text-sm text-red-300 font-medium">{error}</p>
@@ -283,6 +393,52 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
                 </Button>
               </>
             )}
+          </div>
+        )}
+
+        {/* Upload Status Display */}
+        {isUploading && (
+          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-4">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 text-cyan-400 animate-spin" />
+              <div>
+                <p className="text-sm text-cyan-300 font-medium">Uploading recording...</p>
+                <p className="text-xs text-cyan-400/70">Please wait while your audio is being saved</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isUploadSuccess && (
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-emerald-400" />
+              <div>
+                <p className="text-sm text-emerald-300 font-medium">Recording saved successfully!</p>
+                <p className="text-xs text-emerald-400/70">Your audio has been uploaded and session updated</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isUploadError && uploadError && (
+          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+              <div>
+                <p className="text-sm text-red-300 font-medium">Upload failed</p>
+                <p className="text-xs text-red-400/70">{uploadError}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRetryUpload}
+              className="border-red-500/30 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Retry Upload
+            </Button>
           </div>
         )}
 
@@ -344,16 +500,18 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
               <Button
                 onClick={handleReset}
                 variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                disabled={isUploading}
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
               >
                 <Mic className="mr-2 h-4 w-4" />
                 New Recording
               </Button>
-              {audioUrl && (
+              {audioUrl && !isUploadSuccess && (
                 <Button
                   onClick={handleReset}
                   variant="ghost"
-                  className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                  disabled={isUploading}
+                  className="text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

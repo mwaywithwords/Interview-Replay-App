@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
-import { getVideoPlaybackUrl } from '@/app/actions/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +38,7 @@ import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { VideoRecorder } from '@/components/VideoRecorder';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 interface SessionDetailProps {
   session: InterviewSession;
@@ -82,37 +82,12 @@ export function SessionDetail({ session }: SessionDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Remote video URL state
-  const [remoteVideoUrl, setRemoteVideoUrl] = useState<string | null>(null);
-  const [isLoadingVideoUrl, setIsLoadingVideoUrl] = useState(false);
-
   // Form state
   const [title, setTitle] = useState(session.title);
   const [sessionType, setSessionType] = useState<SessionType>(
     metadata?.session_type || 'mock_interview'
   );
   const [prompt, setPrompt] = useState(metadata?.prompt || '');
-
-  // Fetch signed video URL if session has video
-  useEffect(() => {
-    async function fetchVideoUrl() {
-      if (session.video_storage_path) {
-        setIsLoadingVideoUrl(true);
-        try {
-          const { url, error: urlError } = await getVideoPlaybackUrl(session.id);
-          if (!urlError && url) {
-            setRemoteVideoUrl(url);
-          }
-        } catch (err) {
-          console.error('Failed to fetch video URL:', err);
-        } finally {
-          setIsLoadingVideoUrl(false);
-        }
-      }
-    }
-
-    fetchVideoUrl();
-  }, [session.id, session.video_storage_path]);
 
   function handleCancelEdit() {
     setTitle(session.title);
@@ -255,19 +230,21 @@ export function SessionDetail({ session }: SessionDetailProps) {
             <VideoRecorder
               sessionId={session.id}
               userId={session.user_id}
-              remoteVideoUrl={remoteVideoUrl}
               onRecordingComplete={(blob) => {
                 console.log('Video recording complete:', blob.type, blob.size);
               }}
-              onUploadComplete={async (storagePath) => {
+              onUploadComplete={(storagePath) => {
                 console.log('Video uploaded to:', storagePath);
-                // Fetch new signed URL for the uploaded video
-                const { url } = await getVideoPlaybackUrl(session.id);
-                if (url) {
-                  setRemoteVideoUrl(url);
-                }
                 router.refresh();
               }}
+            />
+          </div>
+
+          {/* Video Player Section - for playback of recorded video */}
+          <div className="mb-6">
+            <VideoPlayer
+              sessionId={session.id}
+              hasVideo={!!session.video_storage_path}
             />
           </div>
 

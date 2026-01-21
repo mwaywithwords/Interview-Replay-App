@@ -13,6 +13,7 @@ import type {
   InterviewSessionWithGroupings,
   Company,
   Symbol,
+  RecordingType,
 } from '@/types';
 
 /**
@@ -362,6 +363,33 @@ export async function deleteSession(
 }
 
 /**
+ * Server Action: Get session recording_type
+ * Used by recorders to validate before upload
+ */
+export async function getSessionRecordingType(
+  sessionId: string
+): Promise<{ recording_type: RecordingType | null; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('recording_type')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error || !data) {
+    return {
+      recording_type: null,
+      error: 'Session not found or you do not have permission to access it.',
+    };
+  }
+
+  return { recording_type: data.recording_type as RecordingType | null, error: null };
+}
+
+/**
  * Server Action: Update session with audio metadata after successful upload
  * Called after client-side upload to Storage completes
  */
@@ -372,10 +400,10 @@ export async function updateSessionAudioMetadata(
   const user = await requireUser();
   const supabase = await createClient();
 
-  // Validate that the session belongs to the current user
+  // Validate that the session belongs to the current user and recording_type is audio
   const { data: existingSession, error: fetchError } = await supabase
     .from('sessions')
-    .select('id, user_id, status')
+    .select('id, user_id, status, recording_type')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .single();
@@ -384,6 +412,14 @@ export async function updateSessionAudioMetadata(
     return {
       session: null,
       error: 'Session not found or you do not have permission to update it.',
+    };
+  }
+
+  // Validate recording_type is audio
+  if (existingSession.recording_type !== 'audio') {
+    return {
+      session: null,
+      error: `Cannot upload audio: session recording_type is '${existingSession.recording_type}', expected 'audio'.`,
     };
   }
 
@@ -433,10 +469,10 @@ export async function updateSessionVideoMetadata(
   const user = await requireUser();
   const supabase = await createClient();
 
-  // Validate that the session belongs to the current user
+  // Validate that the session belongs to the current user and recording_type is video
   const { data: existingSession, error: fetchError } = await supabase
     .from('sessions')
-    .select('id, user_id, status')
+    .select('id, user_id, status, recording_type')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .single();
@@ -445,6 +481,14 @@ export async function updateSessionVideoMetadata(
     return {
       session: null,
       error: 'Session not found or you do not have permission to update it.',
+    };
+  }
+
+  // Validate recording_type is video
+  if (existingSession.recording_type !== 'video') {
+    return {
+      session: null,
+      error: `Cannot upload video: session recording_type is '${existingSession.recording_type}', expected 'video'.`,
     };
   }
 

@@ -22,7 +22,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
-import { updateSessionVideoMetadata } from '@/app/actions/sessions';
+import { updateSessionVideoMetadata, getSessionRecordingType } from '@/app/actions/sessions';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -169,7 +169,22 @@ export function VideoRecorder({
       setUploadError(null);
 
       try {
-        // Upload to Supabase Storage
+        // Validate session recording_type is video
+        const { recording_type, error: typeError } = await getSessionRecordingType(sessionId);
+        
+        if (typeError) {
+          setUploadError(`Failed to validate session: ${typeError}`);
+          setUploadState('error');
+          return;
+        }
+
+        if (recording_type !== 'video') {
+          setUploadError(`Cannot upload video: this session is configured for '${recording_type || 'unknown'}' recordings.`);
+          setUploadState('error');
+          return;
+        }
+
+        // Upload to Supabase Storage with correct filename
         const { path, error: uploadErr } = await uploadReplayFromClient(
           userId,
           sessionId,

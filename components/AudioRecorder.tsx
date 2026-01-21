@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Mic, Square, Pause, Play, Trash2, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
-import { updateSessionAudioMetadata } from '@/app/actions/sessions';
+import { updateSessionAudioMetadata, getSessionRecordingType } from '@/app/actions/sessions';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -128,7 +128,22 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
     setUploadError(null);
 
     try {
-      // Upload to Supabase Storage
+      // Validate session recording_type is audio
+      const { recording_type, error: typeError } = await getSessionRecordingType(sessionId);
+      
+      if (typeError) {
+        setUploadError(`Failed to validate session: ${typeError}`);
+        setUploadState('error');
+        return;
+      }
+
+      if (recording_type !== 'audio') {
+        setUploadError(`Cannot upload audio: this session is configured for '${recording_type || 'unknown'}' recordings.`);
+        setUploadState('error');
+        return;
+      }
+
+      // Upload to Supabase Storage with correct filename
       const { path, error: uploadErr } = await uploadReplayFromClient(
         userId,
         sessionId,

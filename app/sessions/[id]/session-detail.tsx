@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { AudioPlayer } from '@/components/AudioPlayer';
+import { VideoRecorder } from '@/components/VideoRecorder';
+import { AudioRecorder } from '@/components/AudioRecorder';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +58,12 @@ export function SessionDetail({ session }: SessionDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Determine which recorder/player to show based on recording_type
+  const isAudioSession = session.recording_type === 'audio';
+  const isVideoSession = session.recording_type === 'video';
+  const hasAudioRecording = isAudioSession && session.audio_storage_path !== null;
+  const hasVideoRecording = isVideoSession && session.video_storage_path !== null;
 
   // Form state
   const [title, setTitle] = useState(session.title);
@@ -221,12 +230,45 @@ export function SessionDetail({ session }: SessionDetailProps) {
       <div className="grid lg:grid-cols-[1fr_400px] gap-8">
         {/* Left Column */}
         <div className="space-y-8">
-          {/* Video Player Section */}
+          {/* Recording/Playback Section */}
           <SectionCard className="p-0 border-none bg-transparent shadow-none">
-            <VideoPlayer
-              sessionId={session.id}
-              hasVideo={session.recording_type === 'video'}
-            />
+            {isAudioSession && !hasAudioRecording && (
+              <AudioRecorder
+                sessionId={session.id}
+                userId={session.user_id}
+                onUploadComplete={() => {
+                  // Refresh the page to show the audio player after upload
+                  router.refresh();
+                }}
+              />
+            )}
+            {isAudioSession && hasAudioRecording && (
+              <AudioPlayer
+                sessionId={session.id}
+                hasAudio={true}
+              />
+            )}
+            {isVideoSession && !hasVideoRecording && (
+              <VideoRecorder
+                sessionId={session.id}
+                userId={session.user_id}
+                onUploadComplete={() => {
+                  // Refresh the page to show the video player after upload
+                  router.refresh();
+                }}
+              />
+            )}
+            {isVideoSession && hasVideoRecording && (
+              <VideoPlayer
+                sessionId={session.id}
+                hasVideo={true}
+              />
+            )}
+            {!isAudioSession && !isVideoSession && (
+              <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-8 text-center">
+                <p className="text-slate-400">No recording type configured for this session.</p>
+              </div>
+            )}
           </SectionCard>
 
           {/* Transcript Section */}

@@ -59,9 +59,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     video_mime_type TEXT,
     video_file_size_bytes BIGINT,
     -- Constraint: Only one storage path can be set at a time
+    -- Allows recording_type to be set even when storage paths are NULL (for draft sessions)
     CONSTRAINT check_single_recording CHECK (
-        (recording_type = 'audio' AND audio_storage_path IS NOT NULL AND video_storage_path IS NULL) OR
-        (recording_type = 'video' AND video_storage_path IS NOT NULL AND audio_storage_path IS NULL) OR
+        (recording_type = 'audio' AND video_storage_path IS NULL) OR
+        (recording_type = 'video' AND audio_storage_path IS NULL) OR
         (recording_type IS NULL AND audio_storage_path IS NULL AND video_storage_path IS NULL)
     ),
     metadata JSONB DEFAULT '{}',

@@ -468,6 +468,99 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
     EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================
--- DONE! All tables, indexes, triggers, and
--- RLS policies have been created.
+-- 8. STORAGE BUCKET AND POLICIES
+-- ============================================
+-- Create a private storage bucket for replay recordings
+-- NOTE: Bucket creation must be done via Supabase Dashboard or API
+-- The SQL below creates the RLS policies for the bucket
+
+-- First, create the bucket (run this via Supabase Dashboard SQL Editor)
+-- The bucket is PRIVATE by default (public = false)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'replays',
+    'replays',
+    FALSE,  -- PRIVATE bucket - no public access
+    52428800,  -- 50MB file size limit
+    ARRAY['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav']::text[]
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = FALSE,
+    file_size_limit = 52428800,
+    allowed_mime_types = ARRAY['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav']::text[];
+
+-- --------------------------------------------
+-- Storage Policy: Authenticated users can upload to their own folder
+-- Path pattern: {user_id}/{session_id}/audio.webm
+-- --------------------------------------------
+
+-- Policy: Users can upload files to their own user_id folder
+CREATE POLICY "Users can upload to own folder"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    bucket_id = 'replays'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy: Users can update/overwrite their own files
+CREATE POLICY "Users can update own files"
+ON storage.objects
+FOR UPDATE
+TO authenticated
+USING (
+    bucket_id = 'replays'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+)
+WITH CHECK (
+    bucket_id = 'replays'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy: Users can read/select their own files
+CREATE POLICY "Users can read own files"
+ON storage.objects
+FOR SELECT
+TO authenticated
+USING (
+    bucket_id = 'replays'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Policy: Users can delete their own files
+CREATE POLICY "Users can delete own files"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+    bucket_id = 'replays'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- --------------------------------------------
+-- Optional: Additional policy to validate session ownership
+-- This ensures users can only upload to sessions they own
+-- Uncomment if you want stricter validation
+-- --------------------------------------------
+
+-- DROP POLICY IF EXISTS "Users can upload to own folder" ON storage.objects;
+-- 
+-- CREATE POLICY "Users can upload to own sessions"
+-- ON storage.objects
+-- FOR INSERT
+-- TO authenticated
+-- WITH CHECK (
+--     bucket_id = 'replays'
+--     AND (storage.foldername(name))[1] = auth.uid()::text
+--     AND EXISTS (
+--         SELECT 1 FROM sessions
+--         WHERE sessions.id::text = (storage.foldername(name))[2]
+--         AND sessions.user_id = auth.uid()
+--     )
+-- );
+
+-- ============================================
+-- DONE! All tables, indexes, triggers, storage
+-- bucket, and RLS policies have been created.
 -- ============================================

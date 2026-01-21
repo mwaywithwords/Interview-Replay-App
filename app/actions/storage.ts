@@ -34,7 +34,7 @@ export async function getReplayPlaybackUrl(sessionId: string) {
  * - Only generates signed URL if audio_storage_path exists
  * 
  * @param sessionId - The session ID to get audio for
- * @returns Signed URL with 60 second expiration, or error
+ * @returns Signed URL with 1800 second (30 minutes) expiration, or error
  */
 export async function createSignedAudioUrl(sessionId: string): Promise<{
   url: string | null;
@@ -66,8 +66,8 @@ export async function createSignedAudioUrl(sessionId: string): Promise<{
     return { url: null, expiresAt: null, error: 'No audio recording found for this session' };
   }
 
-  // Generate signed URL with 60 second expiration
-  const expiresIn = 60; // 60 seconds
+  // Generate signed URL with 1800 second (30 minutes) expiration
+  const expiresIn = 1800; // 30 minutes
   const { data, error: signedUrlError } = await supabase.storage
     .from('replays')
     .createSignedUrl(session.audio_storage_path, expiresIn);

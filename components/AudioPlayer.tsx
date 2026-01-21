@@ -37,11 +37,10 @@ function formatTime(seconds: number): string {
 
 /**
  * AudioPlayer component for playing audio from private Supabase Storage buckets.
- * Uses signed URLs with automatic refresh before expiration.
+ * Uses signed URLs with 30-minute expiration. No auto-refresh logic.
  */
 export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -50,7 +49,6 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
   const [isMuted, setIsMuted] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Fetch a new signed URL from the server
@@ -65,49 +63,25 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
       const result = await createSignedAudioUrl(sessionId);
 
       if (result.error) {
-        setError(result.error);
-        setAudioUrl(null);
-        setExpiresAt(null);
+        // Check if error is due to missing audio_storage_path
+        if (result.error.includes('No audio recording found')) {
+          setError(null); // Don't show error, will show empty state instead
+          setAudioUrl(null);
+        } else {
+          setError(result.error);
+          setAudioUrl(null);
+        }
         return;
       }
 
       setAudioUrl(result.url);
-      setExpiresAt(result.expiresAt);
     } catch (err) {
       console.error('Failed to fetch signed URL:', err);
       setError('Failed to load audio. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, hasAudio]);
-
-  /**
-   * Schedule URL refresh before expiration
-   * Refresh 10 seconds before expiration to ensure seamless playback
-   */
-  const scheduleRefresh = useCallback(() => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
-
-    if (!expiresAt) return;
-
-    // Calculate time until expiration (refresh 10 seconds early)
-    const timeUntilExpiration = expiresAt - Date.now() - 10000;
-
-    if (timeUntilExpiration <= 0) {
-      // URL already expired or about to expire, refresh immediately
-      fetchSignedUrl();
-      return;
-    }
-
-    refreshTimeoutRef.current = setTimeout(() => {
-      // Only refresh if audio is playing or paused (not idle)
-      if (audioRef.current && !audioRef.current.paused) {
-        fetchSignedUrl();
-      }
-    }, timeUntilExpiration);
-  }, [expiresAt, fetchSignedUrl]);
+  }, [hasAudio, sessionId]);
 
   // Fetch signed URL on mount if hasAudio is true
   useEffect(() => {
@@ -115,17 +89,6 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
       fetchSignedUrl();
     }
   }, [hasAudio, fetchSignedUrl]);
-
-  // Schedule refresh when expiresAt changes
-  useEffect(() => {
-    scheduleRefresh();
-
-    return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
-    };
-  }, [scheduleRefresh]);
 
   // Audio event handlers
   useEffect(() => {
@@ -154,13 +117,7 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
     };
 
     const handleError = () => {
-      // Check if URL might have expired
-      if (expiresAt && Date.now() >= expiresAt) {
-        setError('Playback URL expired. Refreshing...');
-        fetchSignedUrl();
-      } else {
-        setError('Failed to load audio. Please try again.');
-      }
+      setError('Failed to load audio. Please try again.');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -178,7 +135,7 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, [expiresAt, fetchSignedUrl]);
+  }, []);
 
   const toggleMute = () => {
     if (audioRef.current) {
@@ -195,8 +152,8 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
     }
   };
 
-  // Empty state: No audio recording exists
-  if (!hasAudio) {
+  // Empty state: No audio recording exists or missing audio_storage_path
+  if (!hasAudio || (!isLoading && !audioUrl && !error)) {
     return (
       <Card className={`border-slate-700 bg-slate-800/50 ${className || ''}`}>
         <CardHeader>
@@ -357,13 +314,6 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
                 )}
               </Button>
             </div>
-
-            {/* URL expiration indicator (for debugging, can be removed in production) */}
-            {expiresAt && (
-              <p className="text-xs text-slate-500 text-center">
-                Playback URL refreshes automatically
-              </p>
-            )}
           </div>
         )}
       </CardContent>

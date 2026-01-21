@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
 import { AudioRecorder } from '@/components/AudioRecorder';
+import { VideoRecorder } from '@/components/VideoRecorder';
 
 interface SessionDetailProps {
   session: InterviewSession;
@@ -203,7 +204,16 @@ export function SessionDetail({ session }: SessionDetailProps) {
           <div className="mb-6">
             <AudioRecorder
               onRecordingComplete={(blob) => {
-                console.log('Recording complete:', blob.type, blob.size);
+                console.log('Audio recording complete:', blob.type, blob.size);
+              }}
+            />
+          </div>
+
+          {/* Video Recorder Section */}
+          <div className="mb-6">
+            <VideoRecorder
+              onRecordingComplete={(blob) => {
+                console.log('Video recording complete:', blob.type, blob.size);
               }}
             />
           </div>

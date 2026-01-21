@@ -18,6 +18,9 @@ import {
   AlertCircle,
   RefreshCw,
   VideoOff,
+  SkipBack,
+  SkipForward,
+  Gauge,
 } from 'lucide-react';
 
 /**
@@ -73,11 +76,15 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef<boolean>(false);
   const currentTimeRef = useRef<number>(0);
+
+  // Available playback speeds
+  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -230,6 +237,30 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
     };
   }, [expiresAt, fetchSignedUrl]);
 
+  const handleSpeedChange = (speed: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+      setPlaybackSpeed(speed);
+    }
+  };
+
+  const skipBackward = () => {
+    if (videoRef.current) {
+      const newTime = Math.max(0, videoRef.current.currentTime - 10);
+      videoRef.current.currentTime = newTime;
+    }
+  };
+
+  const skipForward = () => {
+    if (videoRef.current) {
+      const newTime = Math.min(
+        videoRef.current.duration || Infinity,
+        videoRef.current.currentTime + 10
+      );
+      videoRef.current.currentTime = newTime;
+    }
+  };
+
   // Empty state: No video recording exists
   if (!hasVideo) {
     return (
@@ -321,6 +352,57 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Custom Controls */}
+            <div className="flex flex-col gap-3 pt-3 px-1">
+              {/* Skip Controls */}
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={skipBackward}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Skip backward 10s"
+                >
+                  <SkipBack className="h-4 w-4 mr-1" />
+                  10s
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={skipForward}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Skip forward 10s"
+                >
+                  10s
+                  <SkipForward className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              {/* Speed Control */}
+              <div className="flex items-center justify-center gap-2">
+                <Gauge className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Speed:</span>
+                <div className="flex items-center gap-1">
+                  {speedOptions.map((speed) => (
+                    <Button
+                      key={speed}
+                      size="sm"
+                      variant={playbackSpeed === speed ? 'default' : 'ghost'}
+                      onClick={() => handleSpeedChange(speed)}
+                      className={cn(
+                        "h-7 px-2 text-xs font-medium",
+                        playbackSpeed === speed 
+                          ? "bg-primary text-primary-foreground" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {speed}x
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
           </>
         )}

@@ -19,6 +19,9 @@ import {
   AlertCircle,
   RefreshCw,
   Music,
+  SkipBack,
+  SkipForward,
+  Gauge,
 } from 'lucide-react';
 
 /**
@@ -87,8 +90,12 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Available playback speeds
+  const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -147,7 +154,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
     }
   }, [hasAudio, fetchSignedUrl]);
 
-  // Audio event handlers
+  // Audio event handlers - re-run when audioUrl changes since audio element only renders after URL is loaded
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -192,7 +199,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [audioUrl]);
 
   const toggleMute = () => {
     if (audioRef.current) {
@@ -206,6 +213,29 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setCurrentTime(time);
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed;
+      setPlaybackSpeed(speed);
+    }
+  };
+
+  const skipBackward = () => {
+    if (audioRef.current) {
+      const newTime = Math.max(0, audioRef.current.currentTime - 10);
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const skipForward = () => {
+    if (audioRef.current) {
+      const newTime = Math.min(duration, audioRef.current.currentTime + 10);
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
     }
   };
 
@@ -312,7 +342,19 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
             />
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-4 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-2">
+              {/* Skip backward button */}
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={skipBackward}
+                className="rounded-full text-muted-foreground hover:text-foreground"
+                aria-label="Skip backward 10 seconds"
+                title="Skip backward 10s"
+              >
+                <SkipBack className="h-5 w-5" />
+              </Button>
+
               {/* Play/Pause button */}
               <Button
                 size="lg"
@@ -353,6 +395,18 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                 )}
               </Button>
 
+              {/* Skip forward button */}
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={skipForward}
+                className="rounded-full text-muted-foreground hover:text-foreground"
+                aria-label="Skip forward 10 seconds"
+                title="Skip forward 10s"
+              >
+                <SkipForward className="h-5 w-5" />
+              </Button>
+
               {/* Mute button */}
               <Button
                 size="icon"
@@ -367,6 +421,30 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                   <Volume2 className="h-5 w-5" />
                 )}
               </Button>
+            </div>
+
+            {/* Speed Control */}
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Gauge className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Speed:</span>
+              <div className="flex items-center gap-1">
+                {speedOptions.map((speed) => (
+                  <Button
+                    key={speed}
+                    size="sm"
+                    variant={playbackSpeed === speed ? 'default' : 'ghost'}
+                    onClick={() => handleSpeedChange(speed)}
+                    className={cn(
+                      "h-7 px-2 text-xs font-medium",
+                      playbackSpeed === speed 
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {speed}x
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         )}

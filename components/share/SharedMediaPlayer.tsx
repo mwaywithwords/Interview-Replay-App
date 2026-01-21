@@ -19,6 +19,9 @@ import {
   RefreshCw,
   Music,
   Video,
+  SkipBack,
+  SkipForward,
+  Gauge,
 } from 'lucide-react';
 
 export interface MediaPlayerRef {
@@ -55,8 +58,12 @@ export const SharedMediaPlayer = forwardRef<MediaPlayerRef, SharedMediaPlayerPro
     const [duration, setDuration] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
+    const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
     const mediaRef = useRef<HTMLAudioElement | HTMLVideoElement>(null);
+
+    // Available playback speeds
+    const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
@@ -175,6 +182,29 @@ export const SharedMediaPlayer = forwardRef<MediaPlayerRef, SharedMediaPlayerPro
         } else {
           mediaRef.current.play();
         }
+      }
+    };
+
+    const handleSpeedChange = (speed: number) => {
+      if (mediaRef.current) {
+        mediaRef.current.playbackRate = speed;
+        setPlaybackSpeed(speed);
+      }
+    };
+
+    const skipBackward = () => {
+      if (mediaRef.current) {
+        const newTime = Math.max(0, mediaRef.current.currentTime - 10);
+        mediaRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
+      }
+    };
+
+    const skipForward = () => {
+      if (mediaRef.current) {
+        const newTime = Math.min(duration, mediaRef.current.currentTime + 10);
+        mediaRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
       }
     };
 
@@ -299,7 +329,19 @@ export const SharedMediaPlayer = forwardRef<MediaPlayerRef, SharedMediaPlayerPro
           />
 
           {/* Controls */}
-          <div className="flex items-center justify-center gap-4 pt-2">
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {/* Skip backward button */}
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={skipBackward}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+              aria-label="Skip backward 10 seconds"
+              title="Skip backward 10s"
+            >
+              <SkipBack className="h-5 w-5" />
+            </Button>
+
             {/* Play/Pause button */}
             <Button size="lg" onClick={togglePlayPause} className="rounded-full px-8 shadow-md">
               {isPlaying ? (
@@ -320,6 +362,18 @@ export const SharedMediaPlayer = forwardRef<MediaPlayerRef, SharedMediaPlayerPro
               )}
             </Button>
 
+            {/* Skip forward button */}
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={skipForward}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+              aria-label="Skip forward 10 seconds"
+              title="Skip forward 10s"
+            >
+              <SkipForward className="h-5 w-5" />
+            </Button>
+
             {/* Mute button */}
             <Button
               size="icon"
@@ -330,6 +384,30 @@ export const SharedMediaPlayer = forwardRef<MediaPlayerRef, SharedMediaPlayerPro
             >
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
+          </div>
+
+          {/* Speed Control */}
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Speed:</span>
+            <div className="flex items-center gap-1">
+              {speedOptions.map((speed) => (
+                <Button
+                  key={speed}
+                  size="sm"
+                  variant={playbackSpeed === speed ? 'default' : 'ghost'}
+                  onClick={() => handleSpeedChange(speed)}
+                  className={cn(
+                    "h-7 px-2 text-xs font-medium",
+                    playbackSpeed === speed 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {speed}x
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

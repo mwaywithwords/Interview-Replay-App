@@ -115,3 +115,89 @@ export interface ReplayFile {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ============================================
+// Grouping Entities Types
+// ============================================
+
+// --------------------------------------------
+// Company: For organizing interview sessions
+// --------------------------------------------
+export interface Company {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface CreateCompanyInput {
+  name: string;
+}
+
+export interface UpdateCompanyInput {
+  name?: string;
+}
+
+// --------------------------------------------
+// Symbol: For organizing trading sessions
+// --------------------------------------------
+export interface Symbol {
+  id: string;
+  user_id: string;
+  ticker: string;
+  created_at: string;
+}
+
+export interface CreateSymbolInput {
+  ticker: string;
+}
+
+export interface UpdateSymbolInput {
+  ticker?: string;
+}
+
+// --------------------------------------------
+// Session-Company Association
+// --------------------------------------------
+export interface SessionCompany {
+  id: string;
+  user_id: string;
+  session_id: string;
+  company_id: string;
+  created_at: string;
+}
+
+export interface SessionCompanyWithCompany extends SessionCompany {
+  company: Company;
+}
+
+export interface InterviewSessionWithCompanies extends InterviewSession {
+  companies: Company[];
+}
+
+// --------------------------------------------
+// Session-Symbol Association
+// --------------------------------------------
+export interface SessionSymbol {
+  id: string;
+  user_id: string;
+  session_id: string;
+  symbol_id: string;
+  created_at: string;
+}
+
+export interface SessionSymbolWithSymbol extends SessionSymbol {
+  symbol: Symbol;
+}
+
+export interface InterviewSessionWithSymbols extends InterviewSession {
+  symbols: Symbol[];
+}
+
+// --------------------------------------------
+// Combined session with both companies and symbols
+// --------------------------------------------
+export interface InterviewSessionWithGroupings extends InterviewSession {
+  companies?: Company[];
+  symbols?: Symbol[];
+}

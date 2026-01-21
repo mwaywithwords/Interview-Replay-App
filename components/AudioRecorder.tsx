@@ -342,23 +342,26 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
   const isUploadError = uploadState === 'error';
 
   return (
-    <Card className="border-slate-700 bg-slate-800/50">
+    <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-lg text-white">Audio Recorder</CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardTitle className="text-lg text-foreground flex items-center gap-2">
+          <Mic className="h-5 w-5 text-muted-foreground" />
+          Audio Recorder
+        </CardTitle>
+        <CardDescription>
           Record audio for your interview session
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Timer Display */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center py-6">
           <div
-            className={`text-4xl font-mono font-bold ${
+            className={`text-6xl font-mono font-bold tracking-tighter ${
               isPaused
-                ? 'text-amber-400'
+                ? 'text-amber-500'
                 : isRecording
-                  ? 'text-red-400'
-                  : 'text-slate-300'
+                  ? 'text-destructive animate-pulse'
+                  : 'text-muted-foreground'
             }`}
           >
             {formatTime(elapsedSeconds)}
@@ -369,25 +372,25 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
         {(isRecording || isPaused) && (
           <div className="flex items-center justify-center gap-2">
             <div
-              className={`h-3 w-3 rounded-full ${
+              className={`h-2.5 w-2.5 rounded-full ${
                 isPaused
-                  ? 'bg-amber-400'
-                  : 'bg-red-500 animate-pulse'
+                  ? 'bg-amber-500'
+                  : 'bg-destructive animate-pulse'
               }`}
             />
-            <span className="text-sm text-slate-400">
-              {isPaused ? 'Paused' : 'Recording'}
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              {isPaused ? 'Paused' : 'Recording Live'}
             </span>
           </div>
         )}
 
         {/* Recording Error Display */}
         {error && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 space-y-3">
-            <p className="text-sm text-red-300 font-medium">{error}</p>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
+            <p className="text-sm text-destructive font-medium">{error}</p>
             {error.includes('denied') && (
               <>
-                <div className="text-xs text-red-300/80 space-y-1">
+                <div className="text-xs text-destructive/80 space-y-1">
                   <p>To allow microphone access:</p>
                   <ol className="list-decimal list-inside space-y-0.5 ml-1">
                     <li>Click the lock/site icon in your browser&apos;s address bar</li>
@@ -402,7 +405,6 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
                     setError(null);
                     handleStart();
                   }}
-                  className="border-red-500/30 text-red-300 hover:bg-red-500/20 hover:text-red-200"
                 >
                   Try Again
                 </Button>
@@ -413,43 +415,42 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
 
         {/* Upload Status Display */}
         {isUploading && (
-          <div className="rounded-md border border-cyan-500/30 bg-cyan-500/10 p-4">
+          <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
             <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 text-cyan-400 animate-spin" />
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
               <div>
-                <p className="text-sm text-cyan-300 font-medium">Uploading recording...</p>
-                <p className="text-xs text-cyan-400/70">Please wait while your audio is being saved</p>
+                <p className="text-sm text-primary font-medium">Uploading recording...</p>
+                <p className="text-xs text-muted-foreground">Please wait while your audio is being saved</p>
               </div>
             </div>
           </div>
         )}
 
         {isUploadSuccess && (
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4">
+          <div className="rounded-lg border border-success/30 bg-success/10 p-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-emerald-400" />
+              <CheckCircle className="h-5 w-5 text-success" />
               <div>
-                <p className="text-sm text-emerald-300 font-medium">Recording saved successfully!</p>
-                <p className="text-xs text-emerald-400/70">Your audio has been uploaded and session updated</p>
+                <p className="text-sm text-success font-medium">Recording saved successfully!</p>
+                <p className="text-xs text-muted-foreground">Your audio has been uploaded and session updated</p>
               </div>
             </div>
           </div>
         )}
 
         {isUploadError && uploadError && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 space-y-3">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-red-400" />
+              <AlertCircle className="h-5 w-5 text-destructive" />
               <div>
-                <p className="text-sm text-red-300 font-medium">Upload failed</p>
-                <p className="text-xs text-red-400/70">{uploadError}</p>
+                <p className="text-sm text-destructive font-medium">Upload failed</p>
+                <p className="text-xs text-destructive/70">{uploadError}</p>
               </div>
             </div>
             <Button
               size="sm"
               variant="outline"
               onClick={handleRetryUpload}
-              className="border-red-500/30 text-red-300 hover:bg-red-500/20 hover:text-red-200"
             >
               <Upload className="mr-2 h-4 w-4" />
               Retry Upload
@@ -462,7 +463,8 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
           {isIdle && (
             <Button
               onClick={handleStart}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="rounded-full px-8 shadow-lg shadow-destructive/20"
+              variant="destructive"
             >
               <Mic className="mr-2 h-4 w-4" />
               Start Recording
@@ -474,15 +476,15 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
               <Button
                 variant="outline"
                 onClick={handlePause}
-                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                className="rounded-full px-6 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
               >
                 <Pause className="mr-2 h-4 w-4" />
                 Pause
               </Button>
               <Button
-                variant="destructive"
+                variant="secondary"
                 onClick={handleStop}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="rounded-full px-6"
               >
                 <Square className="mr-2 h-4 w-4" />
                 Stop
@@ -494,15 +496,15 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
             <>
               <Button
                 onClick={handleResume}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="rounded-full px-6 bg-success hover:bg-success/90 text-success-foreground"
               >
                 <Play className="mr-2 h-4 w-4" />
                 Resume
               </Button>
               <Button
-                variant="destructive"
+                variant="secondary"
                 onClick={handleStop}
-                className="bg-slate-600 hover:bg-slate-700 text-white"
+                className="rounded-full px-6"
               >
                 <Square className="mr-2 h-4 w-4" />
                 Stop
@@ -516,7 +518,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
                 onClick={handleReset}
                 variant="outline"
                 disabled={isUploading}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+                className="rounded-full px-6"
               >
                 <Mic className="mr-2 h-4 w-4" />
                 New Recording
@@ -526,7 +528,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
                   onClick={handleReset}
                   variant="ghost"
                   disabled={isUploading}
-                  className="text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
+                  className="rounded-full px-6 text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -538,20 +540,21 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
 
         {/* Audio Playback */}
         {isStopped && audioUrl && (
-          <div className="space-y-2 pt-4 border-t border-slate-700">
-            <p className="text-sm text-slate-400">Playback your recording:</p>
+          <div className="space-y-4 pt-6 border-t border-border">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Review Recording</p>
+              {audioBlob && (
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  {(audioBlob.size / 1024).toFixed(1)} KB
+                </p>
+              )}
+            </div>
             <audio
               controls
               src={audioUrl}
-              className="w-full"
+              className="w-full h-10"
               aria-label="Recorded audio playback"
             />
-            {audioBlob && (
-              <p className="text-xs text-slate-500">
-                Format: {audioBlob.type || 'audio/webm'} | Size:{' '}
-                {(audioBlob.size / 1024).toFixed(1)} KB
-              </p>
-            )}
           </div>
         )}
       </CardContent>

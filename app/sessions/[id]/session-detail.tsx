@@ -159,13 +159,13 @@ export function SessionDetail({ session }: SessionDetailProps) {
       <div className="mb-10">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-primary transition-colors mb-6 group"
+          className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors mb-6 group"
         >
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           Back to Sessions
         </Link>
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card/50 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-card p-6 rounded-2xl border border-border shadow-sm">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <StatusBadge status={session.status} />
@@ -303,12 +303,10 @@ export function SessionDetail({ session }: SessionDetailProps) {
               />
             )}
             {isAudioSession && hasAudioRecording && (
-              <div className="rounded-2xl overflow-hidden border border-border shadow-lg bg-card/50 p-2 backdrop-blur-sm">
-                <AudioPlayer
-                  sessionId={session.id}
-                  hasAudio={true}
-                />
-              </div>
+              <AudioPlayer
+                sessionId={session.id}
+                hasAudio={true}
+              />
             )}
             {isVideoSession && !hasVideoRecording && (
               <VideoRecorder
@@ -320,12 +318,10 @@ export function SessionDetail({ session }: SessionDetailProps) {
               />
             )}
             {isVideoSession && hasVideoRecording && (
-              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xl bg-slate-900 aspect-video flex items-center justify-center">
-                <VideoPlayer
-                  sessionId={session.id}
-                  hasVideo={true}
-                />
-              </div>
+              <VideoPlayer
+                sessionId={session.id}
+                hasVideo={true}
+              />
             )}
             {!isAudioSession && !isVideoSession && (
               <EmptyState
@@ -338,7 +334,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
 
           {/* Tabbed Content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-muted/50 p-1 rounded-xl w-full justify-start gap-1 h-12 border border-border/50 backdrop-blur-sm">
+            <TabsList className="bg-muted p-1 rounded-xl w-full justify-start gap-1 h-12 border border-border">
               <TabsTrigger 
                 value="transcript" 
                 active={activeTab === 'transcript'} 
@@ -366,7 +362,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
             </TabsList>
 
             <TabsContent value="transcript" active={activeTab === 'transcript'}>
-              <SectionCard title="Session Transcript" className="bg-card/50 backdrop-blur-sm border-border">
+              <SectionCard title="Session Transcript" className="bg-card border-border">
                 {isReady ? (
                   <div className="space-y-8 py-2">
                     <div className="group relative pl-6 border-l-2 border-border hover:border-primary/30 transition-colors">
@@ -427,7 +423,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
         {/* Right Column */}
         <div className="space-y-8">
           {/* Speech Analysis */}
-          <SectionCard title="Performance Metrics" className="bg-card/50 backdrop-blur-sm border-border">
+          <SectionCard title="Performance Metrics" className="bg-card border-border">
             <div className="space-y-8">
               <div className="group">
                 <div className="flex items-center justify-between mb-3">
@@ -466,7 +462,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
           {/* AI Feedback */}
           <SectionCard 
             title="AI Insights" 
-            className="bg-card/50 backdrop-blur-sm border-border"
+            className="bg-card border-border"
             headerActions={
               <button className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest transition-colors">
                 Full Report
@@ -474,7 +470,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
             }
           >
             <div className="space-y-4">
-              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 hover:border-border transition-all group">
+              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group">
                 <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
                   <Lightbulb className="w-4 h-4 text-amber-500" />
                 </div>
@@ -482,7 +478,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
                   Good explanation of <span className="text-foreground font-bold">product strategy</span> and how it aligns with user needs.
                 </p>
               </div>
-              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 hover:border-border transition-all group">
+              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group">
                 <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
                   <Activity className="w-4 h-4 text-blue-500" />
                 </div>
@@ -494,7 +490,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
           </SectionCard>
 
           {/* Key Moments */}
-          <SectionCard title="Jump to Moments" className="bg-card/50 backdrop-blur-sm border-border">
+          <SectionCard title="Jump to Moments" className="bg-card border-border">
             <div className="space-y-3">
               {[
                 { time: "03:10", label: "Strengths & Weaknesses", icon: MessageSquare },
@@ -506,7 +502,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-transparent hover:border-border hover:bg-muted/50 transition-all group text-left shadow-sm bg-muted/30"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors border border-border/50">
+                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors border border-border">
                       <moment.icon className="w-5 h-5" />
                     </div>
                     <div>
@@ -514,7 +510,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
                       <span className="text-sm font-bold text-foreground">{moment.label}</span>
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-border/50">
+                  <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-border">
                     <Play className="h-3 w-3 fill-current text-primary" />
                   </div>
                 </button>

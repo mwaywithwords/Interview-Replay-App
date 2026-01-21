@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Volume2,
   VolumeX,
@@ -155,23 +156,23 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
   // Empty state: No audio recording exists or missing audio_storage_path
   if (!hasAudio || (!isLoading && !audioUrl && !error)) {
     return (
-      <Card className={`border-slate-700 bg-slate-800/50 ${className || ''}`}>
+      <Card className={cn("border-border bg-card", className)}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg text-white">
-            <Volume2 className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+            <Volume2 className="h-5 w-5 text-muted-foreground" />
             Audio Playback
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription>
             Listen to your recorded interview audio
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="mb-4 rounded-full bg-slate-700/50 p-4">
-              <Music className="h-8 w-8 text-slate-500" />
+            <div className="mb-4 rounded-full bg-muted p-4">
+              <Music className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-slate-400 font-medium">No audio recording yet</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="text-foreground font-medium">No audio recording yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               Use the Audio Recorder above to create a recording for this session
             </p>
           </div>
@@ -181,13 +182,13 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
   }
 
   return (
-    <Card className={`border-slate-700 bg-slate-800/50 ${className || ''}`}>
+    <Card className={cn("border-border bg-card", className)}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-white">
-          <Volume2 className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+          <Volume2 className="h-5 w-5 text-muted-foreground" />
           Audio Playback
         </CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription>
           Listen to your recorded interview audio
         </CardDescription>
       </CardHeader>
@@ -195,24 +196,21 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-            <span className="ml-3 text-slate-400">Loading audio...</span>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-muted-foreground">Loading audio...</span>
           </div>
         )}
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-              <div className="flex-1">
-                <p className="text-sm text-red-300 font-medium">{error}</p>
-              </div>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <p className="text-sm text-foreground font-medium">{error}</p>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={fetchSignedUrl}
-                className="border-red-500/30 text-red-300 hover:bg-red-500/20 hover:text-red-200"
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Retry
@@ -228,7 +226,7 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
             <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
             {/* Time display */}
-            <div className="flex items-center justify-between text-sm text-slate-400">
+            <div className="flex items-center justify-between text-sm text-muted-foreground font-medium">
               <span className="font-mono">{formatTime(currentTime)}</span>
               <span className="font-mono">{formatTime(duration)}</span>
             </div>
@@ -240,25 +238,25 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
               max={duration || 0}
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
+              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer
                 [&::-webkit-slider-thumb]:appearance-none
                 [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:h-4
                 [&::-webkit-slider-thumb]:rounded-full
-                [&::-webkit-slider-thumb]:bg-emerald-400
+                [&::-webkit-slider-thumb]:bg-primary
                 [&::-webkit-slider-thumb]:cursor-pointer
                 [&::-webkit-slider-thumb]:shadow-lg
                 [&::-moz-range-thumb]:w-4
                 [&::-moz-range-thumb]:h-4
                 [&::-moz-range-thumb]:rounded-full
-                [&::-moz-range-thumb]:bg-emerald-400
+                [&::-moz-range-thumb]:bg-primary
                 [&::-moz-range-thumb]:cursor-pointer
                 [&::-moz-range-thumb]:border-0"
               aria-label="Audio progress"
             />
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-4 pt-2">
               {/* Play/Pause button */}
               <Button
                 size="lg"
@@ -271,7 +269,7 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
                     }
                   }
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
+                className="rounded-full px-8 shadow-md"
               >
                 {isPlaying ? (
                   <>
@@ -304,7 +302,7 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
                 size="icon"
                 variant="ghost"
                 onClick={toggleMute}
-                className="text-slate-400 hover:text-white hover:bg-slate-700"
+                className="rounded-full text-muted-foreground hover:text-foreground"
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? (

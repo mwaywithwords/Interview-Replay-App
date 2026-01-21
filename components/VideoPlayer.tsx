@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Video,
   Loader2,
@@ -183,23 +184,23 @@ export function VideoPlayer({ sessionId, hasVideo, className }: VideoPlayerProps
   // Empty state: No video recording exists
   if (!hasVideo) {
     return (
-      <Card className={`border-slate-700 bg-slate-800/50 ${className || ''}`}>
+      <Card className={cn("border-border bg-card", className)}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg text-white">
-            <Video className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+            <Video className="h-5 w-5 text-muted-foreground" />
             Video Playback
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription>
             Watch your recorded interview video
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 rounded-full bg-slate-700/50 p-6">
-              <VideoOff className="h-10 w-10 text-slate-500" />
+            <div className="mb-4 rounded-full bg-muted p-6">
+              <VideoOff className="h-10 w-10 text-muted-foreground" />
             </div>
-            <p className="text-slate-400 font-medium">No video recording yet</p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="text-foreground font-medium">No video recording yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
               Use the Video Recorder above to create a recording for this session
             </p>
           </div>
@@ -209,79 +210,79 @@ export function VideoPlayer({ sessionId, hasVideo, className }: VideoPlayerProps
   }
 
   return (
-    <Card className={`border-slate-700 bg-slate-800/50 ${className || ''}`}>
+    <Card className={cn("border-border bg-card overflow-hidden", className)}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-white">
-          <Video className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+          <Video className="h-5 w-5 text-muted-foreground" />
           Video Playback
         </CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription>
           Watch your recorded interview video
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Loading State */}
-        {isLoading && !videoUrl && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-            <span className="ml-3 text-slate-400">Loading video...</span>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !isLoading && (
-          <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-red-300 font-medium">{error}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fetchSignedUrl()}
-                className="border-red-500/30 text-red-300 hover:bg-red-500/20 hover:text-red-200"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Retry
-              </Button>
+      <CardContent className="p-0">
+        <div className="p-6 pt-0 space-y-4">
+          {/* Loading State */}
+          {isLoading && !videoUrl && (
+            <div className="flex items-center justify-center py-20 bg-muted/30 rounded-lg border border-border">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading video...</span>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Video Player */}
-        {videoUrl && !error && (
-          <div className="space-y-4">
-            {/* Video element with native controls */}
-            <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-              <video
-                ref={videoRef}
-                src={videoUrl}
-                controls
-                playsInline
-                preload="metadata"
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-              
-              {/* Loading overlay during URL refresh */}
-              {isLoading && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <div className="flex items-center gap-2 text-white">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Refreshing...</span>
+          {/* Error State */}
+          {error && !isLoading && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <AlertCircle className="h-8 w-8 text-destructive flex-shrink-0" />
+                <p className="text-sm text-foreground font-medium">{error}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetchSignedUrl()}
+                  className="mt-2"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Video Player */}
+          {videoUrl && !error && (
+            <div className="space-y-4 flex flex-col items-center">
+              {/* Video element with native controls */}
+              <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg border border-border">
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="absolute inset-0 w-full h-full object-contain"
+                />
+                
+                {/* Loading overlay during URL refresh */}
+                {isLoading && (
+                  <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                    <div className="flex items-center gap-2 text-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-sm font-medium">Refreshing URL...</span>
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
+
+              {/* URL refresh indicator */}
+              {expiresAt && (
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                  Playback URL refreshes automatically
+                </p>
               )}
             </div>
-
-            {/* URL refresh indicator */}
-            {expiresAt && (
-              <p className="text-xs text-slate-500 text-center">
-                Playback URL refreshes automatically
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

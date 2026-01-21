@@ -28,7 +28,6 @@ import {
   Calendar,
   ChevronRight,
   Play,
-  Plus,
   FileText,
   MessageSquare,
   Bookmark,
@@ -49,6 +48,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BookmarksList } from '@/components/sessions/BookmarksList';
+import { SessionNoteEditor } from '@/components/sessions/SessionNoteEditor';
 import { cn } from '@/lib/utils';
 
 interface SessionDetailProps {
@@ -401,17 +401,7 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
 
             <TabsContent value="notes" active={activeTab === 'notes'}>
               <SectionCard title="Personal Notes">
-                <EmptyState
-                  icon={FileText}
-                  title="No notes yet"
-                  description="Add your thoughts and reflections about this session here."
-                  action={
-                    <PrimaryButton variant="outline" size="sm" className="rounded-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Note
-                    </PrimaryButton>
-                  }
-                />
+                <SessionNoteEditor sessionId={session.id} />
               </SectionCard>
             </TabsContent>
 

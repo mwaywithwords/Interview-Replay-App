@@ -231,3 +231,38 @@ export interface UpdateBookmarkInput {
   label?: string;
   category?: string;
 }
+
+// ============================================
+// Session Note Types (single note per session)
+// ============================================
+
+export interface SessionNote {
+  id: string;
+  user_id: string;
+  session_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveSessionNoteInput {
+  session_id: string;
+  content: string;
+}
+
+// ============================================
+// Bookmark Note Types (multiple notes per bookmark)
+// ============================================
+
+export interface BookmarkNote {
+  id: string;
+  user_id: string;
+  bookmark_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface CreateBookmarkNoteInput {
+  bookmark_id: string;
+  content: string;
+}

@@ -14,6 +14,7 @@ Review your performance like game film. An all-in-one platform for professionals
 - [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
 - [Tailwind CSS v4](https://tailwindcss.com/) - Utility-first CSS framework
 - [shadcn/ui](https://ui.shadcn.com/) - Re-usable component library
+- [Supabase](https://supabase.com/) - Backend-as-a-Service (Auth, Database)
 - [ESLint](https://eslint.org/) - Code linting
 - [Prettier](https://prettier.io/) - Code formatting
 
@@ -21,6 +22,29 @@ Review your performance like game film. An all-in-one platform for professionals
 
 - Node.js 18.17 or later
 - npm, yarn, or pnpm
+
+## Environment Variables
+
+Create a `.env.local` file in the root of the project with the following variables:
+
+```bash
+# Supabase Configuration
+# Get these values from your Supabase project settings: https://app.supabase.com/project/_/settings/api
+
+# Your Supabase project URL
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+
+# Your Supabase anon/public key (safe to expose in browser)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### How to get your Supabase credentials:
+
+1. Go to [Supabase Dashboard](https://app.supabase.com/)
+2. Create a new project or select an existing one
+3. Navigate to **Project Settings** → **API**
+4. Copy the **Project URL** for `NEXT_PUBLIC_SUPABASE_URL`
+5. Copy the **anon public** key for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 ## Getting Started
 
@@ -37,13 +61,17 @@ Review your performance like game film. An all-in-one platform for professionals
    npm install
    ```
 
-3. **Run the development server**
+3. **Set up environment variables**
+
+   Copy the example above and create a `.env.local` file with your Supabase credentials.
+
+4. **Run the development server**
 
    ```bash
    npm run dev
    ```
 
-4. **Open in browser**
+5. **Open in browser**
 
    Navigate to [http://localhost:3000](http://localhost:3000)
 
@@ -65,19 +93,32 @@ Interview Replay App/
 │   ├── layout.tsx          # Root layout
 │   ├── page.tsx            # Landing page (/)
 │   ├── globals.css         # Global styles + Tailwind
+│   ├── auth/
+│   │   ├── signin/
+│   │   │   └── page.tsx    # Sign in page (/auth/signin)
+│   │   ├── signup/
+│   │   │   └── page.tsx    # Sign up page (/auth/signup)
+│   │   ├── callback/
+│   │   │   └── route.ts    # OAuth callback handler
+│   │   └── signout/
+│   │       └── route.ts    # Sign out handler
 │   └── dashboard/
-│       └── page.tsx        # Dashboard page (/dashboard)
+│       ├── page.tsx        # Protected dashboard (/dashboard)
+│       └── dashboard-features.tsx
 ├── components/
 │   └── ui/                 # shadcn/ui components
 │       ├── button.tsx
 │       └── card.tsx
 ├── lib/
-│   └── utils.ts            # Utility functions (cn helper)
+│   ├── utils.ts            # Utility functions (cn helper)
+│   └── supabase/
+│       ├── client.ts       # Browser Supabase client
+│       └── server.ts       # Server Supabase client + requireUser helper
+├── middleware.ts           # Supabase session refresh middleware
 ├── types/
 │   └── index.ts            # TypeScript type definitions
 ├── docs/                   # Documentation
 ├── public/                 # Static assets
-├── tailwind.config.ts      # Tailwind configuration
 ├── tsconfig.json           # TypeScript configuration
 └── package.json            # Project dependencies
 ```
@@ -87,17 +128,46 @@ Interview Replay App/
 | Route | Description |
 |-------|-------------|
 | `/` | Landing page with hero and feature overview |
+| `/auth/signin` | Sign in page |
+| `/auth/signup` | Sign up page |
+| `/auth/callback` | OAuth callback handler |
+| `/auth/signout` | Sign out handler (POST) |
 | `/dashboard` | Protected dashboard with feature cards |
 
 ## Authentication
 
-The dashboard currently uses a placeholder authentication check. This is a temporary implementation for development purposes.
+Authentication is handled by [Supabase Auth](https://supabase.com/docs/guides/auth) using the `@supabase/ssr` package.
 
-**TODO:** Replace with Supabase Auth
+### Key files:
+
+- `lib/supabase/client.ts` - Browser-side Supabase client for client components
+- `lib/supabase/server.ts` - Server-side Supabase client with `requireUser` helper
+- `middleware.ts` - Refreshes auth session on every request
+
+### Protecting routes:
+
+Use the `requireUser` helper in Server Components to protect routes:
 
 ```typescript
-// Current placeholder in app/dashboard/page.tsx
-const isAuthenticated = true; // Replace with actual auth check
+import { requireUser } from '@/lib/supabase/server';
+
+export default async function ProtectedPage() {
+  // Redirects to /auth/signin if not authenticated
+  const user = await requireUser();
+  
+  return <div>Welcome, {user.email}</div>;
+}
+```
+
+### Client-side auth:
+
+For client components, use the browser client:
+
+```typescript
+import { createClient } from '@/lib/supabase/client';
+
+const supabase = createClient();
+const { data: { user } } = await supabase.auth.getUser();
 ```
 
 ## Development
@@ -122,7 +192,7 @@ npm run lint
 
 ## Roadmap
 
-- [ ] Integrate Supabase Auth for user authentication
+- [x] Integrate Supabase Auth for user authentication
 - [ ] Implement mock interview functionality
 - [ ] Build replay viewer for past sessions
 - [ ] Create trading journal with analytics

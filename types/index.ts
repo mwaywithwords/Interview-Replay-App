@@ -352,7 +352,7 @@ export interface SharedSessionNote {
 // ============================================
 
 export type AIJobType = 'transcript' | 'summary' | 'score' | 'suggest_bookmarks';
-export type AIJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+export type AIJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface AIJob {
   id: string;

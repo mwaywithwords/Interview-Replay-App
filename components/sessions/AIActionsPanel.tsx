@@ -6,6 +6,8 @@ import {
   getSessionAIJobs,
   runAIJob,
   getSessionAIOutputs,
+  cancelAiJob,
+  retryAiJob,
 } from '@/app/actions/ai-jobs';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +26,11 @@ import {
   Play,
   ChevronDown,
   ChevronUp,
+  X,
+  RefreshCw,
+  Ban,
+  Eye,
+  History,
 } from 'lucide-react';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
 import { toast } from 'sonner';
@@ -87,12 +94,13 @@ const JOB_TYPE_CONFIG: Record<
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
   const config: Record<
     AIJob['status'],
-    { variant: 'info' | 'warning' | 'success' | 'destructive'; icon: React.ElementType }
+    { variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary'; icon: React.ElementType }
   > = {
     queued: { variant: 'info', icon: Clock },
     processing: { variant: 'warning', icon: Loader2 },
     completed: { variant: 'success', icon: CheckCircle2 },
     failed: { variant: 'destructive', icon: XCircle },
+    cancelled: { variant: 'secondary', icon: Ban },
   };
 
   const { variant, icon: Icon } = config[status];
@@ -245,13 +253,146 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
   );
 }
 
+// Component to display AI output content with an ID for external toggle
+function AIOutputDisplayWithId({
+  output,
+  jobType,
+  jobId,
+}: {
+  output: AIOutput;
+  jobType: AIJobType;
+  jobId: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const content = output.content as Record<string, unknown>;
+
+  const renderContent = () => {
+    switch (jobType) {
+      case 'summary':
+        return (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground">{content.summary as string}</p>
+            {content.bullets && Array.isArray(content.bullets) && (
+              <ul className="list-disc list-inside space-y-1">
+                {(content.bullets as string[]).map((bullet, i) => (
+                  <li key={i} className="text-sm text-muted-foreground">
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {content.confidence !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                Confidence: {Math.round((content.confidence as number) * 100)}%
+              </p>
+            )}
+          </div>
+        );
+
+      case 'transcript':
+        return (
+          <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
+            {content.transcript as string}
+          </div>
+        );
+
+      case 'score':
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl font-bold text-primary">{content.score as number}</span>
+              <span className="text-sm text-muted-foreground">/ 100</span>
+            </div>
+            {content.rubric && Array.isArray(content.rubric) && (
+              <div className="space-y-2">
+                {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
+                  (item, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{item.name}</span>
+                      <span className="font-medium">
+                        {item.score}/{item.maxScore || 10}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+            {content.overallFeedback && (
+              <p className="text-sm text-muted-foreground italic">
+                {content.overallFeedback as string}
+              </p>
+            )}
+          </div>
+        );
+
+      case 'suggest_bookmarks':
+        return (
+          <div className="space-y-2">
+            {content.bookmarks && Array.isArray(content.bookmarks) && (
+              <>
+                {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
+                  (bm, i) => {
+                    const seconds = Math.floor(bm.timestamp_ms / 1000);
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
+                      >
+                        <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
+                          {timeStr}
+                        </span>
+                        <span className="text-sm text-foreground flex-1">{bm.label}</span>
+                        {bm.category && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {bm.category}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  }
+                )}
+              </>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <pre className="text-xs text-muted-foreground overflow-auto">
+            {JSON.stringify(content, null, 2)}
+          </pre>
+        );
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border">
+      <button
+        id={`output-toggle-${jobId}`}
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors w-full"
+      >
+        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {isExpanded ? 'Hide output' : 'View output'}
+      </button>
+      {isExpanded && <div className="mt-3">{renderContent()}</div>}
+    </div>
+  );
+}
+
 export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
   const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
   const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
+  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Load jobs on mount if no initial jobs provided
   useEffect(() => {
@@ -361,7 +502,64 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
     }
   }
 
+  async function handleCancelJob(jobId: string) {
+    setError(null);
+    setCancellingJobId(jobId);
+
+    try {
+      const { success, error: cancelError } = await cancelAiJob(jobId);
+
+      if (cancelError || !success) {
+        setError(cancelError || 'Failed to cancel job');
+        toast.error('Failed to cancel job', { description: cancelError || 'Unknown error' });
+        return;
+      }
+
+      // Refresh jobs list
+      await loadJobs();
+      toast.success('Job cancelled');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to cancel job');
+    } finally {
+      setCancellingJobId(null);
+    }
+  }
+
+  async function handleRetryJob(jobId: string) {
+    setError(null);
+    setRetryingJobId(jobId);
+
+    try {
+      const { job: newJob, error: retryError } = await retryAiJob(jobId);
+
+      if (retryError || !newJob) {
+        setError(retryError || 'Failed to retry job');
+        toast.error('Failed to retry job', { description: retryError || 'Unknown error' });
+        return;
+      }
+
+      // Refresh jobs list to show the new job
+      await loadJobs();
+      toast.success('New job created', { description: 'The job has been queued for retry' });
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to retry job');
+    } finally {
+      setRetryingJobId(null);
+    }
+  }
+
   const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks'];
+
+  // Filter jobs based on showHistory toggle
+  // Active jobs: queued, processing
+  // History jobs: completed, failed, cancelled
+  const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'processing');
+  const historyJobs = jobs.filter(
+    (j) => j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled'
+  );
+  const displayedJobs = showHistory ? jobs : activeJobs;
 
   return (
     <div className="space-y-6">
@@ -402,24 +600,48 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       {/* Jobs List */}
       {(jobs.length > 0 || isLoadingJobs) && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
-            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-              AI Jobs
-            </h4>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                AI Jobs
+              </h4>
+              {activeJobs.length > 0 && (
+                <Badge variant="info" className="text-[10px] h-5">
+                  {activeJobs.length} active
+                </Badge>
+              )}
+            </div>
+            {historyJobs.length > 0 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <History className="h-3 w-3" />
+                {showHistory ? 'Hide history' : `Show history (${historyJobs.length})`}
+              </button>
+            )}
           </div>
 
           {isLoadingJobs ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : displayedJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {showHistory ? 'No jobs yet' : 'No active jobs'}
+            </p>
           ) : (
             <div className="space-y-2">
-              {jobs.map((job) => {
+              {displayedJobs.map((job) => {
                 const config = JOB_TYPE_CONFIG[job.job_type];
                 const Icon = config?.icon || FileText;
                 const isRunning = runningJobId === job.id || job.status === 'processing';
+                const isCancelling = cancellingJobId === job.id;
+                const isRetrying = retryingJobId === job.id;
                 const canRun = job.status === 'queued';
+                const canCancel = job.status === 'queued' || job.status === 'processing';
+                const canRetry = job.status === 'failed' || job.status === 'cancelled';
                 const output = outputs[job.id];
 
                 return (
@@ -442,11 +664,12 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {/* Run button for queued jobs */}
                         {canRun && (
                           <PrimaryButton
                             size="sm"
                             onClick={() => handleRunJob(job.id)}
-                            disabled={isRunning}
+                            disabled={isRunning || isCancelling}
                             className="h-7 px-3 text-xs"
                           >
                             {isRunning ? (
@@ -459,19 +682,78 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
                             )}
                           </PrimaryButton>
                         )}
+
+                        {/* Cancel button for queued/processing jobs */}
+                        {canCancel && (
+                          <SecondaryButton
+                            size="sm"
+                            onClick={() => handleCancelJob(job.id)}
+                            disabled={isCancelling || isRunning}
+                            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          >
+                            {isCancelling ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <X className="h-3 w-3" />
+                            )}
+                          </SecondaryButton>
+                        )}
+
+                        {/* Retry button for failed/cancelled jobs */}
+                        {canRetry && (
+                          <SecondaryButton
+                            size="sm"
+                            onClick={() => handleRetryJob(job.id)}
+                            disabled={isRetrying}
+                            className="h-7 px-3 text-xs"
+                          >
+                            {isRetrying ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Retry
+                              </>
+                            )}
+                          </SecondaryButton>
+                        )}
+
+                        {/* View Output button for completed jobs with output */}
+                        {job.status === 'completed' && output && (
+                          <SecondaryButton
+                            size="sm"
+                            onClick={() => {
+                              // Toggle expand in the output display
+                              const el = document.getElementById(`output-toggle-${job.id}`);
+                              if (el) el.click();
+                            }}
+                            className="h-7 px-3 text-xs"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </SecondaryButton>
+                        )}
+
                         <JobStatusBadge status={job.status} />
                       </div>
                     </div>
 
                     {/* Show output for completed jobs */}
                     {job.status === 'completed' && output && (
-                      <AIOutputDisplay output={output} jobType={job.job_type} />
+                      <AIOutputDisplayWithId output={output} jobType={job.job_type} jobId={job.id} />
                     )}
 
                     {/* Show error for failed jobs */}
                     {job.status === 'failed' && job.error_message && (
                       <div className="mt-2 pt-2 border-t border-border">
                         <p className="text-xs text-destructive">{job.error_message}</p>
+                      </div>
+                    )}
+
+                    {/* Show cancellation message for cancelled jobs */}
+                    {job.status === 'cancelled' && job.error_message && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <p className="text-xs text-muted-foreground">{job.error_message}</p>
                       </div>
                     )}
                   </div>

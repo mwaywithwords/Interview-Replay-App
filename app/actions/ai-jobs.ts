@@ -254,3 +254,110 @@ export async function getAIOutputByJobId(
 
   return { output: data as AIOutput, error: null };
 }
+
+/**
+ * Server Action: Cancel an AI job
+ * Only allows cancelling jobs with status 'queued' or 'processing'.
+ * Sets status to 'cancelled' and error_message to "Cancelled by user".
+ */
+export async function cancelAiJob(
+  jobId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  // First verify the job exists and belongs to the user
+  const { data: job, error: jobError } = await supabase
+    .from('ai_jobs')
+    .select('id, user_id, session_id, status')
+    .eq('id', jobId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (jobError || !job) {
+    return {
+      success: false,
+      error: 'Job not found or you do not have permission to cancel it.',
+    };
+  }
+
+  // Only allow cancelling queued or processing jobs
+  if (job.status !== 'queued' && job.status !== 'processing') {
+    return {
+      success: false,
+      error: `Cannot cancel job with status '${job.status}'. Only queued or processing jobs can be cancelled.`,
+    };
+  }
+
+  // Update the job status to cancelled
+  const { error: updateError } = await supabase
+    .from('ai_jobs')
+    .update({
+      status: 'cancelled',
+      error_message: 'Cancelled by user',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId)
+    .eq('user_id', user.id);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  revalidatePath(`/sessions/${job.session_id}`);
+  return { success: true, error: null };
+}
+
+/**
+ * Server Action: Retry a failed or cancelled AI job
+ * Creates a new job with the same session_id and job_type.
+ * Does NOT delete the old job.
+ */
+export async function retryAiJob(
+  jobId: string
+): Promise<{ job: AIJob | null; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  // First verify the original job exists and belongs to the user
+  const { data: originalJob, error: jobError } = await supabase
+    .from('ai_jobs')
+    .select('id, user_id, session_id, job_type, status')
+    .eq('id', jobId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (jobError || !originalJob) {
+    return {
+      job: null,
+      error: 'Job not found or you do not have permission to retry it.',
+    };
+  }
+
+  // Only allow retrying failed or cancelled jobs
+  if (originalJob.status !== 'failed' && originalJob.status !== 'cancelled') {
+    return {
+      job: null,
+      error: `Cannot retry job with status '${originalJob.status}'. Only failed or cancelled jobs can be retried.`,
+    };
+  }
+
+  // Create a new job with the same session_id and job_type
+  const { data: newJob, error: createError } = await supabase
+    .from('ai_jobs')
+    .insert({
+      user_id: user.id,
+      session_id: originalJob.session_id,
+      job_type: originalJob.job_type,
+      status: 'queued',
+    })
+    .select()
+    .single();
+
+  if (createError) {
+    return { job: null, error: createError.message };
+  }
+
+  revalidatePath(`/sessions/${originalJob.session_id}`);
+  return { job: newJob as AIJob, error: null };
+}

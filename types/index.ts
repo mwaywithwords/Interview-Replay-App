@@ -17,7 +17,7 @@ export interface AuthSession {
 // ============================================
 
 export type SessionStatus = 'draft' | 'recording' | 'recorded' | 'processing' | 'ready' | 'archived';
-export type SessionType = 'mock_interview' | 'technical' | 'behavioral' | 'custom';
+export type SessionType = 'interview' | 'trading';
 export type RecordingType = 'audio' | 'video';
 
 export interface InterviewSession {
@@ -59,7 +59,10 @@ export interface SessionMetadata {
 export interface CreateSessionInput {
   title: string;
   session_type: SessionType;
+  recording_type: RecordingType;
   prompt?: string;
+  company_id?: string; // Required if session_type is 'interview'
+  symbol_id?: string; // Required if session_type is 'trading'
 }
 
 export interface UpdateSessionInput {

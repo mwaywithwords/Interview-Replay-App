@@ -11,10 +11,8 @@ import type { InterviewSession, SessionMetadata } from '@/types';
 
 function getSessionTypeLabel(type: string | undefined): string {
   const labels: Record<string, string> = {
-    mock_interview: 'Mock Interview',
-    technical: 'Technical',
-    behavioral: 'Behavioral',
-    custom: 'Custom',
+    interview: 'Interview',
+    trading: 'Trading',
   };
   return labels[type || ''] || 'Unknown';
 }

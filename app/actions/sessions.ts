@@ -67,28 +67,76 @@ export async function createSession(
   const user = await requireUser();
   const supabase = await createClient();
 
+  // Validate required fields based on session type
+  if (input.session_type === 'interview' && !input.company_id) {
+    return { session: null, error: 'Company is required for interview sessions' };
+  }
+  if (input.session_type === 'trading' && !input.symbol_id) {
+    return { session: null, error: 'Symbol is required for trading sessions' };
+  }
+  if (!input.recording_type) {
+    return { session: null, error: 'Recording type is required' };
+  }
+
   const metadata: SessionMetadata = {
     session_type: input.session_type,
     prompt: input.prompt,
   };
 
-  const { data, error } = await supabase
+  // Create the session
+  const { data: sessionData, error: sessionError } = await supabase
     .from('sessions')
     .insert({
       user_id: user.id,
       title: input.title,
       status: 'draft',
+      recording_type: input.recording_type,
       metadata,
     })
     .select()
     .single();
 
-  if (error) {
-    return { session: null, error: error.message };
+  if (sessionError) {
+    return { session: null, error: sessionError.message };
+  }
+
+  const session = sessionData as InterviewSession;
+
+  // Create associations based on session type
+  if (input.session_type === 'interview' && input.company_id) {
+    const { error: companyError } = await supabase
+      .from('session_companies')
+      .insert({
+        user_id: user.id,
+        session_id: session.id,
+        company_id: input.company_id,
+      });
+
+    if (companyError) {
+      // Clean up the session if association fails
+      await supabase.from('sessions').delete().eq('id', session.id);
+      return { session: null, error: `Failed to link company: ${companyError.message}` };
+    }
+  }
+
+  if (input.session_type === 'trading' && input.symbol_id) {
+    const { error: symbolError } = await supabase
+      .from('session_symbols')
+      .insert({
+        user_id: user.id,
+        session_id: session.id,
+        symbol_id: input.symbol_id,
+      });
+
+    if (symbolError) {
+      // Clean up the session if association fails
+      await supabase.from('sessions').delete().eq('id', session.id);
+      return { session: null, error: `Failed to link symbol: ${symbolError.message}` };
+    }
   }
 
   revalidatePath('/dashboard');
-  return { session: data as InterviewSession, error: null };
+  return { session, error: null };
 }
 
 /**

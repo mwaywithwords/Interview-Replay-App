@@ -40,10 +40,8 @@ interface SessionDetailProps {
 
 function getSessionTypeLabel(type: string | undefined): string {
   const labels: Record<string, string> = {
-    mock_interview: 'Mock Interview',
-    technical: 'Technical',
-    behavioral: 'Behavioral',
-    custom: 'Custom',
+    interview: 'Interview',
+    trading: 'Trading',
   };
   return labels[type || ''] || 'Unknown';
 }
@@ -61,13 +59,13 @@ export function SessionDetail({ session }: SessionDetailProps) {
   // Form state
   const [title, setTitle] = useState(session.title);
   const [sessionType, setSessionType] = useState<SessionType>(
-    metadata?.session_type || 'mock_interview'
+    metadata?.session_type || 'interview'
   );
   const [prompt, setPrompt] = useState(metadata?.prompt || '');
 
   function handleCancelEdit() {
     setTitle(session.title);
-    setSessionType(metadata?.session_type || 'mock_interview');
+    setSessionType(metadata?.session_type || 'interview');
     setPrompt(metadata?.prompt || '');
     setIsEditing(false);
     setError(null);
@@ -178,10 +176,8 @@ export function SessionDetail({ session }: SessionDetailProps) {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mock_interview">Mock Interview</SelectItem>
-                    <SelectItem value="technical">Technical</SelectItem>
-                    <SelectItem value="behavioral">Behavioral</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="trading">Trading</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

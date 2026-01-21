@@ -20,7 +20,7 @@ import {
 
 interface VideoPlayerProps {
   sessionId: string;
-  hasVideo: boolean; // Whether the session has video_storage_path
+  hasVideo: boolean; // Whether the session has recording_type = 'video'
   className?: string;
 }
 

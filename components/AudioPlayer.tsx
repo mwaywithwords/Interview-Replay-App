@@ -21,7 +21,7 @@ import {
 
 interface AudioPlayerProps {
   sessionId: string;
-  hasAudio: boolean; // Whether the session has audio_storage_path
+  hasAudio: boolean; // Whether the session has recording_type = 'audio'
   className?: string;
 }
 

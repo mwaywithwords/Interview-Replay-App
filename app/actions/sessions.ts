@@ -202,14 +202,20 @@ export async function updateSessionAudioMetadata(
   const newStatus = existingSession.status === 'recorded' ? 'recorded' : 'recorded';
 
   // Update the session with audio metadata and set status to 'recorded'
+  // Clear video fields to ensure only one recording type exists
   const { data, error } = await supabase
     .from('sessions')
     .update({
+      recording_type: 'audio',
       audio_storage_path: metadata.audio_storage_path,
       audio_duration_seconds: metadata.audio_duration_seconds,
       audio_mime_type: metadata.audio_mime_type,
       audio_file_size_bytes: metadata.audio_file_size_bytes,
-      media_type: 'audio',
+      // Clear video fields to enforce single recording type
+      video_storage_path: null,
+      video_duration_seconds: null,
+      video_mime_type: null,
+      video_file_size_bytes: null,
       status: newStatus,
       recorded_at: new Date().toISOString(),
     })
@@ -257,14 +263,20 @@ export async function updateSessionVideoMetadata(
   const newStatus = existingSession.status === 'recorded' ? 'recorded' : 'recorded';
 
   // Update the session with video metadata
+  // Clear audio fields to ensure only one recording type exists
   const { data, error } = await supabase
     .from('sessions')
     .update({
+      recording_type: 'video',
       video_storage_path: metadata.video_storage_path,
       video_duration_seconds: metadata.video_duration_seconds,
       video_mime_type: metadata.video_mime_type,
       video_file_size_bytes: metadata.video_file_size_bytes,
-      media_type: 'video',
+      // Clear audio fields to enforce single recording type
+      audio_storage_path: null,
+      audio_duration_seconds: null,
+      audio_mime_type: null,
+      audio_file_size_bytes: null,
       status: newStatus,
       recorded_at: new Date().toISOString(),
     })

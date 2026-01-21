@@ -229,7 +229,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
           <SectionCard className="p-0 border-none bg-transparent shadow-none">
             <VideoPlayer
               sessionId={session.id}
-              hasVideo={!!session.video_storage_path}
+              hasVideo={session.recording_type === 'video'}
             />
           </SectionCard>
 

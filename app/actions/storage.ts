@@ -48,7 +48,7 @@ export async function createSignedAudioUrl(sessionId: string): Promise<{
   // Fetch the session and verify ownership
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('id, user_id, audio_storage_path')
+    .select('id, user_id, recording_type, audio_storage_path')
     .eq('id', sessionId)
     .single();
 
@@ -61,8 +61,8 @@ export async function createSignedAudioUrl(sessionId: string): Promise<{
     return { url: null, expiresAt: null, error: 'You do not have permission to access this session' };
   }
 
-  // Check if audio_storage_path exists
-  if (!session.audio_storage_path) {
+  // Check if recording_type is audio and audio_storage_path exists
+  if (session.recording_type !== 'audio' || !session.audio_storage_path) {
     return { url: null, expiresAt: null, error: 'No audio recording found for this session' };
   }
 
@@ -188,7 +188,7 @@ export async function createSignedVideoUrl(sessionId: string): Promise<{
   // Fetch the session and verify ownership
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
-    .select('id, user_id, video_storage_path')
+    .select('id, user_id, recording_type, video_storage_path')
     .eq('id', sessionId)
     .single();
 
@@ -201,8 +201,8 @@ export async function createSignedVideoUrl(sessionId: string): Promise<{
     return { url: null, expiresAt: null, error: 'You do not have permission to access this session' };
   }
 
-  // Check if video_storage_path exists
-  if (!session.video_storage_path) {
+  // Check if recording_type is video and video_storage_path exists
+  if (session.recording_type !== 'video' || !session.video_storage_path) {
     return { url: null, expiresAt: null, error: 'No video recording found for this session' };
   }
 

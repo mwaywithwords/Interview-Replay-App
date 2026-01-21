@@ -46,18 +46,24 @@ CREATE TABLE IF NOT EXISTS sessions (
     video_url TEXT,
     audio_url TEXT,
     thumbnail_url TEXT,
-    -- Audio file metadata (populated after upload)
+    -- Recording type: exactly one recording per session (audio or video)
+    recording_type TEXT CHECK (recording_type IN ('audio', 'video')),
+    -- Audio file metadata (populated after upload - only set if recording_type = 'audio')
     audio_storage_path TEXT,
     audio_duration_seconds INTEGER,
     audio_mime_type TEXT,
     audio_file_size_bytes BIGINT,
-    -- Video file metadata (populated after upload)
+    -- Video file metadata (populated after upload - only set if recording_type = 'video')
     video_storage_path TEXT,
     video_duration_seconds INTEGER,
     video_mime_type TEXT,
     video_file_size_bytes BIGINT,
-    -- Media type indicator (audio or video)
-    media_type TEXT CHECK (media_type IN ('audio', 'video')),
+    -- Constraint: Only one storage path can be set at a time
+    CONSTRAINT check_single_recording CHECK (
+        (recording_type = 'audio' AND audio_storage_path IS NOT NULL AND video_storage_path IS NULL) OR
+        (recording_type = 'video' AND video_storage_path IS NOT NULL AND audio_storage_path IS NULL) OR
+        (recording_type IS NULL AND audio_storage_path IS NULL AND video_storage_path IS NULL)
+    ),
     metadata JSONB DEFAULT '{}',
     tags TEXT[] DEFAULT '{}',
     is_public BOOLEAN NOT NULL DEFAULT FALSE,

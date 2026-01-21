@@ -204,3 +204,30 @@ export interface InterviewSessionWithGroupings extends InterviewSession {
   companies?: Company[];
   symbols?: Symbol[];
 }
+
+// ============================================
+// Bookmark Types
+// ============================================
+
+export interface Bookmark {
+  id: string;
+  session_id: string;
+  user_id: string;
+  timestamp_ms: number;
+  label: string;
+  category: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBookmarkInput {
+  session_id: string;
+  timestamp_ms: number;
+  label: string;
+  category?: string;
+}
+
+export interface UpdateBookmarkInput {
+  label?: string;
+  category?: string;
+}

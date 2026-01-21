@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
@@ -38,8 +38,8 @@ import {
   Mic,
   Settings2,
 } from 'lucide-react';
-import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
-import { VideoPlayer } from '@/components/VideoPlayer';
+import type { InterviewSession, SessionType, SessionMetadata, Bookmark as BookmarkType } from '@/types';
+import { VideoPlayer, type MediaPlayerRef } from '@/components/VideoPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { VideoRecorder } from '@/components/VideoRecorder';
 import { AudioRecorder } from '@/components/AudioRecorder';
@@ -48,10 +48,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { BookmarksList } from '@/components/sessions/BookmarksList';
 import { cn } from '@/lib/utils';
 
 interface SessionDetailProps {
   session: InterviewSession;
+  initialBookmarks: BookmarkType[];
 }
 
 function getSessionTypeLabel(type: string | undefined): string {
@@ -78,7 +80,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function SessionDetail({ session }: SessionDetailProps) {
+export function SessionDetail({ session, initialBookmarks }: SessionDetailProps) {
   const router = useRouter();
   const metadata = session.metadata as SessionMetadata;
 
@@ -88,6 +90,9 @@ export function SessionDetail({ session }: SessionDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
+
+  // Ref for the active media player (audio or video)
+  const mediaPlayerRef = useRef<MediaPlayerRef>(null);
 
   // Determine which recorder/player to show based on recording_type
   const isAudioSession = session.recording_type === 'audio';
@@ -304,6 +309,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
             )}
             {isAudioSession && hasAudioRecording && (
               <AudioPlayer
+                ref={mediaPlayerRef}
                 sessionId={session.id}
                 hasAudio={true}
               />
@@ -319,6 +325,7 @@ export function SessionDetail({ session }: SessionDetailProps) {
             )}
             {isVideoSession && hasVideoRecording && (
               <VideoPlayer
+                ref={mediaPlayerRef}
                 sessionId={session.id}
                 hasVideo={true}
               />
@@ -410,10 +417,10 @@ export function SessionDetail({ session }: SessionDetailProps) {
 
             <TabsContent value="bookmarks" active={activeTab === 'bookmarks'}>
               <SectionCard title="Saved Moments">
-                <EmptyState
-                  icon={Bookmark}
-                  title="No bookmarks"
-                  description="Bookmark important parts of the recording to review them later."
+                <BookmarksList
+                  sessionId={session.id}
+                  initialBookmarks={initialBookmarks}
+                  mediaPlayerRef={mediaPlayerRef}
                 />
               </SectionCard>
             </TabsContent>

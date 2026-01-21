@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getSession } from '@/app/actions/sessions';
+import { getBookmarks } from '@/app/actions/bookmarks';
 import { SessionDetail } from './session-detail';
 import { AppShell } from '@/components/layout/AppShell';
 import { SecondaryButton } from '@/components/ui/button';
@@ -21,7 +22,13 @@ export async function generateMetadata({ params }: SessionPageProps): Promise<Me
 export default async function SessionPage({ params }: SessionPageProps) {
   const user = await requireUser();
   const { id } = await params;
-  const { session, error } = await getSession(id);
+  const [sessionResult, bookmarksResult] = await Promise.all([
+    getSession(id),
+    getBookmarks(id),
+  ]);
+
+  const { session, error } = sessionResult;
+  const { bookmarks } = bookmarksResult;
 
   if (error || !session) {
     notFound();
@@ -43,7 +50,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
         </div>
       }
     >
-      <SessionDetail session={session} />
+      <SessionDetail session={session} initialBookmarks={bookmarks} />
     </AppShell>
   );
 }

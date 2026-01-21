@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createSignedVideoUrl } from '@/app/actions/storage';
 import {
   Card,
@@ -19,6 +19,11 @@ import {
   VideoOff,
 } from 'lucide-react';
 
+export interface MediaPlayerRef {
+  getCurrentTimeMs: () => number;
+  seekToMs: (ms: number) => void;
+}
+
 interface VideoPlayerProps {
   sessionId: string;
   hasVideo: boolean; // Whether the session has recording_type = 'video'
@@ -34,8 +39,13 @@ interface VideoPlayerProps {
  * - Automatically refreshes URL 10 seconds before expiration during playback
  * - Handles expired URLs gracefully with automatic retry
  * - Shows friendly empty state when no video exists
+ * 
+ * Exposes ref methods:
+ * - getCurrentTimeMs(): Returns current playback position in milliseconds
+ * - seekToMs(ms): Seeks to the specified position in milliseconds
  */
-export function VideoPlayer({ sessionId, hasVideo, className }: VideoPlayerProps) {
+export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
+  function VideoPlayer({ sessionId, hasVideo, className }, ref) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +55,22 @@ export function VideoPlayer({ sessionId, hasVideo, className }: VideoPlayerProps
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef<boolean>(false);
   const currentTimeRef = useRef<number>(0);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentTimeMs: () => {
+      if (videoRef.current) {
+        return Math.round(videoRef.current.currentTime * 1000);
+      }
+      return 0;
+    },
+    seekToMs: (ms: number) => {
+      if (videoRef.current) {
+        const seconds = ms / 1000;
+        videoRef.current.currentTime = Math.max(0, Math.min(seconds, videoRef.current.duration || seconds));
+      }
+    },
+  }), []);
 
   /**
    * Fetch a new signed URL from the server
@@ -286,4 +312,4 @@ export function VideoPlayer({ sessionId, hasVideo, className }: VideoPlayerProps
       </CardContent>
     </Card>
   );
-}
+});

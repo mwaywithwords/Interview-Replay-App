@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { createSignedAudioUrl } from '@/app/actions/storage';
 import {
   Card,
@@ -19,6 +19,11 @@ import {
   RefreshCw,
   Music,
 } from 'lucide-react';
+
+export interface MediaPlayerRef {
+  getCurrentTimeMs: () => number;
+  seekToMs: (ms: number) => void;
+}
 
 interface AudioPlayerProps {
   sessionId: string;
@@ -39,8 +44,13 @@ function formatTime(seconds: number): string {
 /**
  * AudioPlayer component for playing audio from private Supabase Storage buckets.
  * Uses signed URLs with 30-minute expiration. No auto-refresh logic.
+ * 
+ * Exposes ref methods:
+ * - getCurrentTimeMs(): Returns current playback position in milliseconds
+ * - seekToMs(ms): Seeks to the specified position in milliseconds
  */
-export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps) {
+export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
+  function AudioPlayer({ sessionId, hasAudio, className }, ref) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +60,23 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
   const [isMuted, setIsMuted] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentTimeMs: () => {
+      if (audioRef.current) {
+        return Math.round(audioRef.current.currentTime * 1000);
+      }
+      return 0;
+    },
+    seekToMs: (ms: number) => {
+      if (audioRef.current) {
+        const seconds = ms / 1000;
+        audioRef.current.currentTime = Math.max(0, Math.min(seconds, audioRef.current.duration || seconds));
+        setCurrentTime(audioRef.current.currentTime);
+      }
+    },
+  }), []);
 
   /**
    * Fetch a new signed URL from the server
@@ -317,4 +344,4 @@ export function AudioPlayer({ sessionId, hasAudio, className }: AudioPlayerProps
       </CardContent>
     </Card>
   );
-}
+});

@@ -4,6 +4,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SessionsList } from '@/components/sessions/SessionsList';
+import { StatsCards } from '@/components/dashboard/StatsCards';
 import { Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -43,6 +44,8 @@ export default async function Dashboard() {
             </Link>
           }
         />
+
+        <StatsCards />
 
         <SessionsList />
       </div>

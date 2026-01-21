@@ -16,21 +16,40 @@ import type {
   RecordingType,
 } from '@/types';
 
-/**
- * Server Action: Get all sessions for the current user with optional filtering
- */
-export async function getSessions(filters?: {
+export interface SessionsFilter {
   session_type?: 'interview' | 'trading';
   company_id?: string;
   symbol_id?: string;
-}): Promise<{
+  status?: 'draft' | 'recording' | 'recorded' | 'processing' | 'ready' | 'archived';
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SessionsResult {
   sessions: InterviewSessionWithGroupings[];
+  total: number;
+  hasMore: boolean;
   error: string | null;
-}> {
+}
+
+/**
+ * Server Action: Get all sessions for the current user with optional filtering
+ */
+export async function getSessions(filters?: SessionsFilter): Promise<SessionsResult> {
   const user = await requireUser();
   const supabase = await createClient();
 
-  // Build the base query
+  const limit = filters?.limit || 50;
+  const offset = filters?.offset || 0;
+
+  // Build the base query for count
+  let countQuery = supabase
+    .from('sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+
+  // Build the base query for data
   let query = supabase
     .from('sessions')
     .select('*')
@@ -39,6 +58,21 @@ export async function getSessions(filters?: {
   // Apply session_type filter
   if (filters?.session_type) {
     query = query.eq('metadata->>session_type', filters.session_type);
+    countQuery = countQuery.eq('metadata->>session_type', filters.session_type);
+  }
+
+  // Apply status filter
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+    countQuery = countQuery.eq('status', filters.status);
+  }
+
+  // Apply search filter (title and prompt in metadata)
+  if (filters?.search && filters.search.trim()) {
+    const searchTerm = `%${filters.search.trim()}%`;
+    // Search in title OR in metadata->prompt
+    query = query.or(`title.ilike.${searchTerm},metadata->>prompt.ilike.${searchTerm}`);
+    countQuery = countQuery.or(`title.ilike.${searchTerm},metadata->>prompt.ilike.${searchTerm}`);
   }
 
   // Apply company filter
@@ -52,9 +86,10 @@ export async function getSessions(filters?: {
     if (sessionIds && sessionIds.length > 0) {
       const ids = sessionIds.map((sc) => sc.session_id);
       query = query.in('id', ids);
+      countQuery = countQuery.in('id', ids);
     } else {
       // No sessions found for this company
-      return { sessions: [], error: null };
+      return { sessions: [], total: 0, hasMore: false, error: null };
     }
   }
 
@@ -69,22 +104,33 @@ export async function getSessions(filters?: {
     if (sessionIds && sessionIds.length > 0) {
       const ids = sessionIds.map((ss) => ss.session_id);
       query = query.in('id', ids);
+      countQuery = countQuery.in('id', ids);
     } else {
       // No sessions found for this symbol
-      return { sessions: [], error: null };
+      return { sessions: [], total: 0, hasMore: false, error: null };
     }
   }
 
-  query = query.order('created_at', { ascending: false });
+  // Get total count
+  const { count: total, error: countError } = await countQuery;
+
+  if (countError) {
+    return { sessions: [], total: 0, hasMore: false, error: countError.message };
+  }
+
+  // Apply ordering and pagination
+  query = query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   const { data: sessionsData, error } = await query;
 
   if (error) {
-    return { sessions: [], error: error.message };
+    return { sessions: [], total: 0, hasMore: false, error: error.message };
   }
 
   if (!sessionsData || sessionsData.length === 0) {
-    return { sessions: [], error: null };
+    return { sessions: [], total: total || 0, hasMore: false, error: null };
   }
 
   // Fetch companies and symbols for all sessions
@@ -174,7 +220,9 @@ export async function getSessions(filters?: {
     }
   );
 
-  return { sessions, error: null };
+  const hasMore = offset + sessions.length < (total || 0);
+
+  return { sessions, total: total || 0, hasMore, error: null };
 }
 
 /**

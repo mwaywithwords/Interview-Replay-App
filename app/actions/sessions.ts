@@ -9,6 +9,7 @@ import type {
   UpdateSessionInput,
   SessionMetadata,
   AudioUploadMetadata,
+  VideoUploadMetadata,
 } from '@/types';
 
 /**
@@ -185,7 +186,7 @@ export async function updateSessionAudioMetadata(
   // Validate that the session belongs to the current user
   const { data: existingSession, error: fetchError } = await supabase
     .from('sessions')
-    .select('id, user_id')
+    .select('id, user_id, status')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .single();
@@ -197,6 +198,9 @@ export async function updateSessionAudioMetadata(
     };
   }
 
+  // Only update status to 'recorded' if not already recorded
+  const newStatus = existingSession.status === 'recorded' ? 'recorded' : 'recorded';
+
   // Update the session with audio metadata and set status to 'recorded'
   const { data, error } = await supabase
     .from('sessions')
@@ -205,7 +209,63 @@ export async function updateSessionAudioMetadata(
       audio_duration_seconds: metadata.audio_duration_seconds,
       audio_mime_type: metadata.audio_mime_type,
       audio_file_size_bytes: metadata.audio_file_size_bytes,
-      status: 'recorded',
+      media_type: 'audio',
+      status: newStatus,
+      recorded_at: new Date().toISOString(),
+    })
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) {
+    return { session: null, error: error.message };
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath(`/sessions/${sessionId}`);
+  return { session: data as InterviewSession, error: null };
+}
+
+/**
+ * Server Action: Update session with video metadata after successful upload
+ * Called after client-side video upload to Storage completes
+ */
+export async function updateSessionVideoMetadata(
+  sessionId: string,
+  metadata: VideoUploadMetadata
+): Promise<{ session: InterviewSession | null; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  // Validate that the session belongs to the current user
+  const { data: existingSession, error: fetchError } = await supabase
+    .from('sessions')
+    .select('id, user_id, status')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (fetchError || !existingSession) {
+    return {
+      session: null,
+      error: 'Session not found or you do not have permission to update it.',
+    };
+  }
+
+  // Only update status to 'recorded' if not already recorded
+  const newStatus = existingSession.status === 'recorded' ? 'recorded' : 'recorded';
+
+  // Update the session with video metadata
+  const { data, error } = await supabase
+    .from('sessions')
+    .update({
+      video_storage_path: metadata.video_storage_path,
+      video_duration_seconds: metadata.video_duration_seconds,
+      video_mime_type: metadata.video_mime_type,
+      video_file_size_bytes: metadata.video_file_size_bytes,
+      media_type: 'video',
+      status: newStatus,
       recorded_at: new Date().toISOString(),
     })
     .eq('id', sessionId)

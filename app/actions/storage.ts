@@ -4,7 +4,7 @@ import { getSignedReplayUrl, uploadReplay, deleteReplay } from '@/lib/supabase/s
 import { requireUser } from '@/lib/supabase/server';
 
 /**
- * Server Action: Get a signed URL for replay playback
+ * Server Action: Get a signed URL for audio replay playback
  * This validates the user owns the session before generating the URL
  */
 export async function getReplayPlaybackUrl(sessionId: string) {
@@ -15,6 +15,28 @@ export async function getReplayPlaybackUrl(sessionId: string) {
     user.id,
     sessionId,
     'audio.webm',
+    3600 // 1 hour expiration
+  );
+
+  if (error) {
+    return { url: null, error: error.message };
+  }
+
+  return { url, error: null };
+}
+
+/**
+ * Server Action: Get a signed URL for video replay playback
+ * This validates the user owns the session before generating the URL
+ */
+export async function getVideoPlaybackUrl(sessionId: string) {
+  const user = await requireUser();
+
+  // Generate signed URL for the authenticated user's video replay
+  const { url, error } = await getSignedReplayUrl(
+    user.id,
+    sessionId,
+    'video.webm',
     3600 // 1 hour expiration
   );
 
@@ -55,13 +77,29 @@ export async function uploadReplayAction(
 }
 
 /**
- * Server Action: Delete a replay file
+ * Server Action: Delete an audio replay file
  * Validates user owns the file before deletion
  */
 export async function deleteReplayAction(sessionId: string) {
   const user = await requireUser();
 
   const { error } = await deleteReplay(user.id, sessionId, 'audio.webm');
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Server Action: Delete a video replay file
+ * Validates user owns the file before deletion
+ */
+export async function deleteVideoReplayAction(sessionId: string) {
+  const user = await requireUser();
+
+  const { error } = await deleteReplay(user.id, sessionId, 'video.webm');
 
   if (error) {
     return { success: false, error: error.message };

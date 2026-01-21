@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS sessions (
     audio_duration_seconds INTEGER,
     audio_mime_type TEXT,
     audio_file_size_bytes BIGINT,
+    -- Video file metadata (populated after upload)
+    video_storage_path TEXT,
+    video_duration_seconds INTEGER,
+    video_mime_type TEXT,
+    video_file_size_bytes BIGINT,
+    -- Media type indicator (audio or video)
+    media_type TEXT CHECK (media_type IN ('audio', 'video')),
     metadata JSONB DEFAULT '{}',
     tags TEXT[] DEFAULT '{}',
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
@@ -486,13 +493,21 @@ VALUES (
     'replays',
     'replays',
     FALSE,  -- PRIVATE bucket - no public access
-    52428800,  -- 50MB file size limit
-    ARRAY['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav']::text[]
+    104857600,  -- 100MB file size limit (increased for video)
+    ARRAY[
+        -- Audio MIME types
+        'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+        -- Video MIME types
+        'video/webm', 'video/mp4', 'video/quicktime', 'video/x-msvideo'
+    ]::text[]
 )
 ON CONFLICT (id) DO UPDATE SET
     public = FALSE,
-    file_size_limit = 52428800,
-    allowed_mime_types = ARRAY['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav']::text[];
+    file_size_limit = 104857600,
+    allowed_mime_types = ARRAY[
+        'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+        'video/webm', 'video/mp4', 'video/quicktime', 'video/x-msvideo'
+    ]::text[];
 
 -- --------------------------------------------
 -- Storage Policy: Authenticated users can upload to their own folder

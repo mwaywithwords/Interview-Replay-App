@@ -18,6 +18,7 @@ export interface AuthSession {
 
 export type SessionStatus = 'draft' | 'recording' | 'recorded' | 'processing' | 'ready' | 'archived';
 export type SessionType = 'mock_interview' | 'technical' | 'behavioral' | 'custom';
+export type MediaType = 'audio' | 'video';
 
 export interface InterviewSession {
   id: string;
@@ -34,6 +35,13 @@ export interface InterviewSession {
   audio_duration_seconds: number | null;
   audio_mime_type: string | null;
   audio_file_size_bytes: number | null;
+  // Video file metadata (populated after upload)
+  video_storage_path: string | null;
+  video_duration_seconds: number | null;
+  video_mime_type: string | null;
+  video_file_size_bytes: number | null;
+  // Media type indicator
+  media_type: MediaType | null;
   metadata: SessionMetadata;
   tags: string[];
   is_public: boolean;
@@ -66,6 +74,13 @@ export interface AudioUploadMetadata {
   audio_duration_seconds: number;
   audio_mime_type: string;
   audio_file_size_bytes: number;
+}
+
+export interface VideoUploadMetadata {
+  video_storage_path: string;
+  video_duration_seconds: number;
+  video_mime_type: string;
+  video_file_size_bytes: number;
 }
 
 // ============================================

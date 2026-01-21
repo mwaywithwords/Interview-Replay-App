@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertCircle,
   Check,
@@ -17,6 +18,7 @@ import {
   Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface TranscriptEditorProps {
   sessionId: string;
@@ -86,12 +88,14 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
     if (saveError) {
       setSaveStatus('error');
       setError(saveError);
+      toast.error('Failed to save transcript', { description: saveError });
       return;
     }
 
     if (transcript) {
       setSavedContent(transcript.content);
       setSaveStatus('saved');
+      toast.success('Transcript saved');
 
       // Clear any existing "saved" timeout
       if (savedTimeoutRef.current) {
@@ -256,8 +260,14 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <Skeleton className="h-[200px] w-full rounded-lg" />
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
       </div>
     );
   }

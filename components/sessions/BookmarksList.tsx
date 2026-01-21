@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getBookmarks,
   createBookmark,
@@ -18,6 +19,7 @@ import { Button, PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Bookmark as BookmarkIcon,
   Plus,
@@ -34,11 +36,37 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface BookmarksListProps {
   sessionId: string;
   initialBookmarks: Bookmark[];
   mediaPlayerRef: React.RefObject<MediaPlayerRef | null>;
+}
+
+/**
+ * Skeleton loader for bookmarks list
+ */
+export function BookmarksListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-11 w-full rounded-xl" />
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="p-4 rounded-xl border border-border">
+            <div className="flex items-start gap-4">
+              <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-20 mt-2" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -125,10 +153,12 @@ function BookmarkItem({
     
     if (error) {
       setNoteError(error);
+      toast.error('Failed to add note', { description: error });
     } else if (note) {
       setNotes((prev) => [...prev, note]);
       setNewNoteContent('');
       setIsAddingNote(false);
+      toast.success('Note added');
     }
     setIsSavingNote(false);
   };
@@ -141,8 +171,10 @@ function BookmarkItem({
     
     if (error) {
       setNoteError(error);
+      toast.error('Failed to delete note', { description: error });
     } else if (success) {
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
+      toast.success('Note deleted');
     }
     setDeletingNoteId(null);
   };
@@ -401,21 +433,156 @@ function BookmarkItem({
   );
 }
 
+/**
+ * Sort bookmarks by timestamp to maintain stable ordering
+ */
+function sortBookmarks(bookmarks: Bookmark[]): Bookmark[] {
+  return [...bookmarks].sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+}
+
 export function BookmarksList({
   sessionId,
   initialBookmarks,
   mediaPlayerRef,
 }: BookmarksListProps) {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
+  const queryClient = useQueryClient();
+  const queryKey = ['bookmarks', sessionId];
+
   const [isAdding, setIsAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
-  const handleAddBookmark = async () => {
+  // Use React Query for bookmarks with initial data
+  const { data: bookmarks = initialBookmarks } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const result = await getBookmarks(sessionId);
+      return result.bookmarks;
+    },
+    initialData: initialBookmarks,
+    staleTime: 30000,
+  });
+
+  // Create bookmark mutation with optimistic update
+  const createMutation = useMutation({
+    mutationFn: async (input: CreateBookmarkInput) => {
+      const result = await createBookmark(input);
+      if (result.error) throw new Error(result.error);
+      return result.bookmark!;
+    },
+    onMutate: async (newBookmarkInput) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+
+      // Snapshot previous value
+      const previousBookmarks = queryClient.getQueryData<Bookmark[]>(queryKey);
+
+      // Optimistically add the new bookmark with temporary ID
+      const optimisticBookmark: Bookmark = {
+        id: `temp-${Date.now()}`,
+        session_id: newBookmarkInput.session_id,
+        user_id: '',
+        timestamp_ms: newBookmarkInput.timestamp_ms,
+        label: newBookmarkInput.label,
+        category: newBookmarkInput.category || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData<Bookmark[]>(queryKey, (old = []) => 
+        sortBookmarks([...old, optimisticBookmark])
+      );
+
+      return { previousBookmarks };
+    },
+    onError: (err, _, context) => {
+      // Rollback on error
+      if (context?.previousBookmarks) {
+        queryClient.setQueryData(queryKey, context.previousBookmarks);
+      }
+      toast.error('Failed to create bookmark', { description: err.message });
+      setError(err.message);
+    },
+    onSuccess: (newBookmark) => {
+      // Replace optimistic bookmark with real one
+      queryClient.setQueryData<Bookmark[]>(queryKey, (old = []) => {
+        const filtered = old.filter(b => !b.id.startsWith('temp-'));
+        return sortBookmarks([...filtered, newBookmark]);
+      });
+      toast.success('Bookmark created');
+      setNewLabel('');
+      setNewCategory('');
+      setIsAdding(false);
+    },
+  });
+
+  // Update bookmark mutation with optimistic update
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, label, category }: { id: string; label: string; category: string }) => {
+      const result = await updateBookmark(id, { label, category: category || undefined });
+      if (result.error) throw new Error(result.error);
+      return result.bookmark!;
+    },
+    onMutate: async ({ id, label, category }) => {
+      await queryClient.cancelQueries({ queryKey });
+
+      const previousBookmarks = queryClient.getQueryData<Bookmark[]>(queryKey);
+
+      // Optimistically update the bookmark
+      queryClient.setQueryData<Bookmark[]>(queryKey, (old = []) =>
+        old.map(b => b.id === id ? { ...b, label, category: category || null, updated_at: new Date().toISOString() } : b)
+      );
+
+      return { previousBookmarks };
+    },
+    onError: (err, _, context) => {
+      if (context?.previousBookmarks) {
+        queryClient.setQueryData(queryKey, context.previousBookmarks);
+      }
+      toast.error('Failed to update bookmark', { description: err.message });
+      setError(err.message);
+    },
+    onSuccess: (updatedBookmark) => {
+      queryClient.setQueryData<Bookmark[]>(queryKey, (old = []) =>
+        old.map(b => b.id === updatedBookmark.id ? updatedBookmark : b)
+      );
+      toast.success('Bookmark updated');
+    },
+  });
+
+  // Delete bookmark mutation with optimistic update
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deleteBookmark(id);
+      if (result.error) throw new Error(result.error);
+      return id;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey });
+
+      const previousBookmarks = queryClient.getQueryData<Bookmark[]>(queryKey);
+
+      // Optimistically remove the bookmark
+      queryClient.setQueryData<Bookmark[]>(queryKey, (old = []) =>
+        old.filter(b => b.id !== id)
+      );
+
+      return { previousBookmarks };
+    },
+    onError: (err, _, context) => {
+      if (context?.previousBookmarks) {
+        queryClient.setQueryData(queryKey, context.previousBookmarks);
+      }
+      toast.error('Failed to delete bookmark', { description: err.message });
+      setError(err.message);
+    },
+    onSuccess: () => {
+      toast.success('Bookmark deleted');
+    },
+  });
+
+  const handleAddBookmark = () => {
     setError(null);
 
     // Get current time from media player
@@ -433,75 +600,26 @@ export function BookmarksList({
       category: newCategory.trim() || undefined,
     };
 
-    startTransition(async () => {
-      const { bookmark, error: createError } = await createBookmark(input);
-
-      if (createError) {
-        setError(createError);
-        return;
-      }
-
-      if (bookmark) {
-        // Insert bookmark in sorted order
-        setBookmarks((prev) => {
-          const newBookmarks = [...prev, bookmark];
-          return newBookmarks.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-        });
-        setNewLabel('');
-        setNewCategory('');
-        setIsAdding(false);
-      }
-    });
+    createMutation.mutate(input);
   };
 
   const handleUpdateBookmark = async (id: string, label: string, category: string) => {
     setError(null);
-    setUpdatingId(id);
-
-    startTransition(async () => {
-      const { bookmark, error: updateError } = await updateBookmark(id, {
-        label,
-        category: category || undefined,
-      });
-
-      setUpdatingId(null);
-
-      if (updateError) {
-        setError(updateError);
-        return;
-      }
-
-      if (bookmark) {
-        setBookmarks((prev) =>
-          prev.map((b) => (b.id === id ? bookmark : b))
-        );
-      }
-    });
+    updateMutation.mutate({ id, label, category });
   };
 
   const handleDeleteBookmark = async (id: string) => {
     setError(null);
-    setDeletingId(id);
-
-    startTransition(async () => {
-      const { success, error: deleteError } = await deleteBookmark(id);
-
-      setDeletingId(null);
-
-      if (deleteError) {
-        setError(deleteError);
-        return;
-      }
-
-      if (success) {
-        setBookmarks((prev) => prev.filter((b) => b.id !== id));
-      }
-    });
+    deleteMutation.mutate(id);
   };
 
   const handleSeek = (timestampMs: number) => {
     mediaPlayerRef.current?.seekToMs(timestampMs);
   };
+
+  const isPending = createMutation.isPending;
+  const updatingId = updateMutation.isPending ? (updateMutation.variables as { id: string } | undefined)?.id : null;
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables as string : null;
 
   return (
     <div className="space-y-4">

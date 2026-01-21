@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   Video,
@@ -18,6 +19,28 @@ import {
   RefreshCw,
   VideoOff,
 } from 'lucide-react';
+
+/**
+ * Skeleton loader for video player
+ */
+export function VideoPlayerSkeleton({ className }: { className?: string }) {
+  return (
+    <Card className={cn("border-border bg-card overflow-hidden", className)}>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-5 rounded" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-4 w-48 mt-1" />
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="p-6 pt-0">
+          <Skeleton className="w-full aspect-video rounded-xl" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export interface MediaPlayerRef {
   getCurrentTimeMs: () => number;

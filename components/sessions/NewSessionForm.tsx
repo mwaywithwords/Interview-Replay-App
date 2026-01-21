@@ -31,6 +31,7 @@ import { ArrowLeft, Loader2, AlertCircle, Plus } from 'lucide-react';
 import type { SessionType, RecordingType, Company, Symbol } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SectionCard } from '@/components/layout/SectionCard';
+import { toast } from 'sonner';
 
 export function NewSessionForm() {
   const router = useRouter();
@@ -103,6 +104,7 @@ export function NewSessionForm() {
 
       if (createError) {
         setError(createError);
+        toast.error('Failed to create company', { description: createError });
         setIsCreatingCompany(false);
         return;
       }
@@ -112,9 +114,11 @@ export function NewSessionForm() {
         setSelectedCompanyId(company.id);
         setNewCompanyName('');
         setIsCompanyDialogOpen(false);
+        toast.success('Company added');
       }
     } catch (err) {
       setError('Failed to create company. Please try again.');
+      toast.error('Failed to create company');
     } finally {
       setIsCreatingCompany(false);
     }
@@ -135,6 +139,7 @@ export function NewSessionForm() {
 
       if (createError) {
         setError(createError);
+        toast.error('Failed to create symbol', { description: createError });
         setIsCreatingSymbol(false);
         return;
       }
@@ -144,9 +149,11 @@ export function NewSessionForm() {
         setSelectedSymbolId(symbol.id);
         setNewSymbolTicker('');
         setIsSymbolDialogOpen(false);
+        toast.success('Symbol added');
       }
     } catch (err) {
       setError('Failed to create symbol. Please try again.');
+      toast.error('Failed to create symbol');
     } finally {
       setIsCreatingSymbol(false);
     }
@@ -196,14 +203,17 @@ export function NewSessionForm() {
 
       if (createError) {
         setError(createError);
+        toast.error('Failed to create session', { description: createError });
         return;
       }
 
       if (session) {
+        toast.success('Session created', { description: 'Redirecting to session...' });
         router.push(`/sessions/${session.id}`);
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to create session');
     } finally {
       setIsLoading(false);
     }

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   Volume2,
@@ -19,6 +20,34 @@ import {
   RefreshCw,
   Music,
 } from 'lucide-react';
+
+/**
+ * Skeleton loader for audio player
+ */
+export function AudioPlayerSkeleton({ className }: { className?: string }) {
+  return (
+    <Card className={cn("border-border bg-card", className)}>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-5 rounded" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-4 w-48 mt-1" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-12" />
+        </div>
+        <Skeleton className="h-2 w-full rounded-lg" />
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <Skeleton className="h-10 w-28 rounded-full" />
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export interface MediaPlayerRef {
   getCurrentTimeMs: () => number;

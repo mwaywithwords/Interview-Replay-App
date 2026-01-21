@@ -26,6 +26,32 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
+import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+
+/**
+ * Skeleton loader for AI Actions Panel
+ */
+export function AIActionsPanelSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 rounded-lg" />
+        ))}
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface AIActionsPanelProps {
   sessionId: string;
@@ -280,15 +306,18 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
 
       if (createError) {
         setError(createError);
+        toast.error('Failed to create AI job', { description: createError });
         return;
       }
 
       if (job) {
         // Add the new job to the top of the list
         setJobs((prev) => [job, ...prev]);
+        toast.success('AI job created', { description: `${JOB_TYPE_CONFIG[jobType].label} queued` });
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to create AI job');
     } finally {
       setLoadingJobType(null);
     }
@@ -308,6 +337,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
 
       if (runError || !success) {
         setError(runError || 'Failed to run job');
+        toast.error('Failed to run AI job', { description: runError || 'Unknown error' });
         // Revert the optimistic update
         setJobs((prev) =>
           prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))
@@ -318,8 +348,10 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       // Refresh jobs and outputs after successful run
       await loadJobs();
       await loadOutputs();
+      toast.success('AI job completed');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to run AI job');
       // Revert the optimistic update
       setJobs((prev) =>
         prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))

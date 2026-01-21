@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
 import { updateSessionVideoMetadata, getSessionRecordingType } from '@/app/actions/sessions';
+import { toast } from 'sonner';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -239,6 +240,7 @@ export function VideoRecorder({
         }
 
         setUploadState('success');
+        toast.success('Video uploaded successfully');
         onUploadComplete?.(path);
       } catch (err) {
         console.error('Upload error:', err);
@@ -246,6 +248,7 @@ export function VideoRecorder({
           'An unexpected error occurred during upload. Please try again.'
         );
         setUploadState('error');
+        toast.error('Failed to upload video');
       }
     },
     [userId, sessionId, onUploadComplete, videoUrl]

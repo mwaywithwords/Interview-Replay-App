@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getSessionNote, saveSessionNote } from '@/app/actions/notes';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, Check, Loader2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface SessionNoteEditorProps {
   sessionId: string;
@@ -66,6 +68,7 @@ export function SessionNoteEditor({ sessionId, initialContent = '' }: SessionNot
     if (saveError) {
       setSaveStatus('error');
       setError(saveError);
+      toast.error('Failed to save notes', { description: saveError });
       return;
     }
 
@@ -126,6 +129,14 @@ export function SessionNoteEditor({ sessionId, initialContent = '' }: SessionNot
     }
   }, [content, saveNote]);
 
+  if (!isLoaded) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="min-h-[200px] w-full rounded-lg" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {error && (
@@ -141,11 +152,7 @@ export function SessionNoteEditor({ sessionId, initialContent = '' }: SessionNot
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder="Write your notes about this session here..."
-          className={cn(
-            'min-h-[200px] resize-y',
-            !isLoaded && 'opacity-50'
-          )}
-          disabled={!isLoaded}
+          className="min-h-[200px] resize-y"
         />
         
         {/* Save status indicator */}

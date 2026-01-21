@@ -12,6 +12,7 @@ import {
 import { Mic, Square, Pause, Play, Trash2, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
 import { updateSessionAudioMetadata, getSessionRecordingType } from '@/app/actions/sessions';
+import { toast } from 'sonner';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -182,11 +183,13 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
       }
 
       setUploadState('success');
+      toast.success('Recording uploaded successfully');
       onUploadComplete?.(path);
     } catch (err) {
       console.error('Upload error:', err);
       setUploadError('An unexpected error occurred during upload. Please try again.');
       setUploadState('error');
+      toast.error('Failed to upload recording');
     }
   }, [userId, sessionId, onUploadComplete]);
 

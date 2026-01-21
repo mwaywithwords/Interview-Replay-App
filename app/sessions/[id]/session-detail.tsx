@@ -67,6 +67,7 @@ import { SessionNoteEditor } from '@/components/sessions/SessionNoteEditor';
 import { TranscriptEditor } from '@/components/sessions/TranscriptEditor';
 import { AIActionsPanel } from '@/components/sessions/AIActionsPanel';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface SessionDetailProps {
   session: InterviewSession;
@@ -157,13 +158,16 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
 
       if (updateError) {
         setError(updateError);
+        toast.error('Failed to update session', { description: updateError });
         return;
       }
 
       setIsEditing(false);
+      toast.success('Session updated');
       router.refresh();
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to update session');
     } finally {
       setIsLoading(false);
     }
@@ -178,11 +182,16 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
 
       if (deleteError) {
         setError(deleteError);
+        toast.error('Failed to delete session', { description: deleteError });
         setIsDeleting(false);
         return;
       }
+      
+      toast.success('Session deleted', { description: 'Redirecting to dashboard...' });
+      router.push('/dashboard');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('Failed to delete session');
       setIsDeleting(false);
     }
   }
@@ -207,15 +216,18 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
 
       if (result.error) {
         setShareError(result.error);
+        toast.error('Failed to generate share link', { description: result.error });
         return;
       }
 
       if (result.shareUrl && result.share) {
         setShareUrl(result.shareUrl);
         setExistingShares((prev) => [result.share!, ...prev]);
+        toast.success('Share link created');
       }
     } catch (err) {
       setShareError('Failed to generate share link. Please try again.');
+      toast.error('Failed to generate share link');
     } finally {
       setIsGeneratingShare(false);
     }
@@ -228,9 +240,11 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
+      toast.success('Link copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+      toast.error('Failed to copy to clipboard');
     }
   }
 
@@ -239,9 +253,11 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      toast.success('Link copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+      toast.error('Failed to copy to clipboard');
     }
   }
 
@@ -254,6 +270,7 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
 
       if (error) {
         setShareError(error);
+        toast.error('Failed to revoke share link', { description: error });
         return;
       }
 
@@ -261,9 +278,11 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
         setExistingShares((prev) => prev.filter((s) => s.id !== shareId));
         // Clear the displayed URL if it was the revoked share
         setShareUrl(null);
+        toast.success('Share link revoked');
       }
     } catch (err) {
       setShareError('Failed to revoke share link. Please try again.');
+      toast.error('Failed to revoke share link');
     } finally {
       setRevokingShareId(null);
     }

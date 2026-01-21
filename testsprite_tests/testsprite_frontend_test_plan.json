@@ -1,0 +1,544 @@
+[
+  {
+    "id": "TC001",
+    "title": "User signup with valid email and password",
+    "description": "Verify that a new user can sign up successfully using a valid email and password combination.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the signup page"
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid email address and password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the signup form"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm account creation and redirect to an empty dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User signin and session management",
+    "description": "Check that a registered user can sign in with correct credentials and that the session is handled correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the signin page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid user credentials"
+      },
+      {
+        "type": "action",
+        "description": "Submit the signin form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user is redirected to the dashboard and authenticated session is established"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "User signout and session termination",
+    "description": "Ensure that signing out terminates the user session and redirects to the signin page.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "From an authenticated dashboard, click the signout button"
+      },
+      {
+        "type": "assertion",
+        "description": "User session is terminated and redirected to the signin page"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Create a new interview session with audio recording",
+    "description": "Test creating a new session specifying interview type with audio recording and starting recording in-browser.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to create new session page"
+      },
+      {
+        "type": "action",
+        "description": "Fill session form with title, type as interview, recording type as audio, and optional company context"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form to create the session"
+      },
+      {
+        "type": "action",
+        "description": "Start audio recording in browser"
+      },
+      {
+        "type": "assertion",
+        "description": "Recording starts successfully"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Create a new trading session with video recording",
+    "description": "Verify the user can create a trading session with video recording and start recording successfully.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to new session creation page"
+      },
+      {
+        "type": "action",
+        "description": "Enter session details with type trading, video recording, and associated trading symbol"
+      },
+      {
+        "type": "action",
+        "description": "Create the session"
+      },
+      {
+        "type": "action",
+        "description": "Start in-browser video recording"
+      },
+      {
+        "type": "assertion",
+        "description": "Video recording starts and UI updates accordingly"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Stop recording and upload to Supabase Storage",
+    "description": "Validate that stopping the recording uploads audio/video files to secure storage and updates session status.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "While recording is active, stop recording"
+      },
+      {
+        "type": "assertion",
+        "description": "The recorded media file is uploaded successfully to Supabase Storage"
+      },
+      {
+        "type": "assertion",
+        "description": "Session status changes to ready for review"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Playback controls for recorded session",
+    "description": "Test play, pause, seek, and speed adjustment controls for audio/video playback.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a recorded session for playback"
+      },
+      {
+        "type": "action",
+        "description": "Use playback controls to play and pause"
+      },
+      {
+        "type": "action",
+        "description": "Seek to different timestamps"
+      },
+      {
+        "type": "action",
+        "description": "Adjust playback speed"
+      },
+      {
+        "type": "assertion",
+        "description": "Playback responds correctly to all controls including seeking and speed changes"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Add, edit, and delete timestamped bookmarks during playback",
+    "description": "Verify users can create bookmarks at playback timestamps, edit categories and descriptions, delete bookmarks, and navigate quickly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start playback of a recorded session"
+      },
+      {
+        "type": "action",
+        "description": "Add a bookmark at the current timestamp with a category"
+      },
+      {
+        "type": "assertion",
+        "description": "Bookmark is added and shown in the bookmarks list"
+      },
+      {
+        "type": "action",
+        "description": "Edit the bookmark's category and description"
+      },
+      {
+        "type": "assertion",
+        "description": "Bookmark updates are saved and reflected"
+      },
+      {
+        "type": "action",
+        "description": "Delete the bookmark"
+      },
+      {
+        "type": "assertion",
+        "description": "Bookmark is removed from the list"
+      },
+      {
+        "type": "action",
+        "description": "Click a bookmark to navigate playback to its timestamp"
+      },
+      {
+        "type": "assertion",
+        "description": "Playback jumps correctly to bookmark timestamp"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Add and auto-save session-level notes",
+    "description": "Check that users can add notes for a session that auto-save and persist after page reload.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open session note editor"
+      },
+      {
+        "type": "action",
+        "description": "Type notes content"
+      },
+      {
+        "type": "assertion",
+        "description": "Notes auto-save after inactivity or specific intervals"
+      },
+      {
+        "type": "action",
+        "description": "Reload session page"
+      },
+      {
+        "type": "assertion",
+        "description": "Previously entered notes are loaded correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Manual transcript editing with search and highlighting",
+    "description": "Validate that transcripts can be pasted, manually edited, searched, and highlighted for keywords.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open transcript editor for a session"
+      },
+      {
+        "type": "action",
+        "description": "Paste transcript text and perform manual edits"
+      },
+      {
+        "type": "assertion",
+        "description": "Transcript updates are saved successfully"
+      },
+      {
+        "type": "action",
+        "description": "Use the search function to find specific keywords"
+      },
+      {
+        "type": "assertion",
+        "description": "All matches of the keyword are highlighted in transcript"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Queue AI job for transcription and verify result",
+    "description": "Test queuing a transcription job, monitor job processing status, and validate transcription output correctness.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open AI actions panel for a recorded session"
+      },
+      {
+        "type": "action",
+        "description": "Queue a transcription AI job"
+      },
+      {
+        "type": "assertion",
+        "description": "Job status updates from queued to processing to completed"
+      },
+      {
+        "type": "assertion",
+        "description": "Transcript output is generated and accessible for review"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "AI job error handling and retry",
+    "description": "Ensure the system handles AI job failures gracefully and supports user retry of failed jobs.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate a failure in AI job processing"
+      },
+      {
+        "type": "assertion",
+        "description": "Job status changes to failed and an error message is shown"
+      },
+      {
+        "type": "action",
+        "description": "Trigger retry of the failed job"
+      },
+      {
+        "type": "assertion",
+        "description": "Job is re-queued and processed again successfully"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Generate and revoke secure session share link",
+    "description": "Verify generating a token-based share link provides read-only access and that revoking the link disables access.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Generate a share link for a recorded session"
+      },
+      {
+        "type": "assertion",
+        "description": "Link is generated and can be copied"
+      },
+      {
+        "type": "action",
+        "description": "Access the session via share link in an incognito browser"
+      },
+      {
+        "type": "assertion",
+        "description": "Session content is viewable with read-only permissions, no editing allowed"
+      },
+      {
+        "type": "action",
+        "description": "Revoke the generated share link"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access the session again via revoked link"
+      },
+      {
+        "type": "assertion",
+        "description": "Access is denied or link is invalid"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Dashboard session list filtering and pagination",
+    "description": "Test the dashboard filters by session type and pagination to verify correct sessions display and navigation.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the main dashboard with multiple sessions present"
+      },
+      {
+        "type": "action",
+        "description": "Apply filter by session type: interview"
+      },
+      {
+        "type": "assertion",
+        "description": "Only interview sessions are listed"
+      },
+      {
+        "type": "action",
+        "description": "Change filter to trading sessions"
+      },
+      {
+        "type": "assertion",
+        "description": "Only trading sessions are displayed"
+      },
+      {
+        "type": "action",
+        "description": "Use pagination controls to navigate to next page"
+      },
+      {
+        "type": "assertion",
+        "description": "Next set of sessions is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Verify Row Level Security enforces data privacy",
+    "description": "Ensure a user can only access their own sessions and any shared sessions according to RLS policies.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as User A and attempt to access User B's private session via direct URL"
+      },
+      {
+        "type": "assertion",
+        "description": "Access is denied or session is not found"
+      },
+      {
+        "type": "action",
+        "description": "Log in as User B and verify access to own sessions"
+      },
+      {
+        "type": "assertion",
+        "description": "User B can view all own sessions"
+      },
+      {
+        "type": "action",
+        "description": "Access a session shared with User A via token-based share link"
+      },
+      {
+        "type": "assertion",
+        "description": "User A can view shared session with read-only rights"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Company and symbol management functionality",
+    "description": "Check creation, update, and deletion of company and trading symbols for organizing sessions.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create a new target company entity with valid data"
+      },
+      {
+        "type": "assertion",
+        "description": "Company is created and listed"
+      },
+      {
+        "type": "action",
+        "description": "Edit the company's name or details"
+      },
+      {
+        "type": "assertion",
+        "description": "Company updates are saved and reflected"
+      },
+      {
+        "type": "action",
+        "description": "Delete the company"
+      },
+      {
+        "type": "assertion",
+        "description": "Company is removed from the list"
+      },
+      {
+        "type": "action",
+        "description": "Perform similar operations for trading symbols"
+      },
+      {
+        "type": "assertion",
+        "description": "Symbols are managed correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "UI responsiveness and theme toggling",
+    "description": "Verify that UI is responsive across different devices and switching between dark and light themes works correctly with system preference detection.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the application on multiple screen sizes including mobile and desktop"
+      },
+      {
+        "type": "assertion",
+        "description": "UI adapts correctly without layout issues"
+      },
+      {
+        "type": "action",
+        "description": "Toggle theme switch to dark mode"
+      },
+      {
+        "type": "assertion",
+        "description": "UI theme changes to dark mode immediately"
+      },
+      {
+        "type": "action",
+        "description": "Toggle theme switch back to light mode"
+      },
+      {
+        "type": "assertion",
+        "description": "UI theme changes to light mode"
+      },
+      {
+        "type": "action",
+        "description": "Set system theme preference to dark and reload app"
+      },
+      {
+        "type": "assertion",
+        "description": "App loads with dark theme by default"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Error boundary displays fallback UI on unexpected errors",
+    "description": "Ensure that global and route-level error boundaries catch errors and display a user-friendly fallback UI.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger a runtime error in a route or component"
+      },
+      {
+        "type": "assertion",
+        "description": "Error boundary intercepts the error and displays fallback UI"
+      },
+      {
+        "type": "action",
+        "description": "Navigate back to a valid page"
+      },
+      {
+        "type": "assertion",
+        "description": "Application recovers and functions normally"
+      }
+    ]
+  }
+]

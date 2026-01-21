@@ -1,0 +1,179 @@
+{
+  "tech_stack": [
+    "TypeScript",
+    "Next.js 16 (App Router)",
+    "React 19",
+    "Tailwind CSS v4",
+    "shadcn/ui",
+    "Supabase (Auth, Database, Storage, Edge Functions)",
+    "TanStack React Query",
+    "Lucide React",
+    "ESLint",
+    "Prettier"
+  ],
+  "features": [
+    {
+      "name": "Authentication",
+      "description": "User authentication with Supabase Auth including sign in, sign up, and sign out flows with email/password",
+      "files": [
+        "app/auth/signin/page.tsx",
+        "app/auth/signup/page.tsx",
+        "app/auth/signout/route.ts",
+        "app/auth/callback/route.ts",
+        "app/auth/auth-code-error/page.tsx",
+        "components/auth/SignInForm.tsx",
+        "components/auth/SignUpForm.tsx",
+        "lib/supabase/server.ts",
+        "lib/supabase/client.ts",
+        "middleware.ts"
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Main dashboard showing session library with stats cards, filtering, and session list management",
+      "files": [
+        "app/dashboard/page.tsx",
+        "components/dashboard/StatsCards.tsx",
+        "components/sessions/SessionsList.tsx",
+        "app/actions/stats.ts"
+      ]
+    },
+    {
+      "name": "Session Management",
+      "description": "Create, read, update, and delete interview/trading sessions with metadata, status tracking, and organization by company or symbol",
+      "files": [
+        "app/sessions/new/page.tsx",
+        "app/sessions/[id]/page.tsx",
+        "app/sessions/[id]/session-detail.tsx",
+        "components/sessions/NewSessionForm.tsx",
+        "app/actions/sessions.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Audio Recording",
+      "description": "Browser-based audio recording with WebRTC, automatic upload to Supabase Storage, and playback controls",
+      "files": [
+        "components/AudioRecorder.tsx",
+        "components/AudioPlayer.tsx",
+        "lib/supabase/storage.ts",
+        "lib/supabase/storage-client.ts",
+        "app/actions/storage.ts"
+      ]
+    },
+    {
+      "name": "Video Recording",
+      "description": "Browser-based video recording with WebRTC, automatic upload to Supabase Storage, and video playback",
+      "files": [
+        "components/VideoRecorder.tsx",
+        "components/VideoPlayer.tsx",
+        "lib/supabase/storage.ts",
+        "lib/supabase/storage-client.ts",
+        "app/actions/storage.ts"
+      ]
+    },
+    {
+      "name": "Bookmarks",
+      "description": "Add, edit, and delete timestamped bookmarks during session replay with category labels and quick navigation",
+      "files": [
+        "components/sessions/BookmarksList.tsx",
+        "app/actions/bookmarks.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Session Notes",
+      "description": "Add and edit personal notes for sessions with auto-save functionality",
+      "files": [
+        "components/sessions/SessionNoteEditor.tsx",
+        "app/actions/notes.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Transcripts",
+      "description": "Manual transcript editor with search/highlighting and text pasting capabilities",
+      "files": [
+        "components/sessions/TranscriptEditor.tsx",
+        "app/actions/transcripts.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "AI Actions",
+      "description": "Queue and manage AI jobs for transcription, summarization, scoring, and bookmark suggestions via Supabase Edge Functions",
+      "files": [
+        "components/sessions/AIActionsPanel.tsx",
+        "app/actions/ai-jobs.ts",
+        "supabase/functions/ai_run_job/index.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Session Sharing",
+      "description": "Generate secure, token-based share links for read-only session access with revocation capability",
+      "files": [
+        "app/share/[token]/page.tsx",
+        "app/share/[token]/shared-session-view.tsx",
+        "components/share/SharedMediaPlayer.tsx",
+        "components/share/SharedBookmarksList.tsx",
+        "components/share/SharedTranscriptViewer.tsx",
+        "components/share/SharedNoteViewer.tsx",
+        "app/actions/shares.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Company Management",
+      "description": "Create and manage target companies for organizing interview sessions",
+      "files": [
+        "app/actions/companies.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Symbol Management",
+      "description": "Create and manage trading symbols/tickers for organizing trading sessions",
+      "files": [
+        "app/actions/symbols.ts",
+        "types/index.ts"
+      ]
+    },
+    {
+      "name": "Theme Toggle",
+      "description": "Dark/light mode theme switching with system preference detection",
+      "files": [
+        "components/layout/ThemeToggle.tsx",
+        "components/providers/ThemeProvider.tsx",
+        "app/globals.css"
+      ]
+    },
+    {
+      "name": "Layout Components",
+      "description": "Reusable layout components including app shell, page headers, section cards, and empty states",
+      "files": [
+        "components/layout/AppShell.tsx",
+        "components/layout/PageHeader.tsx",
+        "components/layout/SectionCard.tsx",
+        "components/layout/EmptyState.tsx",
+        "app/layout.tsx"
+      ]
+    },
+    {
+      "name": "Error Handling",
+      "description": "Global and route-level error boundaries for graceful error handling",
+      "files": [
+        "app/error.tsx",
+        "app/global-error.tsx"
+      ]
+    },
+    {
+      "name": "Landing Page",
+      "description": "Public-facing landing page showcasing features with hero section and call-to-action",
+      "files": [
+        "app/page.tsx",
+        "lib/branding.ts"
+      ]
+    }
+  ]
+}

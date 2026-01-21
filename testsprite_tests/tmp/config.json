@@ -1,0 +1,18 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "mrwaywithwords@gmail.com",
+  "loginPassword": "narte4-Kyqdis-coqkij",
+  "executionArgs": {
+    "projectName": "Interview Replay App",
+    "projectPath": "/Users/samsonadeyemi/Interview Replay App",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-tMuDrzRNshyr2ZVcZ6gjASqEBSp6yZfXtU40GeAAGwhvtZ5zE3M4iOZmZvhYELooaGhXYbO6d5uxDO1D7HipWuhe-VRmcY5Ulq2zaM-Y4xGTVWz0cDPt5EzVDGyxyN_dX40"
+    }
+  },
+  "proxy": "http://8498c161-d6c7-457e-a05e-9e86554c74a3:nQqcH49XhlMI6dSO2Itl0W43cIr31JbF@tun.testsprite.com:8080"
+}

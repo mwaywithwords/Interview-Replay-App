@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
+import { generateSessionShareToken, revokeSessionShare, getSessionShares } from '@/app/actions/shares';
 import { PrimaryButton, SecondaryButton, Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   ArrowLeft,
   Loader2,
@@ -36,7 +45,13 @@ import {
   Video,
   Mic,
   Settings2,
+  Share2,
+  Copy,
+  Check,
+  Link as LinkIcon,
+  Trash,
 } from 'lucide-react';
+import type { SessionShare } from '@/types';
 import type { InterviewSession, SessionType, SessionMetadata, Bookmark as BookmarkType } from '@/types';
 import { VideoPlayer, type MediaPlayerRef } from '@/components/VideoPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -91,6 +106,16 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
+
+  // Share state
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [existingShares, setExistingShares] = useState<SessionShare[]>([]);
+  const [isLoadingShares, setIsLoadingShares] = useState(false);
+  const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
 
   // Ref for the active media player (audio or video)
   const mediaPlayerRef = useRef<MediaPlayerRef>(null);
@@ -160,6 +185,100 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
     }
   }
 
+  // Load existing shares when dialog opens
+  async function loadExistingShares() {
+    setIsLoadingShares(true);
+    const { shares, error } = await getSessionShares(session.id);
+    if (!error) {
+      setExistingShares(shares);
+    }
+    setIsLoadingShares(false);
+  }
+
+  // Generate a new share link
+  async function handleGenerateShareLink() {
+    setIsGeneratingShare(true);
+    setShareError(null);
+
+    try {
+      const result = await generateSessionShareToken(session.id);
+
+      if (result.error) {
+        setShareError(result.error);
+        return;
+      }
+
+      if (result.shareUrl && result.share) {
+        setShareUrl(result.shareUrl);
+        setExistingShares((prev) => [result.share!, ...prev]);
+      }
+    } catch (err) {
+      setShareError('Failed to generate share link. Please try again.');
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  }
+
+  // Copy share URL to clipboard
+  async function handleCopyShareUrl() {
+    if (!shareUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  }
+
+  // Copy any URL to clipboard
+  async function handleCopyUrl(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  }
+
+  // Revoke a share link
+  async function handleRevokeShare(shareId: string) {
+    setRevokingShareId(shareId);
+
+    try {
+      const { success, error } = await revokeSessionShare(shareId);
+
+      if (error) {
+        setShareError(error);
+        return;
+      }
+
+      if (success) {
+        setExistingShares((prev) => prev.filter((s) => s.id !== shareId));
+        // Clear the displayed URL if it was the revoked share
+        setShareUrl(null);
+      }
+    } catch (err) {
+      setShareError('Failed to revoke share link. Please try again.');
+    } finally {
+      setRevokingShareId(null);
+    }
+  }
+
+  // Handle share dialog open
+  function handleShareDialogChange(open: boolean) {
+    setIsShareDialogOpen(open);
+    if (open) {
+      // Reset state and load existing shares
+      setShareUrl(null);
+      setShareError(null);
+      setCopied(false);
+      loadExistingShares();
+    }
+  }
+
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-10">
       <div className="mb-10">
@@ -202,10 +321,149 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
 
           <div className="flex items-center gap-3">
             {!isEditing && (
-              <SecondaryButton size="sm" onClick={() => setIsEditing(true)} className="rounded-full px-4 border-border bg-muted/50 hover:bg-accent text-foreground transition-colors">
-                <Settings2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                Session Settings
-              </SecondaryButton>
+              <>
+                {/* Share Button */}
+                <Dialog open={isShareDialogOpen} onOpenChange={handleShareDialogChange}>
+                  <DialogTrigger asChild>
+                    <SecondaryButton size="sm" className="rounded-full px-4 border-border bg-muted/50 hover:bg-accent text-foreground transition-colors">
+                      <Share2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                      Share
+                    </SecondaryButton>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Share2 className="h-5 w-5" />
+                        Share Session
+                      </DialogTitle>
+                      <DialogDescription>
+                        Create a secure link to share this session. Anyone with the link can view the replay in read-only mode.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                      {shareError && (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{shareError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Generate new share link */}
+                      {!shareUrl && (
+                        <PrimaryButton
+                          onClick={handleGenerateShareLink}
+                          disabled={isGeneratingShare}
+                          className="w-full"
+                        >
+                          {isGeneratingShare ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <LinkIcon className="h-4 w-4 mr-2" />
+                              Generate Share Link
+                            </>
+                          )}
+                        </PrimaryButton>
+                      )}
+
+                      {/* Display generated share link */}
+                      {shareUrl && (
+                        <div className="space-y-3">
+                          <Label>Share Link</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={shareUrl}
+                              readOnly
+                              className="font-mono text-sm"
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              onClick={handleCopyShareUrl}
+                              className="shrink-0"
+                            >
+                              {copied ? (
+                                <Check className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Anyone with this link can view the session in read-only mode.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Existing shares */}
+                      {existingShares.length > 0 && (
+                        <div className="space-y-3 pt-4 border-t">
+                          <Label className="text-muted-foreground">Active Share Links ({existingShares.length})</Label>
+                          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {existingShares.map((share) => {
+                              const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                              const url = `${baseUrl}/share/${share.share_token}`;
+                              return (
+                                <div
+                                  key={share.id}
+                                  className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border"
+                                >
+                                  <div className="flex-1 min-w-0 mr-2">
+                                    <p className="text-xs font-mono truncate text-muted-foreground">
+                                      {share.share_token.slice(0, 20)}...
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      Created {new Date(share.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7"
+                                      onClick={() => handleCopyUrl(url)}
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7 text-destructive hover:text-destructive"
+                                      onClick={() => handleRevokeShare(share.id)}
+                                      disabled={revokingShareId === share.id}
+                                    >
+                                      {revokingShareId === share.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Trash className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {isLoadingShares && (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <SecondaryButton size="sm" onClick={() => setIsEditing(true)} className="rounded-full px-4 border-border bg-muted/50 hover:bg-accent text-foreground transition-colors">
+                  <Settings2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  Session Settings
+                </SecondaryButton>
+              </>
             )}
             {isEditing && (
               <div className="flex items-center gap-2">

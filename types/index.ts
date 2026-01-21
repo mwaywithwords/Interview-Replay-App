@@ -286,3 +286,63 @@ export interface SaveTranscriptInput {
   content: string;
   provider?: string;
 }
+
+// ============================================
+// Session Share Types (secure token-based sharing)
+// ============================================
+
+export interface SessionShare {
+  id: string;
+  session_id: string;
+  shared_by_user_id: string;
+  shared_with_email: string | null;
+  shared_with_user_id: string | null;
+  permission: 'view' | 'comment' | 'edit';
+  share_token: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  accessed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSessionShareResult {
+  share: SessionShare | null;
+  shareUrl: string | null;
+  error: string | null;
+}
+
+export interface SharedSessionData {
+  id: string;
+  title: string;
+  status: string;
+  recording_type: string | null;
+  audio_storage_path: string | null;
+  video_storage_path: string | null;
+  created_at: string;
+  session_type: string | null;
+  owner_user_id: string;
+}
+
+export interface SharedBookmark {
+  id: string;
+  session_id: string;
+  timestamp_ms: number;
+  label: string;
+  category: string | null;
+  created_at: string;
+}
+
+export interface SharedTranscript {
+  id: string;
+  session_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface SharedSessionNote {
+  id: string;
+  session_id: string;
+  content: string;
+  created_at: string;
+}

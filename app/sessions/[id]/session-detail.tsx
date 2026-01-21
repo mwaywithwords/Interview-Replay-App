@@ -51,7 +51,7 @@ import {
   Link as LinkIcon,
   Trash,
 } from 'lucide-react';
-import type { SessionShare } from '@/types';
+import type { SessionShare, AIJob } from '@/types';
 import type { InterviewSession, SessionType, SessionMetadata, Bookmark as BookmarkType } from '@/types';
 import { VideoPlayer, type MediaPlayerRef } from '@/components/VideoPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -65,11 +65,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BookmarksList } from '@/components/sessions/BookmarksList';
 import { SessionNoteEditor } from '@/components/sessions/SessionNoteEditor';
 import { TranscriptEditor } from '@/components/sessions/TranscriptEditor';
+import { AIActionsPanel } from '@/components/sessions/AIActionsPanel';
 import { cn } from '@/lib/utils';
 
 interface SessionDetailProps {
   session: InterviewSession;
   initialBookmarks: BookmarkType[];
+  initialAIJobs?: AIJob[];
 }
 
 function getSessionTypeLabel(type: string | undefined): string {
@@ -96,7 +98,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function SessionDetail({ session, initialBookmarks }: SessionDetailProps) {
+export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }: SessionDetailProps) {
   const router = useRouter();
   const metadata = session.metadata as SessionMetadata;
 
@@ -653,6 +655,11 @@ export function SessionDetail({ session, initialBookmarks }: SessionDetailProps)
 
         {/* Right Column */}
         <div className="space-y-8">
+          {/* AI Actions */}
+          <SectionCard title="AI Actions" className="bg-card border-border">
+            <AIActionsPanel sessionId={session.id} initialJobs={initialAIJobs} />
+          </SectionCard>
+
           {/* Speech Analysis */}
           <SectionCard title="Performance Metrics" className="bg-card border-border">
             <div className="space-y-8">

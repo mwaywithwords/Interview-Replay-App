@@ -346,3 +346,38 @@ export interface SharedSessionNote {
   content: string;
   created_at: string;
 }
+
+// ============================================
+// AI Job Types
+// ============================================
+
+export type AIJobType = 'transcript' | 'summary' | 'score' | 'suggest_bookmarks';
+export type AIJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+export interface AIJob {
+  id: string;
+  user_id: string;
+  session_id: string;
+  job_type: AIJobType;
+  status: AIJobStatus;
+  provider: string | null;
+  model: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAIJobInput {
+  session_id: string;
+  job_type: AIJobType;
+}
+
+export interface AIOutput {
+  id: string;
+  user_id: string;
+  session_id: string;
+  job_id: string;
+  output_type: string;
+  content: Record<string, unknown>;
+  created_at: string;
+}

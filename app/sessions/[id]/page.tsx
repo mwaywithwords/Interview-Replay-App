@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getSession } from '@/app/actions/sessions';
 import { getBookmarks } from '@/app/actions/bookmarks';
+import { getSessionAIJobs } from '@/app/actions/ai-jobs';
 import { SessionDetail } from './session-detail';
 import { AppShell } from '@/components/layout/AppShell';
 import { SecondaryButton } from '@/components/ui/button';
@@ -22,13 +23,15 @@ export async function generateMetadata({ params }: SessionPageProps): Promise<Me
 export default async function SessionPage({ params }: SessionPageProps) {
   const user = await requireUser();
   const { id } = await params;
-  const [sessionResult, bookmarksResult] = await Promise.all([
+  const [sessionResult, bookmarksResult, aiJobsResult] = await Promise.all([
     getSession(id),
     getBookmarks(id),
+    getSessionAIJobs(id),
   ]);
 
   const { session, error } = sessionResult;
   const { bookmarks } = bookmarksResult;
+  const { jobs: aiJobs } = aiJobsResult;
 
   if (error || !session) {
     notFound();
@@ -50,7 +53,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
         </div>
       }
     >
-      <SessionDetail session={session} initialBookmarks={bookmarks} />
+      <SessionDetail session={session} initialBookmarks={bookmarks} initialAIJobs={aiJobs} />
     </AppShell>
   );
 }

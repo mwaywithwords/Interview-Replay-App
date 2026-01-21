@@ -74,12 +74,17 @@ export async function createBookmark(
   }
 
   // Create the bookmark
+  // Note: timestamp_seconds is included for backwards compatibility with the original schema
+  // until the migration to drop it is run
+  const timestampSeconds = Math.floor(input.timestamp_ms / 1000);
+  
   const { data, error } = await supabase
     .from('bookmarks')
     .insert({
       session_id: input.session_id,
       user_id: user.id,
       timestamp_ms: input.timestamp_ms,
+      timestamp_seconds: timestampSeconds,
       label: input.label.trim(),
       category: input.category?.trim() || null,
     })

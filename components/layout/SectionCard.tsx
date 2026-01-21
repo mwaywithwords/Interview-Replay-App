@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent, CardAction } from '@/components/ui/card';
 
 interface SectionCardProps {
   children: ReactNode;
@@ -10,16 +11,26 @@ interface SectionCardProps {
 
 export function SectionCard({ children, title, className, headerActions }: SectionCardProps) {
   return (
-    <div className={cn("bg-card border border-border rounded-xl overflow-hidden shadow-sm", className)}>
+    <Card className={cn("overflow-hidden border-border bg-card shadow-sm transition-all duration-200", className)}>
       {(title || headerActions) && (
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          {title && <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{title}</h3>}
-          {headerActions}
-        </div>
+        <CardHeader className="border-b border-border/50 pb-4 bg-muted/20">
+          <div className="flex items-center justify-between w-full">
+            {title && (
+              <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                {title}
+              </CardTitle>
+            )}
+            {headerActions && (
+              <CardAction className="m-0">
+                {headerActions}
+              </CardAction>
+            )}
+          </div>
+        </CardHeader>
       )}
-      <div className="p-5">
+      <CardContent className={cn("p-6", !title && !headerActions && "pt-6")}>
         {children}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -5,6 +5,11 @@ import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SessionsList } from '@/components/sessions/SessionsList';
 import { Plus } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+};
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -12,24 +17,27 @@ export default async function Dashboard() {
   return (
     <AppShell
       headerActions={
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">{user.email}</span>
+        <div className="flex items-center gap-6">
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-sm font-semibold text-foreground">{user.email?.split('@')[0]}</span>
+            <span className="text-xs text-muted-foreground">{user.email}</span>
+          </div>
           <form action="/auth/signout" method="post">
-            <SecondaryButton type="submit" size="sm" variant="ghost">
+            <SecondaryButton type="submit" size="sm" variant="outline" className="text-muted-foreground hover:text-foreground hover:bg-accent border-border">
               Sign Out
             </SecondaryButton>
           </form>
         </div>
       }
     >
-      <div className="max-w-6xl mx-auto px-6 py-10">
+      <div className="max-w-6xl mx-auto px-6 py-12">
         <PageHeader
-          title="Your Sessions"
-          description="Manage and review your interview and trading sessions."
+          title="Session Library"
+          description="Review and analyze your recorded sessions to sharpen your performance."
           actions={
             <Link href="/sessions/new">
-              <PrimaryButton size="sm">
-                <Plus className="mr-2 h-4 w-4" />
+              <PrimaryButton size="lg" className="shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-95">
+                <Plus className="mr-2 h-5 w-5" />
                 New Session
               </PrimaryButton>
             </Link>

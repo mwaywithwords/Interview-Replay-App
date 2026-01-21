@@ -22,6 +22,7 @@ import type {
   SessionType,
 } from '@/types';
 import { PrimaryButton } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 function getSessionTypeLabel(type: string | undefined): string {
   const labels: Record<string, string> = {
@@ -32,20 +33,18 @@ function getSessionTypeLabel(type: string | undefined): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    draft: 'bg-muted text-muted-foreground border-border',
-    recording: 'bg-red-500/10 text-red-500 border-red-500/20',
-    processing: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-    ready: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-    archived: 'bg-muted text-muted-foreground border-border',
+  const variants: Record<string, "success" | "warning" | "info" | "destructive" | "secondary"> = {
+    draft: "secondary",
+    recording: "destructive",
+    processing: "warning",
+    ready: "success",
+    archived: "secondary",
   };
 
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${styles[status] || styles.draft}`}
-    >
+    <Badge variant={variants[status] || "secondary"} className="uppercase tracking-wider text-[10px] px-2 py-0.5">
       {status}
-    </span>
+    </Badge>
   );
 }
 
@@ -55,30 +54,32 @@ function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
 
   return (
     <Link href={`/sessions/${session.id}`}>
-      <SectionCard className="group hover:border-foreground/20 transition-all active:scale-[0.98]">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between">
-            <h3 className="font-bold text-lg group-hover:text-muted-foreground transition-colors">
+      <SectionCard className="group hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-[0.99] h-full flex flex-col border-border bg-card/50 backdrop-blur-sm">
+        <div className="flex flex-col gap-5 h-full">
+          <div className="flex items-start justify-between gap-4">
+            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2">
               {session.title}
             </h3>
             <StatusBadge status={session.status} />
           </div>
 
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground font-medium">
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-xs font-bold text-foreground">
+                <FileText className="h-3 w-3" />
                 {getSessionTypeLabel(sessionType)}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold">
+                <Clock className="h-3 w-3 text-muted-foreground/60" />
                 {new Date(session.created_at).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                 })}
               </span>
             </div>
-            <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+            <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-primary-foreground transition-all">
+              <ArrowRight className="h-4 w-4 transform group-hover:translate-x-0.5 transition-transform" />
+            </div>
           </div>
         </div>
       </SectionCard>
@@ -94,9 +95,9 @@ function GroupHeader({
   count: number;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <h2 className="text-xl font-bold">{title}</h2>
-      <span className="text-sm text-muted-foreground">({count})</span>
+    <div className="flex items-center gap-2 mb-6 ml-1">
+      <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
+      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{count}</span>
     </div>
   );
 }
@@ -209,27 +210,27 @@ export function SessionsList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading sessions...</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-muted-foreground font-bold animate-pulse">Loading sessions...</div>
       </div>
     );
   }
 
   if (sessionsError || sessionsData?.error) {
     return (
-      <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive text-sm">
+      <div className="mb-8 rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-destructive text-sm font-bold text-center">
         Failed to load sessions: {sessionsError?.message || sessionsData?.error}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 p-4 rounded-lg border bg-card">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Filter className="h-4 w-4" />
-          Filters:
+      <div className="flex flex-wrap items-center gap-4 p-5 rounded-2xl border border-border bg-card/50 backdrop-blur-sm shadow-sm mb-8">
+        <div className="flex items-center gap-2 text-sm font-black text-foreground uppercase tracking-tight mr-4">
+          <Filter className="h-4 w-4 text-primary" />
+          Refine Results
         </div>
 
         {/* Session Type Filter */}
@@ -239,10 +240,10 @@ export function SessionsList() {
             updateFilter('session_type', value === 'all' ? null : value)
           }
         >
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[160px] h-10 bg-muted/30 border-border rounded-xl font-bold">
             <SelectValue placeholder="Session Type" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl border-border bg-popover">
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="interview">Interview</SelectItem>
             <SelectItem value="trading">Trading</SelectItem>
@@ -257,10 +258,10 @@ export function SessionsList() {
               updateFilter('company_id', value === 'all' ? null : value)
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px] h-10 bg-muted/30 border-border rounded-xl font-bold">
               <SelectValue placeholder="Company" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl border-border bg-popover">
               <SelectItem value="all">All Companies</SelectItem>
               {companies.map((company) => (
                 <SelectItem key={company.id} value={company.id}>
@@ -279,10 +280,10 @@ export function SessionsList() {
               updateFilter('symbol_id', value === 'all' ? null : value)
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px] h-10 bg-muted/30 border-border rounded-xl font-bold">
               <SelectValue placeholder="Symbol" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl border-border bg-popover">
               <SelectItem value="all">All Symbols</SelectItem>
               {symbols.map((symbol) => (
                 <SelectItem key={symbol.id} value={symbol.id}>
@@ -301,14 +302,14 @@ export function SessionsList() {
           title="No sessions found"
           description={
             sessionType || companyId || symbolId
-              ? 'No sessions match your current filters. Try adjusting your filters.'
+              ? 'No sessions match your current filters. Try adjusting your filters or clearing them.'
               : 'Create your first session to start practicing and improving your skills.'
           }
           action={
             !sessionType && !companyId && !symbolId && (
               <Link href="/sessions/new">
-                <PrimaryButton>
-                  <Plus className="mr-2 h-4 w-4" />
+                <PrimaryButton className="rounded-xl font-bold px-8 shadow-lg shadow-primary/20">
+                  <Plus className="mr-2 h-5 w-5" />
                   Create Your First Session
                 </PrimaryButton>
               </Link>
@@ -317,7 +318,7 @@ export function SessionsList() {
         />
       ) : shouldGroupByCompany || shouldGroupBySymbol ? (
         // Grouped view
-        <div className="space-y-8">
+        <div className="space-y-12">
           {Array.from(groupedSessions.entries())
             .sort(([groupIdA], [groupIdB]) => {
               // Sort unassigned to the end
@@ -349,7 +350,7 @@ export function SessionsList() {
               return (
                 <div key={groupId}>
                   <GroupHeader title={groupTitle} count={groupSessions.length} />
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {groupSessions.map((session) => (
                       <SessionCard key={session.id} session={session} />
                     ))}
@@ -360,7 +361,7 @@ export function SessionsList() {
         </div>
       ) : (
         // Ungrouped view
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sessions.map((session) => (
             <SessionCard key={session.id} session={session} />
           ))}

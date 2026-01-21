@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
-import { Button } from '@/components/ui/button';
+import { PrimaryButton, SecondaryButton, Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,13 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   ArrowLeft,
@@ -33,12 +26,13 @@ import {
   X,
   Clock,
   Calendar,
+  ChevronRight,
+  Play,
 } from 'lucide-react';
 import type { InterviewSession, SessionType, SessionMetadata } from '@/types';
-import { AudioRecorder } from '@/components/AudioRecorder';
-import { AudioPlayer } from '@/components/AudioPlayer';
-import { VideoRecorder } from '@/components/VideoRecorder';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { SectionCard } from '@/components/layout/SectionCard';
+import { cn } from '@/lib/utils';
 
 interface SessionDetailProps {
   session: InterviewSession;
@@ -52,24 +46,6 @@ function getSessionTypeLabel(type: string | undefined): string {
     custom: 'Custom',
   };
   return labels[type || ''] || 'Unknown';
-}
-
-function getStatusBadge(status: string) {
-  const styles: Record<string, string> = {
-    draft: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-    recording: 'bg-red-500/20 text-red-300 border-red-500/30',
-    processing: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    ready: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    archived: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-  };
-
-  return (
-    <span
-      className={`rounded-full border px-3 py-1 text-sm font-medium ${styles[status] || styles.draft}`}
-    >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
 }
 
 export function SessionDetail({ session }: SessionDetailProps) {
@@ -134,7 +110,6 @@ export function SessionDetail({ session }: SessionDetailProps) {
         setIsDeleting(false);
         return;
       }
-      // The deleteSession action redirects to /dashboard
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       setIsDeleting(false);
@@ -142,321 +117,214 @@ export function SessionDetail({ session }: SessionDetailProps) {
   }
 
   return (
-    <div className="relative min-h-screen bg-slate-950">
-      {/* Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30" />
-
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400">
-                <svg
-                  className="h-5 w-5 text-slate-900"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <span className="text-lg font-bold text-white">
-                Interview Replay
-              </span>
-            </Link>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="mx-auto max-w-4xl px-8 py-12">
-          <Link
-            href="/dashboard"
-            className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-
-          {error && (
-            <Alert
-              variant="destructive"
-              className="mb-6 border-red-500/30 bg-red-500/10"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-red-300">
-                {error}
-              </AlertDescription>
-            </Alert>
+    <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Sessions
+        </Link>
+        
+        <div className="flex items-center gap-2">
+          {!isEditing && (
+            <SecondaryButton size="sm" onClick={() => setIsEditing(true)}>
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Edit Details
+            </SecondaryButton>
           )}
+          {isEditing && (
+            <div className="flex items-center gap-2">
+              <SecondaryButton size="sm" onClick={handleCancelEdit} disabled={isLoading}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton size="sm" onClick={handleSave} disabled={isLoading || !title.trim()}>
+                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-2" />}
+                Save Changes
+              </PrimaryButton>
+            </div>
+          )}
+        </div>
+      </div>
 
-          {/* Audio Recorder Section */}
-          <div className="mb-6">
-            <AudioRecorder
-              sessionId={session.id}
-              userId={session.user_id}
-              onRecordingComplete={(blob) => {
-                console.log('Audio recording complete:', blob.type, blob.size);
-              }}
-              onUploadComplete={(storagePath) => {
-                console.log('Audio uploaded to:', storagePath);
-                router.refresh();
-              }}
-            />
+      {error && (
+        <Alert variant="destructive" className="mb-8">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {isEditing && (
+        <SectionCard className="mb-8" title="Edit Session Information">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Session Title</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Google Mock Interview"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="session_type">Session Type</Label>
+                <Select
+                  value={sessionType}
+                  onValueChange={(value: SessionType) => setSessionType(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mock_interview">Mock Interview</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="behavioral">Behavioral</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prompt">Context / Prompt</Label>
+              <Textarea
+                id="prompt"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Job description, specific questions, etc."
+                className="h-[110px]"
+              />
+            </div>
           </div>
-
-          {/* Audio Player Section - for playback of recorded audio */}
-          <div className="mb-6">
-            <AudioPlayer
-              sessionId={session.id}
-              hasAudio={!!session.audio_storage_path}
-            />
+          
+          <div className="mt-6 pt-6 border-t border-border flex justify-end">
+            {!showDeleteConfirm ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                Delete Session
+              </Button>
+            ) : (
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">Are you sure?</span>
+                <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting ? "Deleting..." : "Confirm Delete"}
+                </Button>
+              </div>
+            )}
           </div>
+        </SectionCard>
+      )}
 
-          {/* Video Recorder Section */}
-          <div className="mb-6">
-            <VideoRecorder
-              sessionId={session.id}
-              userId={session.user_id}
-              onRecordingComplete={(blob) => {
-                console.log('Video recording complete:', blob.type, blob.size);
-              }}
-              onUploadComplete={(storagePath) => {
-                console.log('Video uploaded to:', storagePath);
-                router.refresh();
-              }}
-            />
-          </div>
-
-          {/* Video Player Section - for playback of recorded video */}
-          <div className="mb-6">
+      <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Video Player Section */}
+          <SectionCard className="p-0 border-none bg-transparent shadow-none">
             <VideoPlayer
               sessionId={session.id}
               hasVideo={!!session.video_storage_path}
             />
-          </div>
+          </SectionCard>
 
-          <Card className="border-slate-800 bg-slate-900/50">
-            <CardHeader className="flex flex-row items-start justify-between space-y-0">
-              <div className="flex-1">
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="title" className="text-slate-300">
-                      Session Title
-                    </Label>
-                    <Input
-                      id="title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="max-w-md border-slate-700 bg-slate-800 text-white focus:border-emerald-500 focus:ring-emerald-500"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <CardTitle className="text-2xl text-white">
-                      {session.title}
-                    </CardTitle>
-                    <CardDescription className="mt-2 text-slate-400">
-                      {getSessionTypeLabel(metadata?.session_type)}
-                    </CardDescription>
-                  </>
-                )}
+          {/* Transcript Section */}
+          <SectionCard title="Transcript">
+            <div className="space-y-6">
+              <div>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Interviewer</span>
+                <p className="mt-1 text-foreground leading-relaxed">
+                  Can you tell me about a challenging project you worked on?
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                {!isEditing && getStatusBadge(session.status)}
-                {!isEditing ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setIsEditing(true)}
-                    className="text-slate-400 hover:bg-slate-800 hover:text-white"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={handleCancelEdit}
-                      disabled={isLoading}
-                      className="text-slate-400 hover:bg-slate-800 hover:text-white"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={handleSave}
-                      disabled={isLoading || !title.trim()}
-                      className="text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                )}
+              <div className="pt-4 border-t border-border">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Interviewee</span>
+                <p className="mt-1 text-foreground leading-relaxed">
+                  Sure, I led the launch of a new feature that increased user
+                  engagement by 40%. We faced tight deadlines and had to adapt quickly. It taught
+                  me a lot about prioritization and teamwork.
+                </p>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Metadata */}
-              <div className="flex gap-6 text-sm text-slate-400">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Created{' '}
-                  {new Date(session.created_at).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Speech Analysis */}
+          <SectionCard title="Speech Analysis">
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <span className="text-amber-500">🔔</span> Filler Words
+                  </span>
+                  <span className="text-lg font-bold">12</span>
                 </div>
-                {session.updated_at !== session.created_at && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Updated{' '}
-                    {new Date(session.updated_at).toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Session Type (Editing) */}
-              {isEditing && (
-                <div className="space-y-2">
-                  <Label htmlFor="session_type" className="text-slate-300">
-                    Session Type
-                  </Label>
-                  <Select
-                    value={sessionType}
-                    onValueChange={(value: SessionType) =>
-                      setSessionType(value)
-                    }
-                  >
-                    <SelectTrigger className="max-w-md border-slate-700 bg-slate-800 text-white focus:border-emerald-500 focus:ring-emerald-500">
-                      <SelectValue placeholder="Select session type" />
-                    </SelectTrigger>
-                    <SelectContent className="border-slate-700 bg-slate-800">
-                      <SelectItem
-                        value="mock_interview"
-                        className="text-white focus:bg-slate-700"
-                      >
-                        Mock Interview
-                      </SelectItem>
-                      <SelectItem
-                        value="technical"
-                        className="text-white focus:bg-slate-700"
-                      >
-                        Technical
-                      </SelectItem>
-                      <SelectItem
-                        value="behavioral"
-                        className="text-white focus:bg-slate-700"
-                      >
-                        Behavioral
-                      </SelectItem>
-                      <SelectItem
-                        value="custom"
-                        className="text-white focus:bg-slate-700"
-                      >
-                        Custom
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 w-[70%]" />
                 </div>
-              )}
-
-              {/* Prompt */}
-              <div className="space-y-2">
-                <Label className="text-slate-300">Prompt</Label>
-                {isEditing ? (
-                  <Textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Enter any specific questions or topics..."
-                    rows={4}
-                    className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500"
-                  />
-                ) : (
-                  <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
-                    {metadata?.prompt ? (
-                      <p className="text-slate-300 whitespace-pre-wrap">
-                        {metadata.prompt}
-                      </p>
-                    ) : (
-                      <p className="text-slate-500 italic">No prompt set</p>
-                    )}
-                  </div>
-                )}
               </div>
-
-              {/* Delete Section */}
-              <div className="border-t border-slate-700 pt-6">
-                {!showDeleteConfirm ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Session
-                  </Button>
-                ) : (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-                    <p className="mb-4 text-sm text-red-300">
-                      Are you sure you want to delete this session? This action
-                      cannot be undone.
-                    </p>
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDeleteConfirm(false)}
-                        disabled={isDeleting}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-800"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className="bg-red-600 text-white hover:bg-red-700"
-                      >
-                        {isDeleting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Deleting...
-                          </>
-                        ) : (
-                          'Delete'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
+              
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <span className="text-emerald-500">▶</span> Talking Speed
+                  </span>
+                  <span className="text-lg font-bold">135 wpm</span>
+                </div>
+                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 w-[85%]" />
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </main>
+            </div>
+          </SectionCard>
+
+          {/* AI Feedback */}
+          <SectionCard title="AI Feedback" headerActions={<button className="text-xs text-muted-foreground hover:underline">View Detailed Report</button>}>
+            <ul className="space-y-3">
+              <li className="flex gap-3 text-sm">
+                <span className="text-amber-500 mt-1">•</span>
+                <span>Good explanation of product strategy.</span>
+              </li>
+              <li className="flex gap-3 text-sm">
+                <span className="text-amber-500 mt-1">•</span>
+                <span>Improve on structuring your answers.</span>
+              </li>
+              <li className="flex gap-3 text-sm">
+                <span className="text-amber-500 mt-1">•</span>
+                <span>Avoid saying 'um' too often.</span>
+              </li>
+            </ul>
+          </SectionCard>
+
+          {/* Key Moments */}
+          <SectionCard title="Key Moments">
+            <div className="space-y-2">
+              {[
+                { time: "03:10", label: "Strengths & Weaknesses" },
+                { time: "07:45", label: "Case Study Question" },
+                { time: "12:30", label: "Follow-up Questions" }
+              ].map((moment, i) => (
+                <button 
+                  key={i}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-muted-foreground">{moment.time}</span>
+                    <span className="text-sm font-medium">{moment.label}</span>
+                  </div>
+                  <Play className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
       </div>
     </div>
   );

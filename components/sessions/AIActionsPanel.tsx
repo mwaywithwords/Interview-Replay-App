@@ -1,7 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createAIJob, getSessionAIJobs } from '@/app/actions/ai-jobs';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  createAIJob,
+  getSessionAIJobs,
+  runAIJob,
+  getSessionAIOutputs,
+} from '@/app/actions/ai-jobs';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,15 +21,21 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  Play,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import type { AIJob, AIJobType } from '@/types';
+import type { AIJob, AIJobType, AIOutput } from '@/types';
 
 interface AIActionsPanelProps {
   sessionId: string;
   initialJobs?: AIJob[];
 }
 
-const JOB_TYPE_CONFIG: Record<AIJobType, { label: string; icon: React.ElementType; description: string }> = {
+const JOB_TYPE_CONFIG: Record<
+  AIJobType,
+  { label: string; icon: React.ElementType; description: string }
+> = {
   transcript: {
     label: 'Generate Transcript',
     icon: FileText,
@@ -48,7 +59,10 @@ const JOB_TYPE_CONFIG: Record<AIJobType, { label: string; icon: React.ElementTyp
 };
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
-  const config: Record<AIJob['status'], { variant: 'info' | 'warning' | 'success' | 'destructive'; icon: React.ElementType }> = {
+  const config: Record<
+    AIJob['status'],
+    { variant: 'info' | 'warning' | 'success' | 'destructive'; icon: React.ElementType }
+  > = {
     queued: { variant: 'info', icon: Clock },
     processing: { variant: 'warning', icon: Loader2 },
     completed: { variant: 'success', icon: CheckCircle2 },
@@ -84,9 +98,132 @@ function formatRelativeTime(dateString: string): string {
   return `${diffDays}d ago`;
 }
 
+// Component to display AI output content
+function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJobType }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const content = output.content as Record<string, unknown>;
+
+  const renderContent = () => {
+    switch (jobType) {
+      case 'summary':
+        return (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground">{content.summary as string}</p>
+            {content.bullets && Array.isArray(content.bullets) && (
+              <ul className="list-disc list-inside space-y-1">
+                {(content.bullets as string[]).map((bullet, i) => (
+                  <li key={i} className="text-sm text-muted-foreground">
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {content.confidence !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                Confidence: {Math.round((content.confidence as number) * 100)}%
+              </p>
+            )}
+          </div>
+        );
+
+      case 'transcript':
+        return (
+          <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
+            {content.transcript as string}
+          </div>
+        );
+
+      case 'score':
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl font-bold text-primary">{content.score as number}</span>
+              <span className="text-sm text-muted-foreground">/ 100</span>
+            </div>
+            {content.rubric && Array.isArray(content.rubric) && (
+              <div className="space-y-2">
+                {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
+                  (item, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{item.name}</span>
+                      <span className="font-medium">
+                        {item.score}/{item.maxScore || 10}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+            {content.overallFeedback && (
+              <p className="text-sm text-muted-foreground italic">
+                {content.overallFeedback as string}
+              </p>
+            )}
+          </div>
+        );
+
+      case 'suggest_bookmarks':
+        return (
+          <div className="space-y-2">
+            {content.bookmarks && Array.isArray(content.bookmarks) && (
+              <>
+                {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
+                  (bm, i) => {
+                    const seconds = Math.floor(bm.timestamp_ms / 1000);
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
+                      >
+                        <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
+                          {timeStr}
+                        </span>
+                        <span className="text-sm text-foreground flex-1">{bm.label}</span>
+                        {bm.category && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {bm.category}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  }
+                )}
+              </>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <pre className="text-xs text-muted-foreground overflow-auto">
+            {JSON.stringify(content, null, 2)}
+          </pre>
+        );
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors w-full"
+      >
+        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {isExpanded ? 'Hide output' : 'View output'}
+      </button>
+      {isExpanded && <div className="mt-3">{renderContent()}</div>}
+    </div>
+  );
+}
+
 export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
+  const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
   const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
+  const [runningJobId, setRunningJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
 
@@ -94,8 +231,24 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
   useEffect(() => {
     if (initialJobs.length === 0) {
       loadJobs();
+    } else {
+      // Load outputs for completed jobs
+      loadOutputs();
     }
   }, [sessionId, initialJobs.length]);
+
+  // Poll for job updates when there's a job processing
+  useEffect(() => {
+    const processingJobs = jobs.filter((j) => j.status === 'processing');
+    if (processingJobs.length === 0) return;
+
+    const interval = setInterval(async () => {
+      await loadJobs();
+      await loadOutputs();
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [jobs, sessionId]);
 
   async function loadJobs() {
     setIsLoadingJobs(true);
@@ -105,6 +258,18 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
     }
     setIsLoadingJobs(false);
   }
+
+  const loadOutputs = useCallback(async () => {
+    const { outputs: fetchedOutputs, error: fetchError } = await getSessionAIOutputs(sessionId);
+    if (!fetchError && fetchedOutputs.length > 0) {
+      // Index outputs by job_id for easy lookup
+      const outputMap: Record<string, AIOutput> = {};
+      fetchedOutputs.forEach((output) => {
+        outputMap[output.job_id] = output;
+      });
+      setOutputs(outputMap);
+    }
+  }, [sessionId]);
 
   async function handleCreateJob(jobType: AIJobType) {
     setError(null);
@@ -126,6 +291,41 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoadingJobType(null);
+    }
+  }
+
+  async function handleRunJob(jobId: string) {
+    setError(null);
+    setRunningJobId(jobId);
+
+    // Optimistically update the job status to processing
+    setJobs((prev) =>
+      prev.map((job) => (job.id === jobId ? { ...job, status: 'processing' as const } : job))
+    );
+
+    try {
+      const { success, error: runError } = await runAIJob(jobId);
+
+      if (runError || !success) {
+        setError(runError || 'Failed to run job');
+        // Revert the optimistic update
+        setJobs((prev) =>
+          prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))
+        );
+        return;
+      }
+
+      // Refresh jobs and outputs after successful run
+      await loadJobs();
+      await loadOutputs();
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      // Revert the optimistic update
+      setJobs((prev) =>
+        prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))
+      );
+    } finally {
+      setRunningJobId(null);
     }
   }
 
@@ -186,26 +386,62 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
               {jobs.map((job) => {
                 const config = JOB_TYPE_CONFIG[job.job_type];
                 const Icon = config?.icon || FileText;
+                const isRunning = runningJobId === job.id || job.status === 'processing';
+                const canRun = job.status === 'queued';
+                const output = outputs[job.id];
 
                 return (
                   <div
                     key={job.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border"
+                    className="p-3 rounded-xl bg-muted/30 border border-border"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border">
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {getJobTypeLabel(job.job_type)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatRelativeTime(job.created_at)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {getJobTypeLabel(job.job_type)}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatRelativeTime(job.created_at)}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        {canRun && (
+                          <PrimaryButton
+                            size="sm"
+                            onClick={() => handleRunJob(job.id)}
+                            disabled={isRunning}
+                            className="h-7 px-3 text-xs"
+                          >
+                            {isRunning ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <Play className="h-3 w-3 mr-1" />
+                                Run
+                              </>
+                            )}
+                          </PrimaryButton>
+                        )}
+                        <JobStatusBadge status={job.status} />
                       </div>
                     </div>
-                    <JobStatusBadge status={job.status} />
+
+                    {/* Show output for completed jobs */}
+                    {job.status === 'completed' && output && (
+                      <AIOutputDisplay output={output} jobType={job.job_type} />
+                    )}
+
+                    {/* Show error for failed jobs */}
+                    {job.status === 'failed' && job.error_message && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <p className="text-xs text-destructive">{job.error_message}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}

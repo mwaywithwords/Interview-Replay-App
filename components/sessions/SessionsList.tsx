@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Clock, ArrowRight, FileText, Filter, Search, AlertCircle, Loader2, Video, Mic } from 'lucide-react';
+import { Plus, Clock, FileText, Filter, Search, AlertCircle, Loader2, Video, Mic } from 'lucide-react';
 import type {
   InterviewSessionWithGroupings,
   SessionMetadata,
@@ -58,17 +58,15 @@ function StatusBadge({ status }: { status: string }) {
 function SessionCardSkeleton() {
   return (
     <Card className="border-border bg-card/50 backdrop-blur-sm p-5 h-full">
-      <div className="flex flex-col gap-5 h-full">
-        <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 h-full">
+        <div className="flex items-start justify-between gap-3">
           <div className="h-6 w-3/4 bg-muted rounded animate-pulse" />
           <div className="h-5 w-16 bg-muted rounded animate-pulse" />
         </div>
-        <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-5 w-20 bg-muted rounded animate-pulse" />
-            <div className="h-5 w-16 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+        <div className="mt-auto pt-3 border-t border-border/50 flex flex-wrap items-center gap-2">
+          <div className="h-5 w-20 bg-muted rounded animate-pulse" />
+          <div className="h-5 w-16 bg-muted rounded animate-pulse" />
+          <div className="h-5 w-14 bg-muted rounded animate-pulse" />
         </div>
       </div>
     </Card>
@@ -100,33 +98,28 @@ function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
 
   return (
     <Link href={`/sessions/${session.id}`}>
-      <SectionCard className="group hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-[0.99] h-full flex flex-col border-border bg-card/50 backdrop-blur-sm">
-        <div className="flex flex-col gap-5 h-full">
-          <div className="flex items-start justify-between gap-4">
-            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2">
+      <SectionCard className="group hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-[0.99] cursor-pointer h-full flex flex-col border-border bg-card/50 backdrop-blur-sm">
+        <div className="flex flex-col gap-4 h-full">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 flex-1">
               {session.title}
             </h3>
             <StatusBadge status={session.status} />
           </div>
 
-          <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground font-medium">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-xs font-bold text-foreground">
-                <FileText className="h-3 w-3" />
-                {getSessionTypeLabel(sessionType)}
-              </span>
-              <RecordingTypeBadge recordingType={session.recording_type} />
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold">
-                <Clock className="h-3 w-3 text-muted-foreground/60" />
-                {new Date(session.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-primary-foreground transition-all">
-              <ArrowRight className="h-4 w-4 transform group-hover:translate-x-0.5 transition-transform" />
-            </div>
+          <div className="mt-auto pt-3 border-t border-border/50 flex flex-wrap items-center gap-2 text-sm text-muted-foreground font-medium">
+            <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-xs font-bold text-foreground">
+              <FileText className="h-3 w-3" />
+              {getSessionTypeLabel(sessionType)}
+            </span>
+            <RecordingTypeBadge recordingType={session.recording_type} />
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold">
+              <Clock className="h-3 w-3 text-muted-foreground/60" />
+              {new Date(session.created_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
           </div>
         </div>
       </SectionCard>

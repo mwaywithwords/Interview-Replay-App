@@ -117,9 +117,24 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
    
    # Optional: App URL for share links
    NEXT_PUBLIC_APP_URL=http://localhost:3000
+   
+   # Site URL for authentication redirects (password reset, etc.)
+   # For local development: http://localhost:3000
+   # For production: https://your-domain.com
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
    Get your Supabase credentials from the [Supabase Dashboard](https://app.supabase.com/) under **Project Settings** → **API**.
+
+   **Configure Supabase Redirect URLs:**
+   
+   For the password reset flow to work, you must add your site URLs to the Supabase allowed redirect list:
+   
+   1. Go to [Supabase Dashboard](https://app.supabase.com/) → **Authentication** → **URL Configuration**
+   2. Add the following to **Redirect URLs**:
+      - `http://localhost:3000/auth/reset-password` (for local development)
+      - `https://your-domain.com/auth/reset-password` (for production)
+   3. Optionally set your **Site URL** to your production domain
 
 4. **Set up the database**
 
@@ -224,6 +239,16 @@ replay-ai/
 3. Server components use `requireUser()` to protect routes
 4. Client components use `createClient()` for auth state
 5. Row Level Security (RLS) policies enforce data access
+
+### Password Reset Flow
+
+1. User clicks "Forgot password?" on the sign-in page
+2. User enters email on `/auth/forgot-password` page
+3. Supabase sends a password reset email with a magic link
+4. User clicks the link and is redirected to `/auth/reset-password`
+5. User enters a new password and confirms it
+6. Password is updated via `supabase.auth.updateUser()`
+7. User is redirected to the dashboard
 
 ### Data Flow
 

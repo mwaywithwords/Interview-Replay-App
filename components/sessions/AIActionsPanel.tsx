@@ -143,7 +143,7 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
         return (
           <div className="space-y-3">
             <p className="text-sm text-foreground">{content.summary as string}</p>
-            {content.bullets && Array.isArray(content.bullets) && (
+            {content.bullets && Array.isArray(content.bullets) ? (
               <ul className="list-disc list-inside space-y-1">
                 {(content.bullets as string[]).map((bullet, i) => (
                   <li key={i} className="text-sm text-muted-foreground">
@@ -151,12 +151,12 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
                   </li>
                 ))}
               </ul>
-            )}
-            {content.confidence !== undefined && (
+            ) : null}
+            {content.confidence !== undefined ? (
               <p className="text-xs text-muted-foreground">
                 Confidence: {Math.round((content.confidence as number) * 100)}%
               </p>
-            )}
+            ) : null}
           </div>
         );
 
@@ -174,7 +174,7 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
               <span className="text-3xl font-bold text-primary">{content.score as number}</span>
               <span className="text-sm text-muted-foreground">/ 100</span>
             </div>
-            {content.rubric && Array.isArray(content.rubric) && (
+            {content.rubric && Array.isArray(content.rubric) ? (
               <div className="space-y-2">
                 {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
                   (item, i) => (
@@ -187,19 +187,19 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
                   )
                 )}
               </div>
-            )}
-            {content.overallFeedback && (
+            ) : null}
+            {content.overallFeedback ? (
               <p className="text-sm text-muted-foreground italic">
                 {content.overallFeedback as string}
               </p>
-            )}
+            ) : null}
           </div>
         );
 
       case 'suggest_bookmarks':
         return (
           <div className="space-y-2">
-            {content.bookmarks && Array.isArray(content.bookmarks) && (
+            {content.bookmarks && Array.isArray(content.bookmarks) ? (
               <>
                 {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
                   (bm, i) => {
@@ -216,17 +216,17 @@ function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJob
                           {timeStr}
                         </span>
                         <span className="text-sm text-foreground flex-1">{bm.label}</span>
-                        {bm.category && (
+                        {bm.category ? (
                           <Badge variant="secondary" className="text-[10px]">
                             {bm.category}
                           </Badge>
-                        )}
+                        ) : null}
                       </div>
                     );
                   }
                 )}
               </>
-            )}
+            ) : null}
           </div>
         );
 
@@ -272,7 +272,7 @@ function AIOutputDisplayWithId({
         return (
           <div className="space-y-3">
             <p className="text-sm text-foreground">{content.summary as string}</p>
-            {content.bullets && Array.isArray(content.bullets) && (
+            {content.bullets && Array.isArray(content.bullets) ? (
               <ul className="list-disc list-inside space-y-1">
                 {(content.bullets as string[]).map((bullet, i) => (
                   <li key={i} className="text-sm text-muted-foreground">
@@ -280,12 +280,12 @@ function AIOutputDisplayWithId({
                   </li>
                 ))}
               </ul>
-            )}
-            {content.confidence !== undefined && (
+            ) : null}
+            {content.confidence !== undefined ? (
               <p className="text-xs text-muted-foreground">
                 Confidence: {Math.round((content.confidence as number) * 100)}%
               </p>
-            )}
+            ) : null}
           </div>
         );
 
@@ -303,7 +303,7 @@ function AIOutputDisplayWithId({
               <span className="text-3xl font-bold text-primary">{content.score as number}</span>
               <span className="text-sm text-muted-foreground">/ 100</span>
             </div>
-            {content.rubric && Array.isArray(content.rubric) && (
+            {content.rubric && Array.isArray(content.rubric) ? (
               <div className="space-y-2">
                 {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
                   (item, i) => (
@@ -316,19 +316,19 @@ function AIOutputDisplayWithId({
                   )
                 )}
               </div>
-            )}
-            {content.overallFeedback && (
+            ) : null}
+            {content.overallFeedback ? (
               <p className="text-sm text-muted-foreground italic">
                 {content.overallFeedback as string}
               </p>
-            )}
+            ) : null}
           </div>
         );
 
       case 'suggest_bookmarks':
         return (
           <div className="space-y-2">
-            {content.bookmarks && Array.isArray(content.bookmarks) && (
+            {content.bookmarks && Array.isArray(content.bookmarks) ? (
               <>
                 {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
                   (bm, i) => {
@@ -345,17 +345,17 @@ function AIOutputDisplayWithId({
                           {timeStr}
                         </span>
                         <span className="text-sm text-foreground flex-1">{bm.label}</span>
-                        {bm.category && (
+                        {bm.category ? (
                           <Badge variant="secondary" className="text-[10px]">
                             {bm.category}
                           </Badge>
-                        )}
+                        ) : null}
                       </div>
                     );
                   }
                 )}
               </>
-            )}
+            ) : null}
           </div>
         );
 

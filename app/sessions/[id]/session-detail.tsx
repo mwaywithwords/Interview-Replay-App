@@ -427,7 +427,7 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
                           <div className="space-y-2 max-h-[200px] overflow-y-auto">
                             {existingShares.map((share) => {
                               const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-                              const url = `${baseUrl}/share/${share.share_token}`;
+                              const url = `${baseUrl}/share/${share.share_token ?? ''}`;
                               return (
                                 <div
                                   key={share.id}
@@ -435,7 +435,7 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
                                 >
                                   <div className="flex-1 min-w-0 mr-2">
                                     <p className="text-xs font-mono truncate text-muted-foreground">
-                                      {share.share_token.slice(0, 20)}...
+                                      {share.share_token?.slice(0, 20) ?? 'N/A'}...
                                     </p>
                                     <p className="text-[10px] text-muted-foreground">
                                       Created {new Date(share.created_at).toLocaleDateString()}

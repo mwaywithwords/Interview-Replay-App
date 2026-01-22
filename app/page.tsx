@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { AppShell } from '@/components/layout/AppShell';
 import { SectionCard } from '@/components/layout/SectionCard';
-import { Video, Play, TrendingUp, ArrowRight, PlayCircle } from 'lucide-react';
+import { HowItWorksButton } from '@/components/HowItWorksButton';
+import { Video, Play, TrendingUp, ArrowRight, PlayCircle, Upload, Bookmark, FileText } from 'lucide-react';
 import { branding } from '@/lib/branding';
 
 export default function Home() {
@@ -44,11 +45,56 @@ export default function Home() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </PrimaryButton>
             </Link>
-            <SecondaryButton size="lg" variant="ghost" className="h-14 px-10 rounded-full text-lg font-bold text-muted-foreground hover:bg-accent transition-colors">
-              How it works
-            </SecondaryButton>
+            <HowItWorksButton />
           </div>
         </div>
+
+        {/* How It Works Section */}
+        <section id="how-it-works" className="max-w-4xl mx-auto px-6 pb-32 relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
+              How it works
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Get started in 5 simple steps
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            {[
+              { icon: Video, title: 'Record a session', description: 'Record audio or video for an interview or trading review session.' },
+              { icon: Upload, title: 'Upload and replay', description: 'Upload the recording and replay it like game film.' },
+              { icon: Bookmark, title: 'Add bookmarks', description: 'Mark key moments with timestamps and labels.' },
+              { icon: FileText, title: 'Notes and transcript', description: 'Add session notes and paste a transcript for quick review.' },
+              { icon: TrendingUp, title: 'Improve over time', description: 'Track sessions, review patterns, and level up.' },
+            ].map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <div
+                  key={index}
+                  className="flex items-start gap-4 p-5 rounded-2xl bg-card/50 border border-border/50 backdrop-blur-sm"
+                >
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        {index + 1}
+                      </span>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {step.title}
+                      </h3>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* Features Section */}
         <div className="max-w-7xl mx-auto px-6 pb-40 relative z-10">

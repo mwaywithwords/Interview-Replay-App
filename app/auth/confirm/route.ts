@@ -11,12 +11,19 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/dashboard';
 
   // Determine the correct redirect URL base
+  // Priority: NEXT_PUBLIC_SITE_URL > x-forwarded-host > request origin
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const forwardedHost = request.headers.get('x-forwarded-host');
   const isLocalEnv = process.env.NODE_ENV === 'development';
   
-  let redirectBase = origin;
-  if (!isLocalEnv && forwardedHost) {
+  let redirectBase: string;
+  if (siteUrl && !isLocalEnv) {
+    // Use configured site URL in production
+    redirectBase = siteUrl.replace(/\/$/, ''); // Remove trailing slash if present
+  } else if (!isLocalEnv && forwardedHost) {
     redirectBase = `https://${forwardedHost}`;
+  } else {
+    redirectBase = origin;
   }
 
   const supabase = await createClient();

@@ -31,10 +31,12 @@ export async function createClient() {
 
 /**
  * Requires an authenticated user. Redirects to sign in if not authenticated.
+ * Redirects to verify page if email is not confirmed.
  * Use this in Server Components or Server Actions to protect routes.
  *
- * @returns The authenticated user
+ * @returns The authenticated user with confirmed email
  * @throws Redirects to /auth/signin if not authenticated
+ * @throws Redirects to /auth/verify if email not confirmed
  */
 export async function requireUser() {
   const supabase = await createClient();
@@ -45,6 +47,31 @@ export async function requireUser() {
 
   if (error || !user) {
     redirect('/auth/signin');
+  }
+
+  // Check if email is confirmed
+  if (!user.email_confirmed_at) {
+    redirect('/auth/verify');
+  }
+
+  return user;
+}
+
+/**
+ * Gets the current user without requiring email confirmation.
+ * Useful for the verify email page where we need user info.
+ *
+ * @returns The authenticated user or null
+ */
+export async function getUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return null;
   }
 
   return user;

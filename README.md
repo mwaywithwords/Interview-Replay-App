@@ -128,13 +128,17 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
 
    **Configure Supabase Redirect URLs:**
    
-   For the password reset flow to work, you must add your site URLs to the Supabase allowed redirect list:
+   For email confirmation and password reset to work, you must add your site URLs to the Supabase allowed redirect list:
    
    1. Go to [Supabase Dashboard](https://app.supabase.com/) → **Authentication** → **URL Configuration**
    2. Add the following to **Redirect URLs**:
-      - `http://localhost:3000/auth/reset-password` (for local development)
-      - `https://your-domain.com/auth/reset-password` (for production)
-   3. Optionally set your **Site URL** to your production domain
+      - `http://localhost:3000/auth/confirm` (email confirmation - local)
+      - `http://localhost:3000/auth/callback` (OAuth callback - local)
+      - `http://localhost:3000/auth/reset-password` (password reset - local)
+      - `https://replayai.app/auth/confirm` (email confirmation - production)
+      - `https://replayai.app/auth/callback` (OAuth callback - production)
+      - `https://replayai.app/auth/reset-password` (password reset - production)
+   3. Set your **Site URL** to your production domain (e.g., `https://replayai.app`)
 
 4. **Set up the database**
 
@@ -234,11 +238,14 @@ replay-ai/
 
 ### Authentication Flow
 
-1. User signs in/up via Supabase Auth
-2. Middleware refreshes session on every request
-3. Server components use `requireUser()` to protect routes
-4. Client components use `createClient()` for auth state
-5. Row Level Security (RLS) policies enforce data access
+1. User signs up via Supabase Auth
+2. Supabase sends an email confirmation link to the user's email
+3. Until confirmed, user is redirected to `/auth/verify` page
+4. User clicks confirmation link → redirected to `/auth/confirm` → session created
+5. Middleware refreshes session on every request and checks email confirmation
+6. Server components use `requireUser()` to protect routes (requires confirmed email)
+7. Client components use `createClient()` for auth state
+8. Row Level Security (RLS) policies enforce data access
 
 ### Password Reset Flow
 

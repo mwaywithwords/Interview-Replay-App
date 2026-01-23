@@ -25,13 +25,25 @@ export function SignInForm() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        setError(error.message);
+        // Check if error is due to unconfirmed email
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          setError('Please verify your email before signing in. Check your inbox for the confirmation link.');
+        } else {
+          setError(error.message);
+        }
+        return;
+      }
+
+      // Check if email is confirmed
+      if (data.user && !data.user.email_confirmed_at) {
+        router.push('/auth/verify');
+        router.refresh();
         return;
       }
 

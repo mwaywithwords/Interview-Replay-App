@@ -27,12 +27,19 @@ export async function GET(request: NextRequest) {
     
     if (error) {
       console.error('Error exchanging code for session:', error);
+      // For signup confirmation failures, redirect to signin with error
       return NextResponse.redirect(
-        `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`
+        `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent(error.message)}`
       );
     }
 
-    // Success - redirect to dashboard or next URL
+    // For signup type, redirect to signin with success message
+    // For other types (recovery, etc.), redirect to the intended destination
+    if (type === 'signup' || type === 'email') {
+      return NextResponse.redirect(`${redirectBase}/auth/signin?confirmed=1`);
+    }
+    
+    // Success - redirect to dashboard or next URL for other flows
     return NextResponse.redirect(`${redirectBase}${next}`);
   }
 
@@ -45,17 +52,23 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error verifying OTP:', error);
+      // Redirect to signin with error for confirmation failures
       return NextResponse.redirect(
-        `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`
+        `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent(error.message)}`
       );
     }
 
-    // Success - redirect to dashboard or next URL
+    // For signup confirmation, redirect to signin with success message
+    if (type === 'signup' || type === 'email') {
+      return NextResponse.redirect(`${redirectBase}/auth/signin?confirmed=1`);
+    }
+    
+    // Success - redirect to dashboard or next URL for other flows
     return NextResponse.redirect(`${redirectBase}${next}`);
   }
 
-  // No valid parameters found
+  // No valid parameters found - redirect to signin with error
   return NextResponse.redirect(
-    `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent('Invalid confirmation link. Please try signing up again.')}`
+    `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent('Invalid confirmation link. Please request a new one.')}`
   );
 }

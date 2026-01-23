@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { PrimaryButton } from '@/components/ui/button';
@@ -9,14 +9,39 @@ import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { branding } from '@/lib/branding';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmationStatus, setConfirmationStatus] = useState<'success' | 'error' | null>(null);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+
+  // Handle email confirmation status from URL params
+  useEffect(() => {
+    const confirmed = searchParams.get('confirmed');
+    const errorMsg = searchParams.get('error');
+
+    if (confirmed === '1') {
+      setConfirmationStatus('success');
+    } else if (confirmed === '0') {
+      setConfirmationStatus('error');
+      setConfirmationError(errorMsg || 'Confirmation link is invalid or expired. Please request a new one.');
+    }
+
+    // Clean up URL params without causing a refresh
+    if (confirmed !== null) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('confirmed');
+      newUrl.searchParams.delete('error');
+      window.history.replaceState({}, '', newUrl.pathname);
+    }
+  }, [searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +95,25 @@ export function SignInForm() {
         <h1 className="text-3xl font-black tracking-tight text-foreground">Welcome back</h1>
         <p className="text-muted-foreground mt-2 font-medium">Sign in to your account to continue</p>
       </div>
+
+      {/* Email confirmation status alerts */}
+      {confirmationStatus === 'success' && (
+        <Alert className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400 animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Email confirmed successfully. You can now sign in.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {confirmationStatus === 'error' && (
+        <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <XCircle className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            {confirmationError}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <SectionCard className="border-border shadow-2xl shadow-primary/5">
         <form onSubmit={handleSignIn} className="space-y-6">

@@ -24,12 +24,17 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // For signup/email confirmation, redirect to signin with success message
+      if (type === 'signup' || type === 'email') {
+        return NextResponse.redirect(`${redirectBase}/auth/signin?confirmed=1`);
+      }
       return NextResponse.redirect(`${redirectBase}${next}`);
     }
     
     console.error('Error exchanging code for session:', error);
+    // Redirect to signin with error for confirmation failures
     return NextResponse.redirect(
-      `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`
+      `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent(error.message)}`
     );
   }
 
@@ -41,17 +46,22 @@ export async function GET(request: NextRequest) {
     });
 
     if (!error) {
+      // For signup/email confirmation, redirect to signin with success message
+      if (type === 'signup' || type === 'email') {
+        return NextResponse.redirect(`${redirectBase}/auth/signin?confirmed=1`);
+      }
       return NextResponse.redirect(`${redirectBase}${next}`);
     }
     
     console.error('Error verifying OTP:', error);
+    // Redirect to signin with error for confirmation failures
     return NextResponse.redirect(
-      `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent(error.message)}`
+      `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent(error.message)}`
     );
   }
 
-  // Return the user to an error page with instructions
+  // Return the user to signin with error message
   return NextResponse.redirect(
-    `${redirectBase}/auth/auth-code-error?error=${encodeURIComponent('Invalid authentication link. Please try again.')}`
+    `${redirectBase}/auth/signin?confirmed=0&error=${encodeURIComponent('Invalid authentication link. Please try again.')}`
   );
 }

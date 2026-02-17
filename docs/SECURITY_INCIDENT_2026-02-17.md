@@ -68,9 +68,9 @@ All auth operations now go through protected server actions with:
 - Structured logging for monitoring
 - Account enumeration prevention
 
-### 5. Middleware (`middleware.ts`)
+### 5. Proxy Enhancement (`proxy.ts`)
 
-Edge-level protection:
+Edge-level protection added to Next.js 16 proxy:
 - Security headers (X-Frame-Options, X-Content-Type-Options)
 - Auth token refresh
 - Request logging for auth paths
@@ -96,7 +96,7 @@ Structured logging added to all auth events with:
 | `components/auth/SignUpForm.tsx` | Updated to use server actions + CAPTCHA |
 | `components/auth/ForgotPasswordForm.tsx` | Updated to use server actions + CAPTCHA |
 | `components/auth/VerifyEmailForm.tsx` | Updated to use server actions + CAPTCHA |
-| `middleware.ts` | **NEW** - Edge middleware |
+| `proxy.ts` | Updated - Added security headers + auth logging |
 
 ## Required Configuration
 

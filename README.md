@@ -227,7 +227,7 @@ replay-ai/
 │   │   └── email.ts            # Email format & disposable domain validation
 │   ├── rate-limit.ts           # Rate limiting for auth endpoints
 │   └── utils.ts                # Utility functions
-├── middleware.ts               # Edge middleware (auth, security headers)
+├── proxy.ts                    # Next.js 16 proxy (auth, security headers)
 ├── supabase/
 │   ├── functions/              # Edge Functions
 │   └── *.sql                   # Database migrations

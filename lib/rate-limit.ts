@@ -168,6 +168,9 @@ export function checkEmailRateLimit(
   return checkLimit(emailLimitStore, key, config.maxRequests, config.windowMs);
 }
 
+// Type for rate limit config
+type RateLimitConfig = { maxRequests: number; windowMs: number };
+
 /**
  * Combined rate limit check for auth operations
  * Checks both IP and email limits
@@ -178,8 +181,8 @@ export function checkAuthRateLimit(
   operation: 'signup' | 'reset' | 'resend' | 'general' = 'general'
 ): RateLimitResult {
   // Choose appropriate limits based on operation
-  let ipConfig = RATE_LIMITS.AUTH_PER_IP;
-  let emailConfig = RATE_LIMITS.AUTH_PER_EMAIL;
+  let ipConfig: RateLimitConfig = RATE_LIMITS.AUTH_PER_IP;
+  let emailConfig: RateLimitConfig = RATE_LIMITS.AUTH_PER_EMAIL;
 
   switch (operation) {
     case 'signup':

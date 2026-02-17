@@ -122,6 +122,15 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
    # For local development: http://localhost:3000
    # For production: https://your-domain.com
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
+   
+   # Cloudflare Turnstile CAPTCHA (required for production)
+   # Get these from https://dash.cloudflare.com/turnstile
+   NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-site-key
+   TURNSTILE_SECRET_KEY=your-secret-key
+   
+   # For local testing, use Cloudflare's test keys:
+   # NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA (always passes)
+   # TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA (always passes)
    ```
 
    Get your Supabase credentials from the [Supabase Dashboard](https://app.supabase.com/) under **Project Settings** → **API**.
@@ -194,6 +203,7 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
 replay-ai/
 ├── app/                        # Next.js App Router pages
 │   ├── actions/                # Server Actions for data mutations
+│   │   └── auth.ts             # Protected auth actions (signup, reset, resend)
 │   ├── auth/                   # Authentication pages and handlers
 │   ├── dashboard/              # Main dashboard page
 │   ├── sessions/               # Session pages (list, detail, new)
@@ -203,6 +213,7 @@ replay-ai/
 │   └── layout.tsx              # Root layout with providers
 ├── components/
 │   ├── auth/                   # Authentication components
+│   │   └── Turnstile.tsx       # Cloudflare Turnstile CAPTCHA
 │   ├── dashboard/              # Dashboard-specific components
 │   ├── layout/                 # Layout components (AppShell, PageHeader)
 │   ├── providers/              # React context providers
@@ -212,7 +223,11 @@ replay-ai/
 ├── lib/
 │   ├── hooks/                  # Custom React hooks
 │   ├── supabase/               # Supabase client configuration
+│   ├── validation/             # Validation utilities
+│   │   └── email.ts            # Email format & disposable domain validation
+│   ├── rate-limit.ts           # Rate limiting for auth endpoints
 │   └── utils.ts                # Utility functions
+├── middleware.ts               # Edge middleware (auth, security headers)
 ├── supabase/
 │   ├── functions/              # Edge Functions
 │   └── *.sql                   # Database migrations
@@ -256,6 +271,19 @@ replay-ai/
 5. User enters a new password and confirms it
 6. Password is updated via `supabase.auth.updateUser()`
 7. User is redirected to the dashboard
+
+### Security Features
+
+The auth system includes multiple layers of protection:
+
+| Feature | Description |
+|---------|-------------|
+| **Rate Limiting** | In-memory rate limits per IP and email address |
+| **CAPTCHA** | Cloudflare Turnstile on signup, reset, and resend forms |
+| **Email Validation** | RFC-compliant format + 100+ disposable domain blocking |
+| **Enumeration Prevention** | Consistent responses prevent detecting existing accounts |
+| **Security Headers** | X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
+| **Structured Logging** | All auth events logged with masked PII for monitoring |
 
 ### Data Flow
 

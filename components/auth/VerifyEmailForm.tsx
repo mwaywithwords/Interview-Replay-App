@@ -9,6 +9,8 @@ import { SectionCard } from '@/components/layout/SectionCard';
 import { branding } from '@/lib/branding';
 import { PlayCircle, Mail, RefreshCw, CheckCircle, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
+import { Turnstile } from './Turnstile';
+import { resendConfirmationAction } from '@/app/actions/auth';
 
 interface VerifyEmailFormProps {
   email: string;
@@ -18,31 +20,43 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [resent, setResent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [showCaptcha, setShowCaptcha] = useState(false);
 
   const handleResendEmail = async () => {
+    // Show CAPTCHA first time
+    if (!showCaptcha) {
+      setShowCaptcha(true);
+      return;
+    }
+
+    if (!turnstileToken) {
+      toast.error('Please complete the CAPTCHA verification');
+      return;
+    }
+
     setLoading(true);
     setResent(false);
 
     try {
-      const supabase = createClient();
-      
-      // Use NEXT_PUBLIC_SITE_URL for production, fallback to window.location.origin for dev
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const result = await resendConfirmationAction(email, turnstileToken);
 
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: {
-          emailRedirectTo: `${siteUrl}/auth/confirm`,
-        },
-      });
-
-      if (error) {
-        toast.error('Failed to resend email', { description: error.message });
+      if (!result.success) {
+        if (result.rateLimited) {
+          toast.error(result.error || 'Too many requests', {
+            description: `Please try again in ${Math.ceil((result.retryAfter || 60) / 60)} minute(s).`,
+          });
+        } else {
+          toast.error('Failed to resend email', { description: result.error });
+        }
+        // Reset CAPTCHA state for retry
+        setTurnstileToken('');
         return;
       }
 
       setResent(true);
+      setShowCaptcha(false);
+      setTurnstileToken('');
       toast.success('Confirmation email sent!', { description: 'Check your inbox for the new link.' });
     } catch (err) {
       toast.error('An unexpected error occurred. Please try again.');
@@ -135,14 +149,25 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
               {loading ? 'Checking...' : "I've verified my email"}
             </PrimaryButton>
             
+            {showCaptcha && (
+              <div className="py-2">
+                <Turnstile
+                  onVerify={setTurnstileToken}
+                  onError={() => toast.error('CAPTCHA failed to load. Please refresh the page.')}
+                  onExpire={() => setTurnstileToken('')}
+                  className="flex justify-center"
+                />
+              </div>
+            )}
+            
             <SecondaryButton
               onClick={handleResendEmail}
-              disabled={loading}
+              disabled={loading || (showCaptcha && !turnstileToken)}
               variant="outline"
               className="w-full h-12 rounded-xl font-bold border-border"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Resend confirmation email
+              {showCaptcha ? 'Confirm & Resend' : 'Resend confirmation email'}
             </SecondaryButton>
           </div>
 

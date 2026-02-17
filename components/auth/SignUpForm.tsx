@@ -1,28 +1,51 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { branding } from '@/lib/branding';
 import { PlayCircle, Mail } from 'lucide-react';
+import { Turnstile } from './Turnstile';
+import { signUpAction } from '@/app/actions/auth';
+import { getEmailError } from '@/lib/validation/email';
 
 export function SignUpForm() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+
+  // Validate email on blur
+  const handleEmailBlur = useCallback(() => {
+    if (email) {
+      const error = getEmailError(email, true);
+      setEmailError(error);
+    }
+  }, [email]);
+
+  // Clear email error when typing
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (emailError) setEmailError(null);
+  }, [emailError]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Client-side validation
+    const emailValidationError = getEmailError(email, true);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -34,24 +57,18 @@ export function SignUpForm() {
       return;
     }
 
+    if (!turnstileToken) {
+      setError('Please complete the CAPTCHA verification');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      
-      // Use NEXT_PUBLIC_SITE_URL for production, fallback to window.location.origin for dev
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${siteUrl}/auth/confirm`,
-        },
-      });
+      const result = await signUpAction(email, password, turnstileToken);
 
-      if (error) {
-        setError(error.message);
+      if (!result.success) {
+        setError(result.error || 'Failed to create account');
         return;
       }
 
@@ -117,11 +134,15 @@ export function SignUpForm() {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
               placeholder="you@example.com"
               required
-              className="bg-muted/50 border-border"
+              className={`bg-muted/50 border-border ${emailError ? 'border-destructive' : ''}`}
             />
+            {emailError && (
+              <p className="text-xs font-medium text-destructive">{emailError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -149,6 +170,13 @@ export function SignUpForm() {
               className="bg-muted/50 border-border"
             />
           </div>
+
+          <Turnstile
+            onVerify={setTurnstileToken}
+            onError={() => setError('CAPTCHA failed to load. Please refresh the page.')}
+            onExpire={() => setTurnstileToken('')}
+            className="flex justify-center"
+          />
 
           {error && (
             <div className="rounded-xl bg-destructive/10 p-4 text-sm font-bold text-destructive border border-destructive/20 animate-in fade-in slide-in-from-top-2 duration-300">

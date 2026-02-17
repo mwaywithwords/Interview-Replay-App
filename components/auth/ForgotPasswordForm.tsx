@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { PrimaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
@@ -10,29 +9,58 @@ import { Label } from '@/components/ui/label';
 import { branding } from '@/lib/branding';
 import { PlayCircle, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Turnstile } from './Turnstile';
+import { forgotPasswordAction } from '@/app/actions/auth';
+import { getEmailError } from '@/lib/validation/email';
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+
+  // Validate email on blur
+  const handleEmailBlur = useCallback(() => {
+    if (email) {
+      // Don't block disposable for password reset
+      const error = getEmailError(email, false);
+      setEmailError(error);
+    }
+  }, [email]);
+
+  // Clear email error when typing
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (emailError) setEmailError(null);
+  }, [emailError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const emailValidationError = getEmailError(email, false);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      return;
+    }
+
+    if (!turnstileToken) {
+      toast.error('Please complete the CAPTCHA verification');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      
-      // Build the redirect URL using the environment variable
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const redirectTo = `${siteUrl}/auth/reset-password`;
+      const result = await forgotPasswordAction(email, turnstileToken);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      });
-
-      if (error) {
-        toast.error(error.message);
+      if (!result.success) {
+        if (result.rateLimited) {
+          toast.error(result.error || 'Too many requests');
+        } else {
+          toast.error(result.error || 'Failed to send reset email');
+        }
         return;
       }
 
@@ -124,13 +152,24 @@ export function ForgotPasswordForm() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
+                onBlur={handleEmailBlur}
                 placeholder="you@example.com"
                 required
-                className="bg-muted/50 border-border pl-10"
+                className={`bg-muted/50 border-border pl-10 ${emailError ? 'border-destructive' : ''}`}
               />
             </div>
+            {emailError && (
+              <p className="text-xs font-medium text-destructive">{emailError}</p>
+            )}
           </div>
+
+          <Turnstile
+            onVerify={setTurnstileToken}
+            onError={() => toast.error('CAPTCHA failed to load. Please refresh the page.')}
+            onExpire={() => setTurnstileToken('')}
+            className="flex justify-center"
+          />
 
           <PrimaryButton
             type="submit"

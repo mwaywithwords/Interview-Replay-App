@@ -11,6 +11,12 @@
 # Testing
 /coverage
 
+# TestSprite (contains credentials in tmp/)
+testsprite_tests/tmp/
+
+# Supabase CLI temp files
+supabase/.temp/
+
 # Next.js
 /.next/
 /out/

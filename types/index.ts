@@ -351,7 +351,7 @@ export interface SharedSessionNote {
 // AI Job Types
 // ============================================
 
-export type AIJobType = 'transcript' | 'summary' | 'score' | 'suggest_bookmarks';
+export type AIJobType = 'transcript' | 'summary' | 'score' | 'suggest_bookmarks' | 'action_items';
 export type AIJobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface AIJob {

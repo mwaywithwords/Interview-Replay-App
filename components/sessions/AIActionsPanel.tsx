@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   createAIJob,
+  ensureAutomaticAIJob,
   getSessionAIJobs,
   runAIJob,
   getSessionAIOutputs,
@@ -121,6 +122,17 @@ const PRIORITY_BADGE_VARIANT: Record<
 // Job types shown in the always-visible "AI Results" section, in display order.
 // Excludes 'transcript' and 'suggest_bookmarks', which remain status/history only.
 const RESULT_JOB_TYPES: AIJobType[] = ['summary', 'score', 'action_items'];
+const AUTOMATIC_ANALYSIS_CHAIN: Array<{ after: AIJobType; next: AIJobType }> = [
+  { after: 'transcript', next: 'summary' },
+  { after: 'summary', next: 'score' },
+  { after: 'score', next: 'action_items' },
+];
+const AUTOMATIC_ANALYSIS_JOB_TYPES: AIJobType[] = [
+  'transcript',
+  'summary',
+  'score',
+  'action_items',
+];
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
   const config: Record<
@@ -420,6 +432,7 @@ export function AIActionsPanel({
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const automaticJobsInFlightRef = useRef<Set<AIJobType>>(new Set());
 
   // Forward every output refresh to the parent, if it wants to mirror them
   // (e.g. to render a live "AI Insights" section elsewhere on the page).
@@ -459,6 +472,25 @@ export function AIActionsPanel({
     return () => clearInterval(interval);
   }, [jobs, sessionId]);
 
+  // Automatically continue analysis in order:
+  // Transcript -> Summary -> Score -> Action Items.
+  useEffect(() => {
+    for (const { after, next } of AUTOMATIC_ANALYSIS_CHAIN) {
+      const previousStepCompleted = jobs.some(
+        (job) => job.job_type === after && job.status === 'completed'
+      );
+      if (!previousStepCompleted) continue;
+
+      const nextStepAlreadyExists = jobs.some((job) => job.job_type === next);
+      if (nextStepAlreadyExists || automaticJobsInFlightRef.current.has(next)) {
+        continue;
+      }
+
+      void startAutomaticAnalysisJob(next);
+      break;
+    }
+  }, [jobs, sessionId]);
+
   async function loadJobs() {
     setIsLoadingJobs(true);
     const { jobs: fetchedJobs, error: fetchError } =
@@ -482,6 +514,46 @@ export function AIActionsPanel({
     }
   }, [sessionId]);
 
+  async function startAutomaticAnalysisJob(jobType: AIJobType) {
+    automaticJobsInFlightRef.current.add(jobType);
+
+    try {
+      const {
+        job,
+        error: ensureError,
+        shouldRun,
+        blocked,
+      } = await ensureAutomaticAIJob(sessionId, jobType);
+
+      if (ensureError) {
+        setError(ensureError);
+        toast.error('Failed to continue automatic analysis', {
+          description: ensureError,
+        });
+        return;
+      }
+
+      if (!job || blocked) {
+        return;
+      }
+
+      setJobs((prev) =>
+        prev.some((existingJob) => existingJob.id === job.id)
+          ? prev
+          : [job, ...prev]
+      );
+
+      if (shouldRun) {
+        toast.success('Automatic analysis started', {
+          description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
+        });
+        await runJob(job.id, { automatic: true });
+      }
+    } finally {
+      automaticJobsInFlightRef.current.delete(jobType);
+    }
+  }
+
   async function handleCreateJob(jobType: AIJobType) {
     setError(null);
     setLoadingJobType(jobType);
@@ -496,15 +568,29 @@ export function AIActionsPanel({
       }
 
       if (job) {
-        // Add the new job to the top of the list
-        setJobs((prev) => [job, ...prev]);
-        toast.success('AI job started', {
-          description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
-        });
-        // Immediately run the job so the user doesn't have to click "Run".
-        // Not awaited: the create button's loading state shouldn't block on the
-        // full run duration - the job card's own status reflects progress instead.
-        runJob(job.id);
+        setJobs((prev) =>
+          prev.some((existingJob) => existingJob.id === job.id)
+            ? prev
+            : [job, ...prev]
+        );
+
+        if (job.status === 'queued') {
+          toast.success('AI job started', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
+          });
+          // Immediately run the job so the user doesn't have to click "Run".
+          // Not awaited: the create button's loading state shouldn't block on the
+          // full run duration - the job card's own status reflects progress instead.
+          runJob(job.id);
+        } else if (job.status === 'processing') {
+          toast.success('AI job already running', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is already in progress`,
+          });
+        } else if (job.status === 'completed') {
+          toast.success('AI job already completed', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is already available`,
+          });
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -517,7 +603,7 @@ export function AIActionsPanel({
   // Invokes the edge function for a job and syncs local state with the server
   // afterward. Used both to auto-run a job immediately after it's created (or
   // retried) and as the manual "Run" fallback for any job still queued.
-  async function runJob(jobId: string) {
+  async function runJob(jobId: string, options: { automatic?: boolean } = {}) {
     setError(null);
     setRunningJobId(jobId);
 
@@ -546,7 +632,11 @@ export function AIActionsPanel({
       // Refresh jobs and outputs after successful run
       await loadJobs();
       await loadOutputs();
-      toast.success('AI job completed');
+      toast.success(
+        options.automatic
+          ? 'Automatic analysis step completed'
+          : 'AI job completed'
+      );
     } catch (err) {
       await loadJobs();
       setError('An unexpected error occurred. Please try again.');
@@ -597,13 +687,24 @@ export function AIActionsPanel({
         return;
       }
 
-      // Refresh jobs list to show the new job, then run it immediately -
-      // retries shouldn't require a manual "Run" click either.
+      // Refresh jobs list to show the retry/reused job, then run queued jobs
+      // immediately - retries shouldn't require a manual "Run" click either.
       await loadJobs();
-      toast.success('Retrying job', {
-        description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
-      });
-      runJob(newJob.id);
+
+      if (newJob.status === 'queued') {
+        toast.success('Retrying job', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
+        });
+        runJob(newJob.id);
+      } else if (newJob.status === 'processing') {
+        toast.success('AI job already running', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already in progress`,
+        });
+      } else if (newJob.status === 'completed') {
+        toast.success('AI job already completed', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already available`,
+        });
+      }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to retry job');
@@ -647,6 +748,21 @@ export function AIActionsPanel({
     (result): result is { jobType: AIJobType; job: AIJob; output: AIOutput } =>
       result !== null
   );
+  const automaticAnalysisStarted = jobs.some((job) =>
+    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
+  );
+  const automaticAnalysisComplete = AUTOMATIC_ANALYSIS_JOB_TYPES.every(
+    (jobType) =>
+      jobs.some((job) => job.job_type === jobType && job.status === 'completed')
+  );
+  const automaticAnalysisActive = activeJobs.some((job) =>
+    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
+  );
+  const failedAutomaticAnalysisJob = jobs.find(
+    (job) =>
+      AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type) &&
+      job.status === 'failed'
+  );
 
   return (
     <div className="space-y-6">
@@ -685,6 +801,19 @@ export function AIActionsPanel({
           );
         })}
       </div>
+
+      {automaticAnalysisStarted && !automaticAnalysisComplete && (
+        <Alert>
+          <Sparkles className="h-4 w-4" />
+          <AlertDescription>
+            {failedAutomaticAnalysisJob
+              ? 'Automatic analysis paused because one step failed. Use Retry below to continue the remaining steps.'
+              : automaticAnalysisActive
+                ? 'Automatic analysis is running. Transcript, Summary, Score, and Action Items run in order.'
+                : 'Automatic analysis will continue as soon as the current step completes.'}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error Alert */}
       {error && (

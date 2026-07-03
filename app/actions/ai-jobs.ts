@@ -4,6 +4,22 @@ import { revalidatePath } from 'next/cache';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
 
+const VALID_JOB_TYPES: AIJobType[] = [
+  'transcript',
+  'summary',
+  'score',
+  'suggest_bookmarks',
+  'action_items',
+];
+const ACTIVE_JOB_STATUSES = ['queued', 'processing'];
+
+type EnsureAIJobResult = {
+  job: AIJob | null;
+  error: string | null;
+  shouldRun: boolean;
+  blocked: boolean;
+};
+
 /**
  * Server Action: Create a new AI job for a session
  * Validates that the session belongs to the authenticated user.
@@ -33,11 +49,33 @@ export async function createAIJob(
   }
 
   // Validate job_type
-  const validJobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks', 'action_items'];
-  if (!validJobTypes.includes(jobType)) {
+  if (!VALID_JOB_TYPES.includes(jobType)) {
     return {
       job: null,
-      error: `Invalid job type. Must be one of: ${validJobTypes.join(', ')}`,
+      error: `Invalid job type. Must be one of: ${VALID_JOB_TYPES.join(', ')}`,
+    };
+  }
+
+  const { data: existingReusableJob, error: existingReusableJobError } =
+    await supabase
+      .from('ai_jobs')
+      .select('*')
+      .eq('session_id', sessionId)
+      .eq('user_id', user.id)
+      .eq('job_type', jobType)
+      .in('status', [...ACTIVE_JOB_STATUSES, 'completed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+  if (existingReusableJobError) {
+    return { job: null, error: existingReusableJobError.message };
+  }
+
+  if (existingReusableJob) {
+    return {
+      job: existingReusableJob as AIJob,
+      error: null,
     };
   }
 
@@ -59,6 +97,112 @@ export async function createAIJob(
 
   revalidatePath(`/sessions/${sessionId}`);
   return { job: data as AIJob, error: null };
+}
+
+/**
+ * Server Action: Ensure an automatic AI job exists without creating duplicates.
+ *
+ * Automatic orchestration is conservative:
+ * - queued jobs are returned and should be run
+ * - processing/completed jobs are reused and not duplicated
+ * - failed/cancelled jobs block automation so the user can retry manually
+ */
+export async function ensureAutomaticAIJob(
+  sessionId: string,
+  jobType: AIJobType
+): Promise<EnsureAIJobResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('id, user_id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (sessionError || !session) {
+    return {
+      job: null,
+      error: 'Session not found or you do not have permission to access it.',
+      shouldRun: false,
+      blocked: true,
+    };
+  }
+
+  if (!VALID_JOB_TYPES.includes(jobType)) {
+    return {
+      job: null,
+      error: `Invalid job type. Must be one of: ${VALID_JOB_TYPES.join(', ')}`,
+      shouldRun: false,
+      blocked: true,
+    };
+  }
+
+  const { data: existingJobs, error: existingJobsError } = await supabase
+    .from('ai_jobs')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('user_id', user.id)
+    .eq('job_type', jobType)
+    .order('created_at', { ascending: false });
+
+  if (existingJobsError) {
+    return {
+      job: null,
+      error: existingJobsError.message,
+      shouldRun: false,
+      blocked: true,
+    };
+  }
+
+  const jobs = (existingJobs || []) as AIJob[];
+  const queuedJob = jobs.find((job) => job.status === 'queued');
+  if (queuedJob) {
+    return { job: queuedJob, error: null, shouldRun: true, blocked: false };
+  }
+
+  const reusableJob = jobs.find(
+    (job) => job.status === 'processing' || job.status === 'completed'
+  );
+  if (reusableJob) {
+    return { job: reusableJob, error: null, shouldRun: false, blocked: false };
+  }
+
+  const failedOrCancelledJob = jobs.find(
+    (job) => job.status === 'failed' || job.status === 'cancelled'
+  );
+  if (failedOrCancelledJob) {
+    return {
+      job: failedOrCancelledJob,
+      error: null,
+      shouldRun: false,
+      blocked: true,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('ai_jobs')
+    .insert({
+      user_id: user.id,
+      session_id: sessionId,
+      job_type: jobType,
+      status: 'queued',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return {
+      job: null,
+      error: error.message,
+      shouldRun: false,
+      blocked: true,
+    };
+  }
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { job: data as AIJob, error: null, shouldRun: true, blocked: false };
 }
 
 /**
@@ -340,6 +484,25 @@ export async function retryAiJob(
       job: null,
       error: `Cannot retry job with status '${originalJob.status}'. Only failed or cancelled jobs can be retried.`,
     };
+  }
+
+  const { data: reusableJob, error: reusableJobError } = await supabase
+    .from('ai_jobs')
+    .select('*')
+    .eq('session_id', originalJob.session_id)
+    .eq('user_id', user.id)
+    .eq('job_type', originalJob.job_type)
+    .in('status', [...ACTIVE_JOB_STATUSES, 'completed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (reusableJobError) {
+    return { job: null, error: reusableJobError.message };
+  }
+
+  if (reusableJob) {
+    return { job: reusableJob as AIJob, error: null };
   }
 
   // Create a new job with the same session_id and job_type

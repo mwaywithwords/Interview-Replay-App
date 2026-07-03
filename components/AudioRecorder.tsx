@@ -25,7 +25,7 @@ import {
   updateSessionAudioMetadata,
   getSessionRecordingType,
 } from '@/app/actions/sessions';
-import { createAIJob, runAIJob } from '@/app/actions/ai-jobs';
+import { ensureAutomaticAIJob, runAIJob } from '@/app/actions/ai-jobs';
 import { toast } from 'sonner';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -92,15 +92,31 @@ export function AudioRecorder({
 
   const startAutomaticTranscriptJob = useCallback(
     async (storagePath: string) => {
-      const { job, error: createError } = await createAIJob(
-        sessionId,
-        'transcript'
-      );
+      const {
+        job,
+        error: createError,
+        shouldRun,
+        blocked,
+      } = await ensureAutomaticAIJob(sessionId, 'transcript');
 
       if (createError || !job) {
         toast.error('Failed to start transcript generation', {
           description: createError || 'Transcript job could not be created.',
         });
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      if (blocked) {
+        toast.error('Transcript generation needs attention', {
+          description:
+            'Use the AI status panel to retry the failed transcript job.',
+        });
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      if (!shouldRun) {
         onUploadComplete?.(storagePath);
         return;
       }

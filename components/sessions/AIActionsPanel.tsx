@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  createAIJob,
-  ensureAutomaticAIJob,
+  ensureNextAnalysisPipelineJob,
   getSessionAIJobs,
   runAIJob,
   getSessionAIOutputs,
-  cancelAiJob,
-  retryAiJob,
+  retryAnalysisPipelineFromFailedStep,
 } from '@/app/actions/ai-jobs';
-import { SecondaryButton } from '@/components/ui/button';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -23,14 +21,9 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
-  ChevronDown,
-  ChevronUp,
-  X,
   RefreshCw,
-  Ban,
-  Eye,
-  History,
   ListChecks,
+  Circle,
 } from 'lucide-react';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
 import { toast } from 'sonner';
@@ -79,31 +72,31 @@ const JOB_TYPE_CONFIG: Record<
   }
 > = {
   transcript: {
-    label: 'Generate Transcript',
+    label: 'Transcript',
     icon: FileText,
     description: 'Transcribe audio to text',
     loadingLabel: 'Transcribing...',
   },
   summary: {
-    label: 'Generate Summary',
+    label: 'Summary',
     icon: FileSearch,
     description: 'Create a summary of the session',
     loadingLabel: 'Generating summary...',
   },
   score: {
-    label: 'Score My Session',
+    label: 'Overall Score',
     icon: Star,
     description: 'Get performance feedback',
     loadingLabel: 'Scoring session...',
   },
   suggest_bookmarks: {
-    label: 'Suggest Bookmarks',
+    label: 'Suggested Bookmarks',
     icon: Bookmark,
     description: 'Auto-detect key moments',
     loadingLabel: 'Finding key moments...',
   },
   action_items: {
-    label: 'Suggest Action Items',
+    label: 'Action Items',
     icon: ListChecks,
     description: 'Generate follow-up action items',
     loadingLabel: 'Generating action items...',
@@ -119,15 +112,8 @@ const PRIORITY_BADGE_VARIANT: Record<
   low: 'secondary',
 };
 
-// Job types shown in the always-visible "AI Results" section, in display order.
-// Excludes 'transcript' and 'suggest_bookmarks', which remain status/history only.
-const RESULT_JOB_TYPES: AIJobType[] = ['summary', 'score', 'action_items'];
-const AUTOMATIC_ANALYSIS_CHAIN: Array<{ after: AIJobType; next: AIJobType }> = [
-  { after: 'transcript', next: 'summary' },
-  { after: 'summary', next: 'score' },
-  { after: 'score', next: 'action_items' },
-];
-const AUTOMATIC_ANALYSIS_JOB_TYPES: AIJobType[] = [
+const REPORT_JOB_TYPES: AIJobType[] = ['summary', 'score', 'action_items'];
+const ANALYSIS_PIPELINE_JOB_TYPES: AIJobType[] = [
   'transcript',
   'summary',
   'score',
@@ -136,7 +122,9 @@ const AUTOMATIC_ANALYSIS_JOB_TYPES: AIJobType[] = [
 const PLACEHOLDER_TRANSCRIPT_PROVIDER = 'placeholder';
 const PLACEHOLDER_TRANSCRIPT_MODEL = 'mock-v1';
 
-function isCompletedAutomaticStep(job: AIJob, jobType: AIJobType): boolean {
+type AnalysisStepStatus = 'completed' | 'processing' | 'failed' | 'waiting';
+
+function isCompletedAnalysisStep(job: AIJob, jobType: AIJobType): boolean {
   if (job.job_type !== jobType || job.status !== 'completed') {
     return false;
   }
@@ -148,33 +136,6 @@ function isCompletedAutomaticStep(job: AIJob, jobType: AIJobType): boolean {
   return (
     job.provider !== PLACEHOLDER_TRANSCRIPT_PROVIDER &&
     job.model !== PLACEHOLDER_TRANSCRIPT_MODEL
-  );
-}
-
-function JobStatusBadge({ status }: { status: AIJob['status'] }) {
-  const config: Record<
-    AIJob['status'],
-    {
-      variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary';
-      icon: React.ElementType;
-      label: string;
-    }
-  > = {
-    queued: { variant: 'info', icon: Loader2, label: 'Starting' },
-    processing: { variant: 'warning', icon: Loader2, label: 'Processing' },
-    completed: { variant: 'success', icon: CheckCircle2, label: 'Completed' },
-    failed: { variant: 'destructive', icon: XCircle, label: 'Failed' },
-    cancelled: { variant: 'secondary', icon: Ban, label: 'Cancelled' },
-  };
-
-  const { variant, icon: Icon, label } = config[status];
-  const isSpinning = status === 'queued' || status === 'processing';
-
-  return (
-    <Badge variant={variant} className="gap-1">
-      <Icon className={`h-3 w-3 ${isSpinning ? 'animate-spin' : ''}`} />
-      {label}
-    </Badge>
   );
 }
 
@@ -198,8 +159,7 @@ function formatRelativeTime(dateString: string): string {
 }
 
 // Renders the actual content of an AI output, per job type. Shared by the
-// inline job-history toggle (AIOutputDisplayWithId) and the always-visible
-// AIResultCard, so both stay in sync with a single source of truth.
+// interview report cards so result formatting stays centralized.
 function renderJobOutputContent(
   jobType: AIJobType,
   content: Record<string, unknown>
@@ -364,44 +324,7 @@ function renderJobOutputContent(
   }
 }
 
-// Inline, collapsed-by-default output display used within a job's row in the
-// status/history list. Kept collapsed there since that list can contain many
-// historical runs - the always-visible summary lives in AIResultCard instead.
-function AIOutputDisplayWithId({
-  output,
-  jobType,
-  jobId,
-}: {
-  output: AIOutput;
-  jobType: AIJobType;
-  jobId: string;
-}) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const content = output.content as Record<string, unknown>;
-
-  return (
-    <div className="border-border mt-2 border-t pt-2">
-      <button
-        id={`output-toggle-${jobId}`}
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="text-primary hover:text-primary/80 flex w-full items-center gap-2 text-xs transition-colors"
-      >
-        {isExpanded ? (
-          <ChevronUp className="h-3 w-3" />
-        ) : (
-          <ChevronDown className="h-3 w-3" />
-        )}
-        {isExpanded ? 'Hide output' : 'View output'}
-      </button>
-      {isExpanded && (
-        <div className="mt-3">{renderJobOutputContent(jobType, content)}</div>
-      )}
-    </div>
-  );
-}
-
-// Always-visible result card for the "AI Results" section - no click required
-// to see the content, unlike the collapsed history list above.
+// Always-visible report card for completed coach analysis outputs.
 function AIResultCard({
   jobType,
   output,
@@ -442,14 +365,11 @@ export function AIActionsPanel({
 }: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
   const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
-  const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
-  const [runningJobId, setRunningJobId] = useState<string | null>(null);
-  const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
-  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
+  const [isStartingAnalysis, setIsStartingAnalysis] = useState(false);
+  const [isRetryingAnalysis, setIsRetryingAnalysis] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const automaticJobsInFlightRef = useRef<Set<AIJobType>>(new Set());
+  const pipelineAdvanceInFlightRef = useRef(false);
 
   // Forward every output refresh to the parent, if it wants to mirror them
   // (e.g. to render a live "AI Insights" section elsewhere on the page).
@@ -473,11 +393,13 @@ export function AIActionsPanel({
     }
   }, [sessionId, initialJobs.length]);
 
-  // Poll for job updates when there's an active job. Automatic transcript jobs
-  // can briefly appear as queued before the run request marks them processing.
+  // Poll while pipeline jobs are active. The job lifecycle still lives in
+  // ai_jobs; this panel only translates it into a coach-facing progress view.
   useEffect(() => {
     const activeJobs = jobs.filter(
-      (j) => j.status === 'queued' || j.status === 'processing'
+      (j) =>
+        ANALYSIS_PIPELINE_JOB_TYPES.includes(j.job_type) &&
+        (j.status === 'queued' || j.status === 'processing')
     );
     if (activeJobs.length === 0) return;
 
@@ -487,27 +409,6 @@ export function AIActionsPanel({
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [jobs, sessionId]);
-
-  // Automatically continue analysis in order:
-  // Transcript -> Summary -> Score -> Action Items.
-  useEffect(() => {
-    for (const { after, next } of AUTOMATIC_ANALYSIS_CHAIN) {
-      const previousStepCompleted = jobs.some((job) =>
-        isCompletedAutomaticStep(job, after)
-      );
-      if (!previousStepCompleted) continue;
-
-      // TODO(#2): Decide whether a new OpenAI transcript should invalidate
-      // older completed Summary/Score/Action Items so analysis regenerates.
-      const nextStepAlreadyExists = jobs.some((job) => job.job_type === next);
-      if (nextStepAlreadyExists || automaticJobsInFlightRef.current.has(next)) {
-        continue;
-      }
-
-      void startAutomaticAnalysisJob(next);
-      break;
-    }
   }, [jobs, sessionId]);
 
   async function loadJobs() {
@@ -523,10 +424,7 @@ export function AIActionsPanel({
   const loadOutputs = useCallback(async () => {
     const { outputs: fetchedOutputs, error: fetchError } =
       await getSessionAIOutputs(sessionId);
-    if (!fetchError && fetchedOutputs.length > 0) {
-      // TODO(#5): Clear stale output state on successful empty fetches, after
-      // verifying no existing UI relies on preserving previous output cards.
-      // Index outputs by job_id for easy lookup
+    if (!fetchError) {
       const outputMap: Record<string, AIOutput> = {};
       fetchedOutputs.forEach((output) => {
         outputMap[output.job_id] = output;
@@ -535,98 +433,18 @@ export function AIActionsPanel({
     }
   }, [sessionId]);
 
-  async function startAutomaticAnalysisJob(jobType: AIJobType) {
-    automaticJobsInFlightRef.current.add(jobType);
-
-    try {
-      const {
-        job,
-        error: ensureError,
-        shouldRun,
-        blocked,
-      } = await ensureAutomaticAIJob(sessionId, jobType);
-
-      if (ensureError) {
-        setError(ensureError);
-        toast.error('Failed to continue automatic analysis', {
-          description: ensureError,
-        });
-        return;
-      }
-
-      if (!job || blocked) {
-        return;
-      }
-
-      setJobs((prev) =>
-        prev.some((existingJob) => existingJob.id === job.id)
-          ? prev
-          : [job, ...prev]
-      );
-
-      if (shouldRun) {
-        toast.success('Automatic analysis started', {
-          description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
-        });
-        await runJob(job.id, { automatic: true });
-      }
-    } finally {
-      automaticJobsInFlightRef.current.delete(jobType);
-    }
+  function mergeJob(job: AIJob) {
+    setJobs((prev) =>
+      prev.some((existingJob) => existingJob.id === job.id)
+        ? prev.map((existingJob) =>
+            existingJob.id === job.id ? job : existingJob
+          )
+        : [job, ...prev]
+    );
   }
 
-  async function handleCreateJob(jobType: AIJobType) {
+  async function runPipelineJob(jobId: string): Promise<boolean> {
     setError(null);
-    setLoadingJobType(jobType);
-
-    try {
-      const { job, error: createError } = await createAIJob(sessionId, jobType);
-
-      if (createError) {
-        setError(createError);
-        toast.error('Failed to create AI job', { description: createError });
-        return;
-      }
-
-      if (job) {
-        setJobs((prev) =>
-          prev.some((existingJob) => existingJob.id === job.id)
-            ? prev
-            : [job, ...prev]
-        );
-
-        if (job.status === 'queued') {
-          toast.success('AI job started', {
-            description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
-          });
-          // Immediately run the job so the user doesn't have to click "Run".
-          // Not awaited: the create button's loading state shouldn't block on the
-          // full run duration - the job card's own status reflects progress instead.
-          runJob(job.id);
-        } else if (job.status === 'processing') {
-          toast.success('AI job already running', {
-            description: `${JOB_TYPE_CONFIG[jobType].label} is already in progress`,
-          });
-        } else if (job.status === 'completed') {
-          toast.success('AI job already completed', {
-            description: `${JOB_TYPE_CONFIG[jobType].label} is already available`,
-          });
-        }
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-      toast.error('Failed to create AI job');
-    } finally {
-      setLoadingJobType(null);
-    }
-  }
-
-  // Invokes the edge function for a job and syncs local state with the server
-  // afterward. Used both to auto-run a job immediately after it's created (or
-  // retried) and as the manual "Run" fallback for any job still queued.
-  async function runJob(jobId: string, options: { automatic?: boolean } = {}) {
-    setError(null);
-    setRunningJobId(jobId);
 
     // Optimistically show the job as processing right away
     setJobs((prev) =>
@@ -647,119 +465,117 @@ export function AIActionsPanel({
         toast.error('Failed to run AI job', {
           description: runError || 'Unknown error',
         });
-        return;
+        return false;
       }
 
-      // Refresh jobs and outputs after successful run
       await loadJobs();
       await loadOutputs();
-      toast.success(
-        options.automatic
-          ? 'Automatic analysis step completed'
-          : 'AI job completed'
-      );
-    } catch (err) {
+      return true;
+    } catch {
       await loadJobs();
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to run AI job');
-    } finally {
-      setRunningJobId(null);
+      return false;
     }
   }
 
-  async function handleCancelJob(jobId: string) {
+  async function advanceAnalysisPipeline(options: { retry?: boolean } = {}) {
+    if (pipelineAdvanceInFlightRef.current) return;
+
+    pipelineAdvanceInFlightRef.current = true;
     setError(null);
-    setCancellingJobId(jobId);
 
     try {
-      const { success, error: cancelError } = await cancelAiJob(jobId);
+      let shouldRetry = Boolean(options.retry);
 
-      if (cancelError || !success) {
-        setError(cancelError || 'Failed to cancel job');
-        toast.error('Failed to cancel job', {
-          description: cancelError || 'Unknown error',
-        });
-        return;
+      for (let i = 0; i <= ANALYSIS_PIPELINE_JOB_TYPES.length; i += 1) {
+        const result = shouldRetry
+          ? await retryAnalysisPipelineFromFailedStep(sessionId)
+          : await ensureNextAnalysisPipelineJob(sessionId);
+        shouldRetry = false;
+
+        if (result.error) {
+          setError(result.error);
+          toast.error('Analysis could not continue', {
+            description: result.error,
+          });
+          await loadJobs();
+          await loadOutputs();
+          return;
+        }
+
+        if (result.job) {
+          mergeJob(result.job);
+        }
+
+        if (result.completed) {
+          await loadJobs();
+          await loadOutputs();
+          toast.success('Interview analysis is ready');
+          return;
+        }
+
+        if (result.blocked) {
+          await loadJobs();
+          await loadOutputs();
+          return;
+        }
+
+        if (!result.job) {
+          await loadJobs();
+          await loadOutputs();
+          return;
+        }
+
+        if (!result.shouldRun) {
+          await loadJobs();
+          await loadOutputs();
+          return;
+        }
+
+        const didRun = await runPipelineJob(result.job.id);
+        if (!didRun) {
+          return;
+        }
       }
-
-      // Refresh jobs list
-      await loadJobs();
-      toast.success('Job cancelled');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
-      toast.error('Failed to cancel job');
+      toast.error('Failed to analyze interview');
     } finally {
-      setCancellingJobId(null);
+      pipelineAdvanceInFlightRef.current = false;
     }
   }
 
-  async function handleRetryJob(jobId: string) {
-    setError(null);
-    setRetryingJobId(jobId);
-
+  async function handleAnalyzeInterview() {
+    setIsStartingAnalysis(true);
+    toast.success('Analyzing interview');
     try {
-      const { job: newJob, error: retryError } = await retryAiJob(jobId);
-
-      if (retryError || !newJob) {
-        setError(retryError || 'Failed to retry job');
-        toast.error('Failed to retry job', {
-          description: retryError || 'Unknown error',
-        });
-        return;
-      }
-
-      // Refresh jobs list to show the retry/reused job, then run queued jobs
-      // immediately - retries shouldn't require a manual "Run" click either.
-      await loadJobs();
-
-      if (newJob.status === 'queued') {
-        toast.success('Retrying job', {
-          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
-        });
-        runJob(newJob.id);
-      } else if (newJob.status === 'processing') {
-        toast.success('AI job already running', {
-          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already in progress`,
-        });
-      } else if (newJob.status === 'completed') {
-        toast.success('AI job already completed', {
-          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already available`,
-        });
-      }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
-      toast.error('Failed to retry job');
+      await advanceAnalysisPipeline();
     } finally {
-      setRetryingJobId(null);
+      setIsStartingAnalysis(false);
     }
   }
 
-  const jobTypes: AIJobType[] = [
-    'transcript',
-    'summary',
-    'score',
-    'suggest_bookmarks',
-    'action_items',
-  ];
+  async function handleRetryAnalysis() {
+    setIsRetryingAnalysis(true);
+    toast.success('Retrying analysis');
+    try {
+      await advanceAnalysisPipeline({ retry: true });
+    } finally {
+      setIsRetryingAnalysis(false);
+    }
+  }
 
-  // Filter jobs based on showHistory toggle
-  // Active jobs: queued, processing
-  // History jobs: completed, failed, cancelled
-  const activeJobs = jobs.filter(
-    (j) => j.status === 'queued' || j.status === 'processing'
+  const pipelineJobs = useMemo(
+    () =>
+      jobs.filter((job) => ANALYSIS_PIPELINE_JOB_TYPES.includes(job.job_type)),
+    [jobs]
   );
-  const historyJobs = jobs.filter(
-    (j) =>
-      j.status === 'completed' ||
-      j.status === 'failed' ||
-      j.status === 'cancelled'
+  const activePipelineJobs = pipelineJobs.filter(
+    (job) => job.status === 'queued' || job.status === 'processing'
   );
-  const displayedJobs = showHistory ? jobs : activeJobs;
 
-  // The latest completed result for each "insight" job type, in a fixed
-  // display order so the results section stays predictable. `jobs` is kept
-  // newest-first, so the first completed match per type is the latest one.
-  const completedResults = RESULT_JOB_TYPES.map((jobType) => {
+  const completedResults = REPORT_JOB_TYPES.map((jobType) => {
     const job = jobs.find(
       (j) => j.job_type === jobType && j.status === 'completed'
     );
@@ -769,74 +585,77 @@ export function AIActionsPanel({
     (result): result is { jobType: AIJobType; job: AIJob; output: AIOutput } =>
       result !== null
   );
-  const automaticAnalysisStarted = jobs.some((job) =>
-    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
+  const reportComplete = REPORT_JOB_TYPES.every((jobType) =>
+    completedResults.some((result) => result.jobType === jobType)
   );
-  const automaticAnalysisComplete = AUTOMATIC_ANALYSIS_JOB_TYPES.every(
-    (jobType) =>
-      jobs.some((job) => job.job_type === jobType && job.status === 'completed')
-  );
-  const automaticAnalysisActive = activeJobs.some((job) =>
-    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
-  );
-  const failedAutomaticAnalysisJob = jobs.find(
-    (job) =>
-      AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type) &&
-      job.status === 'failed'
-  );
+  const latestAnalysisTimestamp = completedResults
+    .map((result) => result.job.updated_at)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+  const stepStates = ANALYSIS_PIPELINE_JOB_TYPES.map((jobType, index) => {
+    const jobsForType = jobs.filter((job) => job.job_type === jobType);
+    const activeJob =
+      jobsForType.find((job) => job.status === 'processing') ||
+      jobsForType.find((job) => job.status === 'queued') ||
+      null;
+    const laterStepStarted = ANALYSIS_PIPELINE_JOB_TYPES.slice(index + 1).some(
+      (laterJobType) => jobs.some((job) => job.job_type === laterJobType)
+    );
+    const completedJob =
+      jobsForType.find((job) => isCompletedAnalysisStep(job, jobType)) || null;
+    const failedJob =
+      jobsForType.find(
+        (job) =>
+          (job.status === 'failed' || job.status === 'cancelled') &&
+          (jobType !== 'transcript' ||
+            (job.provider !== PLACEHOLDER_TRANSCRIPT_PROVIDER &&
+              job.model !== PLACEHOLDER_TRANSCRIPT_MODEL))
+      ) || null;
+
+    let status: AnalysisStepStatus = 'waiting';
+    if (activeJob) {
+      status = 'processing';
+    } else if (completedJob || laterStepStarted) {
+      status = 'completed';
+    } else if (failedJob) {
+      status = 'failed';
+    }
+
+    return {
+      jobType,
+      status,
+      job: activeJob || completedJob || failedJob,
+    };
+  });
+  const failedStep = stepStates.find((step) => step.status === 'failed');
+  const pipelineStarted = pipelineJobs.length > 0;
+  const analysisInProgress =
+    activePipelineJobs.length > 0 || isStartingAnalysis || isRetryingAnalysis;
+  const shouldShowProgress =
+    pipelineStarted && (!reportComplete || analysisInProgress || failedStep);
+
+  useEffect(() => {
+    if (
+      !pipelineStarted ||
+      reportComplete ||
+      failedStep ||
+      activePipelineJobs.length > 0 ||
+      pipelineAdvanceInFlightRef.current
+    ) {
+      return;
+    }
+
+    void advanceAnalysisPipeline();
+  }, [
+    activePipelineJobs.length,
+    failedStep,
+    pipelineStarted,
+    reportComplete,
+    sessionId,
+  ]);
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        {jobTypes.map((jobType) => {
-          const config = JOB_TYPE_CONFIG[jobType];
-          const Icon = config.icon;
-          const isCreating = loadingJobType === jobType;
-          // A job of this type is already queued/processing - the button
-          // reflects that instead of allowing another one to be started.
-          const activeJobForType = activeJobs.find(
-            (j) => j.job_type === jobType
-          );
-          const isActive = isCreating || !!activeJobForType;
-          const label = isActive
-            ? activeJobForType?.status === 'processing'
-              ? config.loadingLabel
-              : 'Starting...'
-            : config.label;
-
-          return (
-            <SecondaryButton
-              key={jobType}
-              onClick={() => handleCreateJob(jobType)}
-              disabled={isActive}
-              className="flex h-auto items-center justify-start gap-2 px-4 py-3 text-left"
-            >
-              {isActive ? (
-                <Loader2 className="text-muted-foreground h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
-              )}
-              <span className="truncate text-sm font-medium">{label}</span>
-            </SecondaryButton>
-          );
-        })}
-      </div>
-
-      {automaticAnalysisStarted && !automaticAnalysisComplete && (
-        <Alert>
-          <Sparkles className="h-4 w-4" />
-          <AlertDescription>
-            {failedAutomaticAnalysisJob
-              ? 'Automatic analysis paused because one step failed. Use Retry below to continue the remaining steps.'
-              : automaticAnalysisActive
-                ? 'Automatic analysis is running. Transcript, Summary, Score, and Action Items run in order.'
-                : 'Automatic analysis will continue as soon as the current step completes.'}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Error Alert */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -844,194 +663,194 @@ export function AIActionsPanel({
         </Alert>
       )}
 
-      {/* Jobs List */}
-      {(jobs.length > 0 || isLoadingJobs) && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+      {!pipelineStarted && !reportComplete && (
+        <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="text-muted-foreground h-4 w-4" />
-              <h4 className="text-muted-foreground text-sm font-bold tracking-wider uppercase">
-                AI Job Status
+              <Sparkles className="text-primary h-5 w-5" />
+              <h4 className="text-foreground text-base font-bold">
+                Replay AI Interview Coach
               </h4>
-              {activeJobs.length > 0 && (
-                <Badge variant="info" className="h-5 text-[10px]">
-                  {activeJobs.length} active
-                </Badge>
-              )}
             </div>
-            {historyJobs.length > 0 && (
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
-              >
-                <History className="h-3 w-3" />
-                {showHistory
-                  ? 'Hide history'
-                  : `Show history (${historyJobs.length})`}
-              </button>
+            <p className="text-muted-foreground text-sm">
+              Analyze your interview to generate a transcript, summary, score,
+              and action items.
+            </p>
+          </div>
+          <PrimaryButton
+            onClick={handleAnalyzeInterview}
+            disabled={isStartingAnalysis || isLoadingJobs}
+            className="w-full"
+          >
+            {isStartingAnalysis ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Analyze Interview
+          </PrimaryButton>
+        </div>
+      )}
+
+      {shouldShowProgress && (
+        <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-primary h-5 w-5" />
+                <h4 className="text-foreground text-base font-bold">
+                  {failedStep ? 'Analysis Paused' : 'Analyzing Interview...'}
+                </h4>
+              </div>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {failedStep
+                  ? `${getJobTypeLabel(failedStep.jobType)} needs attention before the coach can continue.`
+                  : 'Replay AI is working through your interview analysis.'}
+              </p>
+            </div>
+            {analysisInProgress && (
+              <Badge variant="info" className="gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Running
+              </Badge>
             )}
           </div>
 
-          {isLoadingJobs ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-            </div>
-          ) : displayedJobs.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              {showHistory ? 'No jobs yet' : 'No active jobs'}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {displayedJobs.map((job) => {
-                const config = JOB_TYPE_CONFIG[job.job_type];
-                const Icon = config?.icon || FileText;
-                const isRunning =
-                  runningJobId === job.id || job.status === 'processing';
-                const isCancelling = cancellingJobId === job.id;
-                const isRetrying = retryingJobId === job.id;
-                const canCancel =
-                  job.status === 'queued' || job.status === 'processing';
-                const canRetry =
-                  job.status === 'failed' || job.status === 'cancelled';
-                const output = outputs[job.id];
+          <div className="space-y-3">
+            {stepStates.map((step) => {
+              const config = JOB_TYPE_CONFIG[step.jobType];
+              const Icon = config.icon;
+              const statusConfig: Record<
+                AnalysisStepStatus,
+                {
+                  label: string;
+                  icon: React.ElementType;
+                  className: string;
+                }
+              > = {
+                completed: {
+                  label: 'Completed',
+                  icon: CheckCircle2,
+                  className: 'text-emerald-500',
+                },
+                processing: {
+                  label:
+                    step.job?.status === 'queued'
+                      ? 'Starting...'
+                      : config.loadingLabel,
+                  icon: Loader2,
+                  className: 'text-primary',
+                },
+                failed: {
+                  label: 'Failed',
+                  icon: XCircle,
+                  className: 'text-destructive',
+                },
+                waiting: {
+                  label: 'Waiting...',
+                  icon: Circle,
+                  className: 'text-muted-foreground',
+                },
+              };
+              const StatusIcon = statusConfig[step.status].icon;
+              const isSpinning = step.status === 'processing';
 
-                return (
-                  <div
-                    key={job.id}
-                    className="bg-muted/30 border-border rounded-xl border p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
-                          <Icon className="text-muted-foreground h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-foreground truncate text-sm font-medium">
-                            {getJobTypeLabel(job.job_type)}
-                          </p>
-                          <p className="text-muted-foreground text-[11px]">
-                            {formatRelativeTime(job.created_at)}
-                          </p>
-                        </div>
+              return (
+                <div
+                  key={step.jobType}
+                  className="bg-muted/30 border-border rounded-xl border p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+                        <Icon className="text-muted-foreground h-4 w-4" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        {/* Cancel button for queued/processing jobs */}
-                        {canCancel && (
-                          <SecondaryButton
-                            size="sm"
-                            onClick={() => handleCancelJob(job.id)}
-                            disabled={isCancelling || isRunning}
-                            className="text-destructive hover:text-destructive h-7 px-2 text-xs"
-                          >
-                            {isCancelling ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <X className="h-3 w-3" />
-                            )}
-                          </SecondaryButton>
-                        )}
-
-                        {/* Retry button for failed/cancelled jobs */}
-                        {canRetry && (
-                          <SecondaryButton
-                            size="sm"
-                            onClick={() => handleRetryJob(job.id)}
-                            disabled={isRetrying}
-                            className="h-7 px-3 text-xs"
-                          >
-                            {isRetrying ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <RefreshCw className="mr-1 h-3 w-3" />
-                                Retry
-                              </>
-                            )}
-                          </SecondaryButton>
-                        )}
-
-                        {/* View Output button for completed jobs with output */}
-                        {job.status === 'completed' && output && (
-                          <SecondaryButton
-                            size="sm"
-                            onClick={() => {
-                              // Toggle expand in the output display
-                              const el = document.getElementById(
-                                `output-toggle-${job.id}`
-                              );
-                              if (el) el.click();
-                            }}
-                            className="h-7 px-3 text-xs"
-                          >
-                            <Eye className="mr-1 h-3 w-3" />
-                            View
-                          </SecondaryButton>
-                        )}
-
-                        <JobStatusBadge status={job.status} />
+                      <div className="min-w-0">
+                        <p className="text-foreground truncate text-sm font-medium">
+                          {getJobTypeLabel(step.jobType)}
+                        </p>
+                        {step.job?.error_message && step.status === 'failed' ? (
+                          <p className="text-destructive mt-1 text-xs">
+                            {step.job.error_message}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
-
-                    {/* Show output for completed jobs */}
-                    {job.status === 'completed' && output && (
-                      <AIOutputDisplayWithId
-                        output={output}
-                        jobType={job.job_type}
-                        jobId={job.id}
+                    <div
+                      className={`flex shrink-0 items-center gap-1.5 text-xs font-medium ${statusConfig[step.status].className}`}
+                    >
+                      <StatusIcon
+                        className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`}
                       />
-                    )}
-
-                    {/* Show error for failed jobs */}
-                    {job.status === 'failed' && job.error_message && (
-                      <div className="border-border mt-2 border-t pt-2">
-                        <p className="text-destructive text-xs">
-                          {job.error_message}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Show cancellation message for cancelled jobs */}
-                    {job.status === 'cancelled' && job.error_message && (
-                      <div className="border-border mt-2 border-t pt-2">
-                        <p className="text-muted-foreground text-xs">
-                          {job.error_message}
-                        </p>
-                      </div>
-                    )}
+                      {statusConfig[step.status].label}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {failedStep && (
+            <SecondaryButton
+              onClick={handleRetryAnalysis}
+              disabled={isRetryingAnalysis}
+              className="w-full"
+            >
+              {isRetryingAnalysis ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Retry from {getJobTypeLabel(failedStep.jobType)}
+            </SecondaryButton>
           )}
         </div>
       )}
 
-      {/* AI Results - always-visible, no "View output" click required */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-muted-foreground h-4 w-4" />
-          <h4 className="text-muted-foreground text-sm font-bold tracking-wider uppercase">
-            AI Results
-          </h4>
-        </div>
+      {reportComplete && !shouldShowProgress && (
+        <div className="space-y-4">
+          <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="text-primary h-5 w-5" />
+                  <h4 className="text-foreground text-base font-bold">
+                    Interview Report
+                  </h4>
+                </div>
+                {latestAnalysisTimestamp && (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Last analyzed: {formatRelativeTime(latestAnalysisTimestamp)}
+                  </p>
+                )}
+              </div>
+              <SecondaryButton
+                size="sm"
+                onClick={handleAnalyzeInterview}
+                disabled={isStartingAnalysis}
+              >
+                {isStartingAnalysis ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Reanalyze Interview
+              </SecondaryButton>
+            </div>
 
-        {completedResults.length === 0 ? (
-          <p className="text-muted-foreground py-4 text-center text-sm">
-            Generate an AI action to see results here.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {completedResults.map(({ jobType, job, output }) => (
-              <AIResultCard
-                key={job.id}
-                jobType={jobType}
-                output={output}
-                updatedAt={job.updated_at}
-              />
-            ))}
+            <div className="space-y-3">
+              {completedResults.map(({ jobType, job, output }) => (
+                <AIResultCard
+                  key={job.id}
+                  jobType={jobType}
+                  output={output}
+                  updatedAt={job.updated_at}
+                />
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

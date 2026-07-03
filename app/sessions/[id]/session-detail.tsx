@@ -844,8 +844,8 @@ export function SessionDetail({
 
         {/* Right Column */}
         <div className="space-y-8">
-          {/* AI Actions */}
-          <SectionCard title="AI Actions" className="bg-card border-border">
+          {/* Replay AI */}
+          <SectionCard title="Replay AI" className="bg-card border-border">
             <AIActionsPanel
               sessionId={session.id}
               initialJobs={initialAIJobs}

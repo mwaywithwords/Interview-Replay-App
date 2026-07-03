@@ -62,6 +62,10 @@ export function AIActionsPanelSkeleton() {
 interface AIActionsPanelProps {
   sessionId: string;
   initialJobs?: AIJob[];
+  // Notified whenever this panel's own output fetch/poll cycle refreshes AI
+  // outputs, so parent components (e.g. the AI Insights section on the
+  // session page) can stay in sync without running a second fetch loop.
+  onOutputsChange?: (outputs: Record<string, AIOutput>) => void;
 }
 
 const JOB_TYPE_CONFIG: Record<
@@ -351,7 +355,7 @@ function AIResultCard({
   );
 }
 
-export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelProps) {
+export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
   const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
   const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
@@ -361,6 +365,12 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Forward every output refresh to the parent, if it wants to mirror them
+  // (e.g. to render a live "AI Insights" section elsewhere on the page).
+  useEffect(() => {
+    onOutputsChange?.(outputs);
+  }, [outputs, onOutputsChange]);
 
   // Load jobs on mount if no initial jobs provided
   useEffect(() => {

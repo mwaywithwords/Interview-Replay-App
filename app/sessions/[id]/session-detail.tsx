@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
@@ -50,8 +50,9 @@ import {
   Check,
   Link as LinkIcon,
   Trash,
+  ListChecks,
 } from 'lucide-react';
-import type { SessionShare, AIJob } from '@/types';
+import type { SessionShare, AIJob, AIOutput } from '@/types';
 import type { InterviewSession, SessionType, SessionMetadata, Bookmark as BookmarkType } from '@/types';
 import { VideoPlayer, type MediaPlayerRef } from '@/components/VideoPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -73,6 +74,43 @@ interface SessionDetailProps {
   session: InterviewSession;
   initialBookmarks: BookmarkType[];
   initialAIJobs?: AIJob[];
+  initialAIOutputs?: AIOutput[];
+}
+
+const PRIORITY_DOT_COLOR: Record<'high' | 'medium' | 'low', string> = {
+  high: 'bg-red-500',
+  medium: 'bg-amber-500',
+  low: 'bg-muted-foreground',
+};
+
+interface ActionItem {
+  title: string;
+  description?: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+// Picks the most recently completed output of a given type from a list of AI
+// outputs. `outputs` is not guaranteed to be sorted here (it may have been
+// rebuilt from a Record by the AI Actions panel), so we sort defensively.
+function getLatestOutputByType(outputs: AIOutput[], outputType: string): AIOutput | null {
+  const matches = outputs
+    .filter((o) => o.output_type === outputType)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return matches[0] ?? null;
+}
+
+function getSummaryInsights(output: AIOutput | null): { summary: string | null; bullets: string[] } {
+  if (!output) return { summary: null, bullets: [] };
+  const content = output.content as Record<string, unknown>;
+  const summary = typeof content.summary === 'string' ? content.summary : null;
+  const bullets = Array.isArray(content.bullets) ? (content.bullets as string[]) : [];
+  return { summary, bullets };
+}
+
+function getActionItems(output: AIOutput | null): ActionItem[] {
+  if (!output) return [];
+  const content = output.content as Record<string, unknown>;
+  return Array.isArray(content.items) ? (content.items as ActionItem[]) : [];
 }
 
 function getSessionTypeLabel(type: string | undefined): string {
@@ -99,9 +137,34 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }: SessionDetailProps) {
+export function SessionDetail({
+  session,
+  initialBookmarks,
+  initialAIJobs = [],
+  initialAIOutputs = [],
+}: SessionDetailProps) {
   const router = useRouter();
   const metadata = session.metadata as SessionMetadata;
+
+  // Mirrors the AI Actions panel's own output fetch/poll cycle so the AI
+  // Insights section below stays live without a second fetch loop. Seeded
+  // from the server-rendered outputs so there's real data on first paint.
+  const [aiOutputs, setAiOutputs] = useState<AIOutput[]>(initialAIOutputs);
+  const handleAIOutputsChange = useCallback((outputsMap: Record<string, AIOutput>) => {
+    setAiOutputs(Object.values(outputsMap));
+  }, []);
+
+  const latestSummaryOutput = useMemo(
+    () => getLatestOutputByType(aiOutputs, 'summary'),
+    [aiOutputs]
+  );
+  const latestActionItemsOutput = useMemo(
+    () => getLatestOutputByType(aiOutputs, 'action_items'),
+    [aiOutputs]
+  );
+  const { summary: summaryText, bullets: summaryBullets } = getSummaryInsights(latestSummaryOutput);
+  const actionItems = getActionItems(latestActionItemsOutput);
+  const hasAIInsights = Boolean(summaryText) || summaryBullets.length > 0 || actionItems.length > 0;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -676,10 +739,19 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
         <div className="space-y-8">
           {/* AI Actions */}
           <SectionCard title="AI Actions" className="bg-card border-border">
-            <AIActionsPanel sessionId={session.id} initialJobs={initialAIJobs} />
+            <AIActionsPanel
+              sessionId={session.id}
+              initialJobs={initialAIJobs}
+              onOutputsChange={handleAIOutputsChange}
+            />
           </SectionCard>
 
-          {/* Speech Analysis */}
+          {/*
+            Speech Analysis - TODO: still placeholder data.
+            Filler word count and pace both require transcript-derived timing
+            (word-level timestamps), which isn't produced by ai_run_job yet.
+            Wire this up once a transcript/timing analysis job type exists.
+          */}
           <SectionCard title="Performance Metrics" className="bg-card border-border">
             <div className="space-y-8">
               <div className="group">
@@ -716,37 +788,74 @@ export function SessionDetail({ session, initialBookmarks, initialAIJobs = [] }:
             </div>
           </SectionCard>
 
-          {/* AI Feedback */}
-          <SectionCard 
-            title="AI Insights" 
+          {/* AI Feedback - driven by the latest completed Summary and Action Items outputs */}
+          <SectionCard
+            title="AI Insights"
             className="bg-card border-border"
-            headerActions={
-              <button className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest transition-colors">
-                Full Report
-              </button>
-            }
           >
-            <div className="space-y-4">
-              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group">
-                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
-                  <Lightbulb className="w-4 h-4 text-amber-500" />
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                  Good explanation of <span className="text-foreground font-bold">product strategy</span> and how it aligns with user needs.
-                </p>
+            {!hasAIInsights ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Generate AI insights to see personalized feedback.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {summaryText && (
+                  <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group">
+                    <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
+                      <Lightbulb className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">{summaryText}</p>
+                  </div>
+                )}
+
+                {summaryBullets.map((bullet, i) => (
+                  <div
+                    key={`summary-bullet-${i}`}
+                    className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
+                      <Activity className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">{bullet}</p>
+                  </div>
+                ))}
+
+                {actionItems.map((item, i) => (
+                  <div
+                    key={`action-item-${i}`}
+                    className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
+                      <ListChecks className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground leading-relaxed font-bold flex items-center gap-2">
+                        {item.priority && (
+                          <span
+                            className={cn('w-1.5 h-1.5 rounded-full shrink-0', PRIORITY_DOT_COLOR[item.priority])}
+                          />
+                        )}
+                        {item.title}
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium mt-0.5">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 hover:border-primary/20 transition-all group">
-                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 shadow-sm border border-border">
-                  <Activity className="w-4 h-4 text-blue-500" />
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                  Improve on <span className="text-foreground font-bold">structuring</span> your answers using the STAR method.
-                </p>
-              </div>
-            </div>
+            )}
           </SectionCard>
 
-          {/* Key Moments */}
+          {/*
+            Key Moments - TODO: still placeholder data.
+            Real "jump to moment" timestamps depend on either bookmarks with
+            timestamps (see suggest_bookmarks job/BookmarksList) or transcript
+            timing data. Wire this up to real bookmarks once that flow is
+            surfaced here instead of this static sample list.
+          */}
           <SectionCard title="Jump to Moments" className="bg-card border-border">
             <div className="space-y-3">
               {[

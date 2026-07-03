@@ -41,14 +41,24 @@ export default async function SessionPage({ params }: SessionPageProps) {
 
   return (
     <AppShell
+      variant="app"
       headerActions={
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex flex-col items-end">
-            <span className="text-sm font-semibold text-foreground">{user.email?.split('@')[0]}</span>
-            <span className="text-xs text-muted-foreground">{user.email}</span>
+        <div className="flex items-center gap-3">
+          <div className="hidden flex-col items-end md:flex">
+            <span className="text-sm font-semibold tracking-[-0.02em] text-foreground">
+              {user.email?.split('@')[0]}
+            </span>
+            <span className="max-w-[220px] truncate text-xs text-muted-foreground">
+              {user.email}
+            </span>
           </div>
           <form action="/auth/signout" method="post">
-            <SecondaryButton type="submit" size="sm" variant="outline" className="text-muted-foreground hover:text-foreground hover:bg-accent border-border">
+            <SecondaryButton
+              type="submit"
+              size="sm"
+              variant="outline"
+              className="rounded-full border-border/70 bg-background/70 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
               Sign Out
             </SecondaryButton>
           </form>

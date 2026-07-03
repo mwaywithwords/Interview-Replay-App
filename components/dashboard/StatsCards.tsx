@@ -3,18 +3,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats } from '@/app/actions/stats';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Clock, TrendingUp } from 'lucide-react';
 
 function StatCardSkeleton() {
   return (
-    <Card className="border-border bg-card/50 backdrop-blur-sm">
-      <CardContent className="pt-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-muted animate-pulse" />
-          <div className="flex-1">
-            <div className="h-4 w-24 bg-muted rounded animate-pulse mb-2" />
-            <div className="h-8 w-16 bg-muted rounded animate-pulse" />
+    <Card className="overflow-hidden border-border/70 bg-card/65 shadow-[var(--shadow-soft)] backdrop-blur">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-8 w-20" />
           </div>
+          <Skeleton className="h-11 w-11 rounded-2xl" />
         </div>
       </CardContent>
     </Card>
@@ -40,7 +41,7 @@ export function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-3 mb-10">
+      <div className="mb-6 grid gap-3 md:grid-cols-3">
         <StatCardSkeleton />
         <StatCardSkeleton />
         <StatCardSkeleton />
@@ -50,66 +51,68 @@ export function StatsCards() {
 
   if (error || data?.error) {
     return (
-      <div className="mb-10 rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-destructive text-sm font-medium text-center">
+      <div className="mb-6 rounded-3xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm font-medium text-destructive shadow-[var(--shadow-soft)]">
         Failed to load stats: {error?.message || data?.error}
       </div>
     );
   }
 
   const stats = data?.stats;
+  const cards = [
+    {
+      label: 'This week',
+      value: stats?.sessionsThisWeek ?? 0,
+      helper: 'sessions recorded',
+      icon: Calendar,
+      tone: 'bg-primary/10 text-primary border-primary/20',
+    },
+    {
+      label: 'Practice time',
+      value: stats?.totalMinutesPracticed ?? 0,
+      helper: 'total minutes',
+      icon: Clock,
+      tone: 'bg-success/10 text-success border-success/20',
+    },
+    {
+      label: 'Top focus',
+      value: getSessionTypeLabel(stats?.topSessionType ?? null),
+      helper: 'session type',
+      icon: TrendingUp,
+      tone: 'bg-warning/10 text-warning border-warning/20',
+    },
+  ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-3 mb-10">
-      {/* Sessions This Week */}
-      <Card className="border-border bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-colors">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Sessions This Week</p>
-              <p className="text-3xl font-black tracking-tight text-foreground">
-                {stats?.sessionsThisWeek ?? 0}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="mb-6 grid gap-3 md:grid-cols-3">
+      {cards.map((card) => {
+        const Icon = card.icon;
 
-      {/* Total Minutes Practiced */}
-      <Card className="border-border bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-colors">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Clock className="w-6 h-6 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Minutes Practiced</p>
-              <p className="text-3xl font-black tracking-tight text-foreground">
-                {stats?.totalMinutesPracticed ?? 0}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Top Session Type */}
-      <Card className="border-border bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-colors">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Top Session Type</p>
-              <p className="text-3xl font-black tracking-tight text-foreground">
-                {getSessionTypeLabel(stats?.topSessionType ?? null)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        return (
+          <Card
+            key={card.label}
+            className="group overflow-hidden border-border/70 bg-card/65 shadow-[var(--shadow-soft)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/25"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {card.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-foreground">
+                    {card.value}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">
+                    {card.helper}
+                  </p>
+                </div>
+                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${card.tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

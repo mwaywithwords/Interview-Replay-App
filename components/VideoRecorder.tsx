@@ -22,7 +22,11 @@ import {
   Loader2,
 } from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
-import { updateSessionVideoMetadata, getSessionRecordingType } from '@/app/actions/sessions';
+import {
+  updateSessionVideoMetadata,
+  getSessionRecordingType,
+} from '@/app/actions/sessions';
+import { createAIJob, runAIJob } from '@/app/actions/ai-jobs';
 import { toast } from 'sonner';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -95,6 +99,38 @@ export function VideoRecorder({
   const playbackVideoRef = useRef<HTMLVideoElement | null>(null);
   const durationRef = useRef<number>(0);
 
+  const startAutomaticTranscriptJob = useCallback(
+    async (storagePath: string) => {
+      const { job, error: createError } = await createAIJob(
+        sessionId,
+        'transcript'
+      );
+
+      if (createError || !job) {
+        toast.error('Failed to start transcript generation', {
+          description: createError || 'Transcript job could not be created.',
+        });
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      toast.success('Transcript generation started');
+
+      const runPromise = runAIJob(job.id);
+      onUploadComplete?.(storagePath);
+
+      const { success, error: runError } = await runPromise;
+      onUploadComplete?.(storagePath);
+
+      if (runError || !success) {
+        toast.error('Transcript generation failed', {
+          description: runError || 'Check the AI status panel to retry.',
+        });
+      }
+    },
+    [sessionId, onUploadComplete]
+  );
+
   // Cleanup function to stop stream and revoke URLs
   const cleanup = useCallback(() => {
     // Stop timer
@@ -161,7 +197,9 @@ export function VideoRecorder({
       }
 
       if (!sessionId) {
-        setUploadError('No session ID provided. Please create a session first.');
+        setUploadError(
+          'No session ID provided. Please create a session first.'
+        );
         setUploadState('error');
         return;
       }
@@ -171,8 +209,9 @@ export function VideoRecorder({
 
       try {
         // Validate session recording_type is video
-        const { recording_type, error: typeError } = await getSessionRecordingType(sessionId);
-        
+        const { recording_type, error: typeError } =
+          await getSessionRecordingType(sessionId);
+
         if (typeError) {
           setUploadError(`Failed to validate session: ${typeError}`);
           setUploadState('error');
@@ -180,7 +219,9 @@ export function VideoRecorder({
         }
 
         if (recording_type !== 'video') {
-          setUploadError(`Cannot upload video: this session is configured for '${recording_type || 'unknown'}' recordings.`);
+          setUploadError(
+            `Cannot upload video: this session is configured for '${recording_type || 'unknown'}' recordings.`
+          );
           setUploadState('error');
           return;
         }
@@ -208,7 +249,9 @@ export function VideoRecorder({
               'You do not have permission to upload to this location.'
             );
           } else if (errorMessage.includes('size')) {
-            setUploadError('The video file is too large. Maximum size is 100MB.');
+            setUploadError(
+              'The video file is too large. Maximum size is 100MB.'
+            );
           } else {
             setUploadError(`Upload failed: ${uploadErr.message}`);
           }
@@ -241,7 +284,9 @@ export function VideoRecorder({
 
         setUploadState('success');
         toast.success('Video uploaded successfully');
+        const transcriptJobPromise = startAutomaticTranscriptJob(path);
         onUploadComplete?.(path);
+        void transcriptJobPromise;
       } catch (err) {
         console.error('Upload error:', err);
         setUploadError(
@@ -251,7 +296,7 @@ export function VideoRecorder({
         toast.error('Failed to upload video');
       }
     },
-    [userId, sessionId, onUploadComplete, videoUrl]
+    [userId, sessionId, onUploadComplete, startAutomaticTranscriptJob, videoUrl]
   );
 
   const handleStart = useCallback(async () => {
@@ -444,13 +489,14 @@ export function VideoRecorder({
 
   // Determine which video URL to use for playback
   // After successful upload, use remote URL; otherwise use local blob URL
-  const playbackUrl = isUploadSuccess && remoteVideoUrl ? remoteVideoUrl : videoUrl;
+  const playbackUrl =
+    isUploadSuccess && remoteVideoUrl ? remoteVideoUrl : videoUrl;
 
   return (
     <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-lg text-foreground flex items-center gap-2">
-          <Video className="h-5 w-5 text-muted-foreground" />
+        <CardTitle className="text-foreground flex items-center gap-2 text-lg">
+          <Video className="text-muted-foreground h-5 w-5" />
           Video Recorder
         </CardTitle>
         <CardDescription>
@@ -459,12 +505,12 @@ export function VideoRecorder({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Video Preview / Playback Area */}
-        <div className="relative aspect-video bg-muted rounded-xl overflow-hidden shadow-inner border border-border">
+        <div className="bg-muted border-border relative aspect-video overflow-hidden rounded-xl border shadow-inner">
           {/* Live Preview Video (during recording) */}
           {!isStopped && (
             <video
               ref={previewVideoRef}
-              className={`absolute inset-0 w-full h-full object-cover ${
+              className={`absolute inset-0 h-full w-full object-cover ${
                 isActive || hasPermission ? 'block' : 'hidden'
               }`}
               autoPlay
@@ -477,7 +523,7 @@ export function VideoRecorder({
           {isStopped && playbackUrl && (
             <video
               ref={playbackVideoRef}
-              className="absolute inset-0 w-full h-full object-contain bg-black"
+              className="absolute inset-0 h-full w-full bg-black object-contain"
               src={playbackUrl}
               controls
               playsInline
@@ -487,7 +533,7 @@ export function VideoRecorder({
           {/* Remote video playback when no recording in progress and remote URL exists */}
           {isIdle && !hasPermission && remoteVideoUrl && (
             <video
-              className="absolute inset-0 w-full h-full object-contain bg-black"
+              className="absolute inset-0 h-full w-full bg-black object-contain"
               src={remoteVideoUrl}
               controls
               playsInline
@@ -496,9 +542,11 @@ export function VideoRecorder({
 
           {/* Placeholder when idle and no remote video */}
           {isIdle && !hasPermission && !remoteVideoUrl && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-              <VideoOff className="h-12 w-12 mb-2" />
-              <p className="text-sm font-medium">Click &quot;Start Recording&quot; to begin</p>
+            <div className="text-muted-foreground absolute inset-0 flex flex-col items-center justify-center">
+              <VideoOff className="mb-2 h-12 w-12" />
+              <p className="text-sm font-medium">
+                Click &quot;Start Recording&quot; to begin
+              </p>
             </div>
           )}
 
@@ -514,7 +562,7 @@ export function VideoRecorder({
               >
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    isPaused ? 'bg-white' : 'bg-white animate-pulse'
+                    isPaused ? 'bg-white' : 'animate-pulse bg-white'
                   }`}
                 />
                 {isPaused ? 'PAUSED' : 'REC'}
@@ -526,10 +574,10 @@ export function VideoRecorder({
           {isActive && (
             <div className="absolute top-3 right-3">
               <span
-                className={`inline-flex items-center rounded-md px-2.5 py-1 text-sm font-mono font-bold ${
+                className={`inline-flex items-center rounded-md px-2.5 py-1 font-mono text-sm font-bold ${
                   isPaused
-                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 backdrop-blur-md'
-                    : 'bg-background/80 text-foreground border border-border backdrop-blur-md'
+                    ? 'border border-amber-500/30 bg-amber-500/20 text-amber-600 backdrop-blur-md dark:text-amber-400'
+                    : 'bg-background/80 text-foreground border-border border backdrop-blur-md'
                 }`}
               >
                 {formatTime(elapsedSeconds)}
@@ -541,7 +589,7 @@ export function VideoRecorder({
         {/* Timer Display (when stopped) */}
         {isStopped && (
           <div className="flex items-center justify-center">
-            <div className="text-2xl font-mono font-bold text-muted-foreground">
+            <div className="text-muted-foreground font-mono text-2xl font-bold">
               Duration: {formatTime(finalDuration)}
             </div>
           </div>
@@ -549,13 +597,13 @@ export function VideoRecorder({
 
         {/* Recording Error Display */}
         {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
-            <p className="text-sm text-destructive font-medium">{error}</p>
+          <div className="border-destructive/30 bg-destructive/10 space-y-3 rounded-lg border p-4">
+            <p className="text-destructive text-sm font-medium">{error}</p>
             {error.includes('denied') && (
               <>
-                <div className="text-xs text-destructive/80 space-y-1">
+                <div className="text-destructive/80 space-y-1 text-xs">
                   <p>To allow camera and microphone access:</p>
-                  <ol className="list-decimal list-inside space-y-0.5 ml-1">
+                  <ol className="ml-1 list-inside list-decimal space-y-0.5">
                     <li>
                       Click the lock/site icon in your browser&apos;s address
                       bar
@@ -586,14 +634,14 @@ export function VideoRecorder({
 
         {/* Upload Status Display */}
         {isUploading && (
-          <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
+          <div className="border-primary/30 bg-primary/10 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              <Loader2 className="text-primary h-5 w-5 animate-spin" />
               <div>
-                <p className="text-sm text-primary font-medium">
+                <p className="text-primary text-sm font-medium">
                   Uploading video...
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Please wait while your video is being saved
                 </p>
               </div>
@@ -602,14 +650,14 @@ export function VideoRecorder({
         )}
 
         {isUploadSuccess && (
-          <div className="rounded-lg border border-success/30 bg-success/10 p-4">
+          <div className="border-success/30 bg-success/10 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-success" />
+              <CheckCircle className="text-success h-5 w-5" />
               <div>
-                <p className="text-sm text-success font-medium">
+                <p className="text-success text-sm font-medium">
                   Video saved successfully!
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Your video has been uploaded and session updated
                 </p>
               </div>
@@ -618,19 +666,17 @@ export function VideoRecorder({
         )}
 
         {isUploadError && uploadError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
+          <div className="border-destructive/30 bg-destructive/10 space-y-3 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+              <AlertCircle className="text-destructive h-5 w-5" />
               <div>
-                <p className="text-sm text-destructive font-medium">Upload failed</p>
-                <p className="text-xs text-destructive/70">{uploadError}</p>
+                <p className="text-destructive text-sm font-medium">
+                  Upload failed
+                </p>
+                <p className="text-destructive/70 text-xs">{uploadError}</p>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRetryUpload}
-            >
+            <Button size="sm" variant="outline" onClick={handleRetryUpload}>
               <Upload className="mr-2 h-4 w-4" />
               Retry Upload
             </Button>
@@ -642,7 +688,7 @@ export function VideoRecorder({
           {isIdle && (
             <Button
               onClick={handleStart}
-              className="rounded-full px-6 shadow-lg shadow-destructive/20"
+              className="shadow-destructive/20 rounded-full px-6 shadow-lg"
               variant="destructive"
             >
               <Video className="mr-2 h-4 w-4" />
@@ -655,7 +701,7 @@ export function VideoRecorder({
               <Button
                 variant="outline"
                 onClick={handlePause}
-                className="rounded-full px-6 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                className="rounded-full border-amber-500/50 px-6 text-amber-600 hover:bg-amber-500/10"
               >
                 <Pause className="mr-2 h-4 w-4" />
                 Pause
@@ -675,7 +721,7 @@ export function VideoRecorder({
             <>
               <Button
                 onClick={handleResume}
-                className="rounded-full px-6 bg-success hover:bg-success/90 text-success-foreground"
+                className="bg-success hover:bg-success/90 text-success-foreground rounded-full px-6"
               >
                 <Play className="mr-2 h-4 w-4" />
                 Resume
@@ -707,7 +753,7 @@ export function VideoRecorder({
                   onClick={handleReset}
                   variant="ghost"
                   disabled={isUploading}
-                  className="rounded-full px-6 text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 rounded-full px-6"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -719,8 +765,8 @@ export function VideoRecorder({
 
         {/* Video Info (after recording) */}
         {isStopped && videoBlob && (
-          <div className="pt-4 border-t border-border">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold text-center">
+          <div className="border-border border-t pt-4">
+            <p className="text-muted-foreground text-center text-[10px] font-bold tracking-widest uppercase">
               Format: {videoBlob.type || 'video/webm'} | Size:{' '}
               {(videoBlob.size / (1024 * 1024)).toFixed(2)} MB
             </p>

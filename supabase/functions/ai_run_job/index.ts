@@ -122,80 +122,91 @@ async function callOpenAI(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
 
-  let response: Response;
+  // The timeout must stay active for the full request lifecycle - not just
+  // until the response headers arrive, but through reading and parsing the
+  // response body too - so everything below runs inside this try/finally.
   try {
-    response = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.4,
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('OpenAI request timed out.');
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.4,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI request timed out.');
+      }
+      throw new Error(`Failed to reach OpenAI API: ${err instanceof Error ? err.message : String(err)}`);
     }
-    throw new Error(`Failed to reach OpenAI API: ${err instanceof Error ? err.message : String(err)}`);
+
+    if (!response.ok) {
+      let errorDetail = '';
+      try {
+        errorDetail = await response.text();
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new Error('OpenAI request timed out.');
+        }
+        // ignore other read errors - use empty detail
+      }
+      throw new Error(`OpenAI API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`);
+    }
+
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI request timed out.');
+      }
+      throw new Error('OpenAI API returned a response that could not be parsed as JSON.');
+    }
+
+    const messageContent = (
+      responseBody as { choices?: Array<{ message?: { content?: string } }> }
+    )?.choices?.[0]?.message?.content;
+
+    if (!messageContent || typeof messageContent !== 'string') {
+      throw new Error('OpenAI API response did not include message content.');
+    }
+
+    let parsedContent: unknown;
+    try {
+      parsedContent = JSON.parse(messageContent);
+    } catch {
+      throw new Error('OpenAI returned content that was not valid JSON.');
+    }
+
+    if (!isValidOutputShape(jobType, parsedContent)) {
+      throw new Error('OpenAI returned JSON that did not match the expected shape.');
+    }
+
+    if (jobType === 'score') {
+      // Force maxScore to 10 for every rubric item, regardless of what the model returned
+      const content = parsedContent as Record<string, unknown>;
+      content.rubric = (content.rubric as Array<Record<string, unknown>>).map((item) => ({
+        ...item,
+        maxScore: 10,
+      }));
+    }
+
+    return parsedContent as Record<string, unknown>;
   } finally {
     clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    let errorDetail = '';
-    try {
-      errorDetail = await response.text();
-    } catch {
-      // ignore - use empty detail
-    }
-    throw new Error(`OpenAI API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`);
-  }
-
-  let responseBody: unknown;
-  try {
-    responseBody = await response.json();
-  } catch {
-    throw new Error('OpenAI API returned a response that could not be parsed as JSON.');
-  }
-
-  const messageContent = (
-    responseBody as { choices?: Array<{ message?: { content?: string } }> }
-  )?.choices?.[0]?.message?.content;
-
-  if (!messageContent || typeof messageContent !== 'string') {
-    throw new Error('OpenAI API response did not include message content.');
-  }
-
-  let parsedContent: unknown;
-  try {
-    parsedContent = JSON.parse(messageContent);
-  } catch {
-    throw new Error('OpenAI returned content that was not valid JSON.');
-  }
-
-  if (!isValidOutputShape(jobType, parsedContent)) {
-    throw new Error('OpenAI returned JSON that did not match the expected shape.');
-  }
-
-  if (jobType === 'score') {
-    // Force maxScore to 10 for every rubric item, regardless of what the model returned
-    const content = parsedContent as Record<string, unknown>;
-    content.rubric = (content.rubric as Array<Record<string, unknown>>).map((item) => ({
-      ...item,
-      maxScore: 10,
-    }));
-  }
-
-  return parsedContent as Record<string, unknown>;
 }
 
 // Marks a job as failed with the given error message
@@ -337,6 +348,7 @@ Deno.serve(async (req: Request) => {
         .from('transcripts_manual')
         .select('content')
         .eq('session_id', job.session_id)
+        .eq('user_id', job.user_id)
         .eq('provider', 'manual')
         .maybeSingle();
 

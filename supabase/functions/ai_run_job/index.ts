@@ -1,9 +1,11 @@
 // Supabase Edge Function: ai_run_job
 // Processes AI jobs. 'summary', 'score', and 'action_items' call OpenAI (gpt-4o-mini)
-// using the session's manual transcript as input. 'transcript' calls OpenAI transcription.
+// using the session's preferred transcript as input. 'transcript' calls OpenAI transcription.
 // 'suggest_bookmarks' still uses placeholder output (not implemented yet).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.91.0';
+
+type SupabaseServiceClient = ReturnType<typeof createClient>;
 
 // CORS headers for the function
 const corsHeaders = {
@@ -23,6 +25,7 @@ const OPENAI_TRANSCRIPTION_MODEL = 'gpt-4o-transcribe';
 const OPENAI_TIMEOUT_MS = 30000;
 const OPENAI_TRANSCRIPTION_TIMEOUT_MS = 120000;
 const OPENAI_TRANSCRIPTION_MAX_FILE_BYTES = 25 * 1024 * 1024;
+const TRANSCRIPT_PROVIDER_ORDER = ['openai', 'manual'];
 
 // Placeholder outputs for job types that don't call OpenAI yet
 function getPlaceholderOutput(jobType: string): Record<string, unknown> {
@@ -341,10 +344,42 @@ async function callOpenAITranscription(
   }
 }
 
+async function loadPreferredTranscript(
+  serviceClient: SupabaseServiceClient,
+  sessionId: string,
+  userId: string
+): Promise<{ content: string; provider: string } | null> {
+  const { data, error } = await serviceClient
+    .from('transcripts_manual')
+    .select('content, provider')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .in('provider', TRANSCRIPT_PROVIDER_ORDER);
+
+  if (error) {
+    throw new Error('Failed to load transcript for this session.');
+  }
+
+  const transcript = TRANSCRIPT_PROVIDER_ORDER.map((provider) =>
+    data?.find(
+      (row: { content?: string | null; provider?: string | null }) =>
+        row.provider === provider && row.content?.trim()
+    )
+  ).find(Boolean);
+
+  if (!transcript) {
+    return null;
+  }
+
+  return {
+    content: transcript.content.trim(),
+    provider: transcript.provider,
+  };
+}
+
 // Marks a job as failed with the given error message
 async function markJobFailed(
-  // deno-lint-ignore no-explicit-any
-  serviceClient: any,
+  serviceClient: SupabaseServiceClient,
   jobId: string,
   errorMessage: string
 ): Promise<void> {
@@ -605,14 +640,14 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // 7e. Store the transcript where downstream jobs already read it.
+      // 7e. Store generated transcripts separately from user-edited manual transcripts.
       const { error: transcriptSaveError } = await serviceClient
         .from('transcripts_manual')
         .upsert(
           {
             user_id: job.user_id,
             session_id: job.session_id,
-            provider: 'manual',
+            provider: 'openai',
             content: transcriptText,
             updated_at: new Date().toISOString(),
           },
@@ -629,7 +664,7 @@ Deno.serve(async (req: Request) => {
       }
 
       outputContent = { transcript: transcriptText };
-      resultProvider = 'manual';
+      resultProvider = 'openai';
       resultModel = OPENAI_TRANSCRIPTION_MODEL;
     } else if (AI_GENERATED_JOB_TYPES.has(job.job_type)) {
       // 7a. Ensure the OpenAI API key is configured
@@ -649,17 +684,15 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // 7b. Load the manual transcript for this session
-      const { data: transcriptRow, error: transcriptError } =
-        await serviceClient
-          .from('transcripts_manual')
-          .select('content')
-          .eq('session_id', job.session_id)
-          .eq('user_id', job.user_id)
-          .eq('provider', 'manual')
-          .maybeSingle();
-
-      if (transcriptError) {
+      // 7b. Load the preferred transcript for this session
+      let transcriptRow: { content: string; provider: string } | null;
+      try {
+        transcriptRow = await loadPreferredTranscript(
+          serviceClient,
+          job.session_id,
+          job.user_id
+        );
+      } catch {
         await markJobFailed(
           serviceClient,
           job_id,
@@ -676,8 +709,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const transcriptText = transcriptRow?.content?.trim();
-      if (!transcriptText) {
+      if (!transcriptRow) {
         const message = 'No transcript available for this session.';
         await markJobFailed(serviceClient, job_id, message);
         return new Response(JSON.stringify({ error: message }), {
@@ -690,7 +722,7 @@ Deno.serve(async (req: Request) => {
       try {
         outputContent = await callOpenAI(
           job.job_type,
-          transcriptText,
+          transcriptRow.content,
           openaiApiKey
         );
       } catch (err) {

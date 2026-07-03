@@ -31,6 +31,7 @@ import {
   Ban,
   Eye,
   History,
+  ListChecks,
 } from 'lucide-react';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
 import { toast } from 'sonner';
@@ -89,6 +90,17 @@ const JOB_TYPE_CONFIG: Record<
     icon: Bookmark,
     description: 'Auto-detect key moments',
   },
+  action_items: {
+    label: 'Suggest Action Items',
+    icon: ListChecks,
+    description: 'Generate follow-up action items',
+  },
+};
+
+const PRIORITY_BADGE_VARIANT: Record<'high' | 'medium' | 'low', 'destructive' | 'warning' | 'secondary'> = {
+  high: 'destructive',
+  medium: 'warning',
+  low: 'secondary',
 };
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
@@ -359,6 +371,39 @@ function AIOutputDisplayWithId({
           </div>
         );
 
+      case 'action_items':
+        return (
+          <div className="space-y-2">
+            {content.items && Array.isArray(content.items) ? (
+              <>
+                {(content.items as Array<{ title: string; description: string; priority?: 'high' | 'medium' | 'low' }>).map(
+                  (item, i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-lg bg-muted/30 border border-border space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-foreground">{item.title}</span>
+                        {item.priority ? (
+                          <Badge
+                            variant={PRIORITY_BADGE_VARIANT[item.priority] || 'secondary'}
+                            className="text-[10px] capitalize shrink-0"
+                          >
+                            {item.priority}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {item.description ? (
+                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                      ) : null}
+                    </div>
+                  )
+                )}
+              </>
+            ) : null}
+          </div>
+        );
+
       default:
         return (
           <pre className="text-xs text-muted-foreground overflow-auto">
@@ -550,7 +595,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
     }
   }
 
-  const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks'];
+  const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks', 'action_items'];
 
   // Filter jobs based on showHistory toggle
   // Active jobs: queued, processing

@@ -29,9 +29,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--border-radius": "calc(var(--radius) + 4px)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        classNames: {
+          toast: "shadow-[var(--shadow-elevated)]",
+          title: "font-semibold tracking-[-0.01em]",
+          description: "text-muted-foreground",
+          actionButton: "bg-primary text-primary-foreground",
+          cancelButton: "bg-secondary text-secondary-foreground",
+        },
+      }}
       {...props}
     />
   )

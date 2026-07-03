@@ -11,12 +11,12 @@ interface SectionCardProps {
 
 export function SectionCard({ children, title, className, headerActions }: SectionCardProps) {
   return (
-    <Card className={cn("overflow-hidden border-border bg-card shadow-sm transition-all duration-200", className)}>
+    <Card className={cn("overflow-hidden border-border/80 bg-card shadow-[var(--shadow-card)] transition-all duration-200", className)}>
       {(title || headerActions) && (
-        <CardHeader className="border-b border-border pb-4 bg-muted/30">
-          <div className="flex items-center justify-between w-full">
+        <CardHeader className="border-b border-border/70 bg-muted/30 pb-4">
+          <div className="flex w-full items-center justify-between">
             {title && (
-              <CardTitle className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 {title}
               </CardTitle>
             )}

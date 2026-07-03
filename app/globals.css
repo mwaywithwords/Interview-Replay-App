@@ -19,11 +19,20 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -40,73 +49,121 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+  --shadow-elevated: var(--shadow-elevated);
 }
 
 :root {
-  --radius: 0.75rem;
-  
-  /* Light Mode - Clean Neutral (Low contrast, not blue tinted) */
-  --background: oklch(0.985 0 0); /* Softest gray/white */
-  --foreground: oklch(0.25 0 0); /* Deep neutral gray */
-  
-  --card: oklch(1 0 0); /* Pure white cards for subtle depth */
-  --card-foreground: oklch(0.25 0 0);
-  
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0 0);
-  
-  --primary: oklch(0.55 0.18 250); /* Stable Blue */
-  --primary-foreground: oklch(0.985 0 0);
-  
-  --secondary: oklch(0.94 0 0); /* Soft gray */
-  --secondary-foreground: oklch(0.25 0 0);
-  
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.5 0 0); /* Medium gray */
-  
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.25 0 0);
-  
-  --destructive: oklch(0.6 0.18 25);
-  --border: oklch(0.9 0 0); /* Very subtle border */
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.55 0.18 250 / 0.5);
+  --radius: 0.875rem;
+
+  --background: oklch(0.985 0.003 255);
+  --foreground: oklch(0.205 0.015 260);
+
+  --card: oklch(0.998 0.001 255);
+  --card-foreground: oklch(0.205 0.015 260);
+
+  --popover: oklch(0.998 0.001 255);
+  --popover-foreground: oklch(0.205 0.015 260);
+
+  --primary: oklch(0.57 0.19 262);
+  --primary-foreground: oklch(0.985 0.003 255);
+
+  --secondary: oklch(0.94 0.006 255);
+  --secondary-foreground: oklch(0.255 0.018 260);
+
+  --surface: oklch(0.965 0.005 255);
+  --surface-foreground: oklch(0.28 0.018 260);
+
+  --muted: oklch(0.948 0.006 255);
+  --muted-foreground: oklch(0.52 0.018 260);
+
+  --accent: oklch(0.935 0.026 262);
+  --accent-foreground: oklch(0.28 0.055 262);
+
+  --destructive: oklch(0.58 0.18 24);
+  --destructive-foreground: oklch(0.985 0.003 255);
+  --success: oklch(0.56 0.14 152);
+  --success-foreground: oklch(0.985 0.003 255);
+  --warning: oklch(0.72 0.15 75);
+  --warning-foreground: oklch(0.22 0.02 70);
+  --info: oklch(0.58 0.16 245);
+  --info-foreground: oklch(0.985 0.003 255);
+
+  --border: oklch(0.89 0.008 255);
+  --input: oklch(0.875 0.01 255);
+  --ring: oklch(0.57 0.19 262 / 0.35);
+
+  --shadow-soft: 0 1px 2px oklch(0.205 0.015 260 / 0.04), 0 8px 24px oklch(0.205 0.015 260 / 0.05);
+  --shadow-card: 0 1px 1px oklch(0.205 0.015 260 / 0.03), 0 10px 30px oklch(0.205 0.015 260 / 0.06);
+  --shadow-elevated: 0 16px 48px oklch(0.205 0.015 260 / 0.12);
 }
 
 .dark {
-  /* Dark Mode - Premium Neutral/Deep Blue */
-  --background: oklch(0.12 0.01 260); /* Deep slate/black */
-  --foreground: oklch(0.98 0.01 260); /* Off-white */
-  
-  --card: oklch(0.16 0.01 260); 
-  --card-foreground: oklch(0.98 0.01 260);
-  
-  --popover: oklch(0.16 0.01 260);
-  --popover-foreground: oklch(0.98 0.01 260);
-  
-  --primary: oklch(0.75 0.15 250); /* Brighter for dark */
-  --primary-foreground: oklch(0.12 0.01 260);
-  
-  --secondary: oklch(0.25 0.02 260); 
-  --secondary-foreground: oklch(0.98 0.01 260);
-  
-  --muted: oklch(0.25 0.02 260);
-  --muted-foreground: oklch(0.65 0.01 260);
-  
-  --accent: oklch(0.25 0.02 260);
-  --accent-foreground: oklch(0.98 0.01 260);
-  
-  --destructive: oklch(0.6 0.18 25);
-  --border: oklch(0.25 0.02 260 / 0.8);
-  --input: oklch(0.25 0.02 260);
-  --ring: oklch(0.75 0.15 250 / 0.4);
+  --background: oklch(0.135 0.018 260);
+  --foreground: oklch(0.965 0.006 255);
+
+  --card: oklch(0.172 0.021 260);
+  --card-foreground: oklch(0.965 0.006 255);
+
+  --popover: oklch(0.18 0.022 260);
+  --popover-foreground: oklch(0.965 0.006 255);
+
+  --primary: oklch(0.72 0.15 262);
+  --primary-foreground: oklch(0.13 0.018 260);
+
+  --secondary: oklch(0.235 0.024 260);
+  --secondary-foreground: oklch(0.94 0.006 255);
+
+  --surface: oklch(0.205 0.022 260);
+  --surface-foreground: oklch(0.925 0.008 255);
+
+  --muted: oklch(0.245 0.024 260);
+  --muted-foreground: oklch(0.68 0.018 255);
+
+  --accent: oklch(0.265 0.045 262);
+  --accent-foreground: oklch(0.94 0.02 262);
+
+  --destructive: oklch(0.66 0.18 24);
+  --destructive-foreground: oklch(0.985 0.003 255);
+  --success: oklch(0.7 0.13 152);
+  --success-foreground: oklch(0.13 0.018 260);
+  --warning: oklch(0.78 0.14 75);
+  --warning-foreground: oklch(0.15 0.018 70);
+  --info: oklch(0.74 0.13 245);
+  --info-foreground: oklch(0.13 0.018 260);
+
+  --border: oklch(0.305 0.024 260 / 0.74);
+  --input: oklch(0.32 0.026 260 / 0.8);
+  --ring: oklch(0.72 0.15 262 / 0.42);
+
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.16), 0 12px 34px oklch(0 0 0 / 0.22);
+  --shadow-card: 0 1px 1px oklch(1 0 0 / 0.04) inset, 0 16px 42px oklch(0 0 0 / 0.28);
+  --shadow-elevated: 0 24px 70px oklch(0 0 0 / 0.42);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply scroll-smooth;
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-balance tracking-tight;
+  }
+  p {
+    @apply text-pretty;
   }
 }

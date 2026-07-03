@@ -4,13 +4,13 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const alertVariants = cva(
-  'relative w-full rounded-2xl border p-5 [&>svg~*]:pl-9 [&>svg+div]:translate-y-[-1px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground transition-all',
+  'relative w-full rounded-2xl border p-5 shadow-[var(--shadow-soft)] transition-all [&>svg~*]:pl-9 [&>svg+div]:translate-y-[-1px] [&>svg]:absolute [&>svg]:left-5 [&>svg]:top-5 [&>svg]:text-foreground',
   {
     variants: {
       variant: {
-        default: 'bg-card text-foreground shadow-sm',
+        default: 'border-border/80 bg-card text-foreground',
         destructive:
-          'border-destructive/20 bg-destructive/5 text-destructive [&>svg]:text-destructive',
+          'border-destructive/20 bg-destructive/10 text-destructive [&>svg]:text-destructive',
       },
     },
     defaultVariants: {
@@ -38,7 +38,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'h5'>) {
   return (
     <h5
       data-slot="alert-title"
-      className={cn('mb-1 font-bold leading-none tracking-tight', className)}
+      className={cn('mb-1 font-semibold leading-none tracking-tight', className)}
       {...props}
     />
   );
@@ -48,7 +48,7 @@ function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) 
   return (
     <div
       data-slot="alert-description"
-      className={cn('text-sm [&_p]:leading-relaxed', className)}
+      className={cn('text-sm leading-6 text-muted-foreground [&_p]:leading-relaxed', className)}
       {...props}
     />
   );

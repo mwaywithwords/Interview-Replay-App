@@ -12,15 +12,15 @@ interface AppShellProps {
 
 export function AppShell({ children, headerActions, showNav = true }: AppShellProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
+    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/20">
       {showNav && (
-        <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-          <Link href="/" className="flex items-center gap-2 group transition-all">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-              <PlayCircle className="w-5 h-5 fill-current" />
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/70 bg-background/80 px-6 backdrop-blur-xl">
+          <Link href="/" className="group flex items-center gap-2.5 transition-all">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition-transform group-hover:scale-105">
+              <PlayCircle className="h-5 w-5 fill-current" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">
-              {branding.brandShort}<span className="text-primary">.ai</span>
+            <span className="text-xl font-semibold tracking-[-0.04em] text-foreground">
+              {branding.brandName}
             </span>
           </Link>
           <div className="flex items-center gap-3">

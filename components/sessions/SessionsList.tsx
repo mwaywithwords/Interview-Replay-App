@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { getSessions, type SessionsFilter } from '@/app/actions/sessions';
 import { getCompanies } from '@/app/actions/companies';
 import { getSymbols } from '@/app/actions/symbols';
-import { SectionCard } from '@/components/layout/SectionCard';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Clock, FileText, Filter, Search, AlertCircle, Loader2, Video, Mic } from 'lucide-react';
+import { Plus, Clock, FileText, Filter, Search, AlertCircle, Loader2, Video, Mic, ArrowRight } from 'lucide-react';
 import type {
   InterviewSessionWithGroupings,
   SessionMetadata,
@@ -57,16 +57,19 @@ function StatusBadge({ status }: { status: string }) {
 
 function SessionCardSkeleton() {
   return (
-    <Card className="border-border bg-card/50 backdrop-blur-sm p-5 h-full">
-      <div className="flex flex-col gap-4 h-full">
+    <Card className="h-full border-border/70 bg-card/65 p-4 shadow-[var(--shadow-soft)] backdrop-blur">
+      <div className="flex h-full flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="h-6 w-3/4 bg-muted rounded animate-pulse" />
-          <div className="h-5 w-16 bg-muted rounded animate-pulse" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+          <Skeleton className="h-5 w-16 rounded-full" />
         </div>
-        <div className="mt-auto pt-3 border-t border-border/50 flex flex-wrap items-center gap-2">
-          <div className="h-5 w-20 bg-muted rounded animate-pulse" />
-          <div className="h-5 w-16 bg-muted rounded animate-pulse" />
-          <div className="h-5 w-14 bg-muted rounded animate-pulse" />
+        <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-14 rounded-full" />
         </div>
       </div>
     </Card>
@@ -81,10 +84,10 @@ function RecordingTypeBadge({ recordingType }: { recordingType: string | null })
   const label = isVideo ? 'Video' : 'Audio';
   
   return (
-    <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold ${
+    <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold ${
       isVideo 
-        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-        : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+        ? 'border-info/20 bg-info/10 text-info' 
+        : 'border-primary/20 bg-primary/10 text-primary'
     }`}>
       <Icon className="h-3 w-3" />
       {label}
@@ -98,31 +101,32 @@ function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
 
   return (
     <Link href={`/sessions/${session.id}`}>
-      <SectionCard className="group hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-[0.99] cursor-pointer h-full flex flex-col border-border bg-card/50 backdrop-blur-sm">
-        <div className="flex flex-col gap-4 h-full">
+      <Card className="group flex h-full cursor-pointer flex-col border-border/70 bg-card/65 p-4 shadow-[var(--shadow-soft)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[var(--shadow-card)] active:translate-y-0">
+        <div className="flex h-full flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 flex-1">
+            <h3 className="line-clamp-2 flex-1 text-base font-semibold tracking-[-0.02em] text-foreground transition-colors group-hover:text-primary">
               {session.title}
             </h3>
             <StatusBadge status={session.status} />
           </div>
 
-          <div className="mt-auto pt-3 border-t border-border/50 flex flex-wrap items-center gap-2 text-sm text-muted-foreground font-medium">
-            <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-xs font-bold text-foreground">
+          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border/50 pt-3 text-sm font-medium text-muted-foreground">
+            <span className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/50 px-2 py-0.5 text-xs font-semibold text-foreground">
               <FileText className="h-3 w-3" />
               {getSessionTypeLabel(sessionType)}
             </span>
             <RecordingTypeBadge recordingType={session.recording_type} />
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-bold">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <Clock className="h-3 w-3 text-muted-foreground/60" />
               {new Date(session.created_at).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
               })}
             </span>
+            <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
           </div>
         </div>
-      </SectionCard>
+      </Card>
     </Link>
   );
 }
@@ -135,16 +139,16 @@ function GroupHeader({
   count: number;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-6 ml-1">
-      <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
-      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{count}</span>
+    <div className="mb-4 ml-1 flex items-center gap-2">
+      <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">{title}</h2>
+      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{count}</span>
     </div>
   );
 }
 
 function LoadingSkeletons() {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <SessionCardSkeleton key={i} />
       ))}
@@ -293,39 +297,60 @@ export function SessionsList() {
 
   // Check if any filters are active
   const hasActiveFilters = sessionType !== 'all' || status !== 'all' || companyId !== 'all' || symbolId !== 'all' || debouncedSearch.trim();
+  const activeFilterCount = [
+    sessionType !== 'all',
+    status !== 'all',
+    companyId !== 'all',
+    symbolId !== 'all',
+    Boolean(debouncedSearch.trim()),
+  ].filter(Boolean).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Search and Filters */}
-      <div className="flex flex-col gap-4 p-5 rounded-2xl border border-border bg-card/50 backdrop-blur-sm shadow-sm">
+      <div className="overflow-hidden rounded-3xl border border-border/70 bg-card/65 shadow-[var(--shadow-card)] backdrop-blur">
+        <div className="flex flex-col gap-4 border-b border-border/60 p-4 lg:flex-row lg:items-center">
         {/* Search Input */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search sessions by title or prompt..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="pl-11 h-11"
-          />
-          {sessionsFetching && !sessionsLoading && (
-            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
-          )}
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search sessions by title or prompt..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="h-11 rounded-2xl bg-background/70 pl-11"
+            />
+            {sessionsFetching && !sessionsLoading && (
+              <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 lg:justify-end">
+            <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
+              <Filter className="h-3.5 w-3.5 text-primary" />
+              {activeFilterCount > 0 ? `${activeFilterCount} active` : 'Filters'}
+            </div>
+            <div className="rounded-full border border-border/70 bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
+              {sessionsFetching ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading
+                </span>
+              ) : (
+                <span>{total} session{total !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Filter Row */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 text-sm font-black text-foreground uppercase tracking-tight mr-2">
-            <Filter className="h-4 w-4 text-primary" />
-            Filters
-          </div>
-
+        <div className="flex flex-wrap items-center gap-2 p-4">
           {/* Session Type Filter */}
           <Select
             value={sessionType}
             onValueChange={(value) => handleFilterChange('sessionType', value)}
           >
-            <SelectTrigger className="w-[140px] h-10 bg-muted/30 border-border rounded-xl font-bold">
+            <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[150px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-popover">
@@ -340,7 +365,7 @@ export function SessionsList() {
             value={status}
             onValueChange={(value) => handleFilterChange('status', value)}
           >
-            <SelectTrigger className="w-[140px] h-10 bg-muted/30 border-border rounded-xl font-bold">
+            <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[150px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-popover">
@@ -359,7 +384,7 @@ export function SessionsList() {
               value={companyId}
               onValueChange={(value) => handleFilterChange('company', value)}
             >
-              <SelectTrigger className="w-[180px] h-10 bg-muted/30 border-border rounded-xl font-bold">
+              <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[190px]">
                 <SelectValue placeholder="Company" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-border bg-popover">
@@ -379,7 +404,7 @@ export function SessionsList() {
               value={symbolId}
               onValueChange={(value) => handleFilterChange('symbol', value)}
             >
-              <SelectTrigger className="w-[180px] h-10 bg-muted/30 border-border rounded-xl font-bold">
+              <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[190px]">
                 <SelectValue placeholder="Symbol" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-border bg-popover">
@@ -393,16 +418,13 @@ export function SessionsList() {
             </Select>
           )}
 
-          {/* Results count */}
-          <div className="ml-auto text-sm text-muted-foreground font-medium">
-            {sessionsFetching ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading...
-              </span>
-            ) : (
-              <span>{total} session{total !== 1 ? 's' : ''}</span>
-            )}
+          {hasActiveFilters && (
+            <div className="ml-auto rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
+              Refined results
+            </div>
+          )}
+          <div className="rounded-full border border-border/70 bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
+            Sorted: Newest first
           </div>
         </div>
       </div>
@@ -412,10 +434,10 @@ export function SessionsList() {
 
       {/* Error State */}
       {(sessionsError || sessionsData?.error) && !isInitialLoading && (
-        <div className="flex flex-col items-center justify-center py-16 px-6 text-center border border-destructive/20 rounded-2xl bg-destructive/5">
-          <AlertCircle className="w-12 h-12 text-destructive mb-4" />
-          <h3 className="text-lg font-bold text-destructive mb-2">Failed to load sessions</h3>
-          <p className="text-sm text-destructive/80 max-w-sm">
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-destructive/20 bg-destructive/10 px-6 py-16 text-center shadow-[var(--shadow-soft)]">
+          <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
+          <h3 className="mb-2 text-lg font-semibold text-destructive">Failed to load sessions</h3>
+          <p className="max-w-sm text-sm text-destructive/80">
             {sessionsError?.message || sessionsData?.error}
           </p>
         </div>
@@ -436,8 +458,8 @@ export function SessionsList() {
               action={
                 !hasActiveFilters && (
                   <Link href="/sessions/new">
-                    <PrimaryButton className="rounded-xl font-bold px-8 shadow-lg shadow-primary/20">
-                      <Plus className="mr-2 h-5 w-5" />
+                    <PrimaryButton className="rounded-full px-8 font-semibold shadow-[var(--shadow-soft)]">
+                      <Plus className="h-5 w-5" />
                       Create Your First Session
                     </PrimaryButton>
                   </Link>
@@ -446,7 +468,7 @@ export function SessionsList() {
             />
           ) : shouldGroupByCompany || shouldGroupBySymbol ? (
             // Grouped view
-            <div className="space-y-12">
+            <div className="space-y-9">
               {Array.from(groupedSessions.entries())
                 .sort(([groupIdA], [groupIdB]) => {
                   // Sort unassigned to the end
@@ -478,7 +500,7 @@ export function SessionsList() {
                   return (
                     <div key={groupId}>
                       <GroupHeader title={groupTitle} count={groupSessions.length} />
-                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {groupSessions.map((session) => (
                           <SessionCard key={session.id} session={session} />
                         ))}
@@ -489,7 +511,7 @@ export function SessionsList() {
             </div>
           ) : (
             // Ungrouped view
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {sessions.map((session) => (
                 <SessionCard key={session.id} session={session} />
               ))}
@@ -502,11 +524,11 @@ export function SessionsList() {
               <SecondaryButton
                 onClick={handleLoadMore}
                 disabled={sessionsFetching}
-                className="rounded-xl font-bold px-8"
+                className="rounded-full px-8 font-semibold"
               >
                 {sessionsFetching ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Loading...
                   </>
                 ) : (

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function NewSessionPage() {
   return (
-    <AppShell>
+    <AppShell variant="app">
       <NewSessionForm />
     </AppShell>
   );

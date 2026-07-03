@@ -120,6 +120,8 @@ async function getReusableJobForCreate(
   userId: string,
   jobType: AIJobType
 ): Promise<{ job: AIJob | null; error: string | null }> {
+  // TODO(#3): Make duplicate prevention race-safe with a DB constraint or
+  // transactional RPC. This read-then-insert guard can still race.
   const { data: existingJobs, error } = await supabase
     .from('ai_jobs')
     .select('*')

@@ -133,6 +133,23 @@ const AUTOMATIC_ANALYSIS_JOB_TYPES: AIJobType[] = [
   'score',
   'action_items',
 ];
+const PLACEHOLDER_TRANSCRIPT_PROVIDER = 'placeholder';
+const PLACEHOLDER_TRANSCRIPT_MODEL = 'mock-v1';
+
+function isCompletedAutomaticStep(job: AIJob, jobType: AIJobType): boolean {
+  if (job.job_type !== jobType || job.status !== 'completed') {
+    return false;
+  }
+
+  if (jobType !== 'transcript') {
+    return true;
+  }
+
+  return (
+    job.provider !== PLACEHOLDER_TRANSCRIPT_PROVIDER &&
+    job.model !== PLACEHOLDER_TRANSCRIPT_MODEL
+  );
+}
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
   const config: Record<
@@ -476,11 +493,13 @@ export function AIActionsPanel({
   // Transcript -> Summary -> Score -> Action Items.
   useEffect(() => {
     for (const { after, next } of AUTOMATIC_ANALYSIS_CHAIN) {
-      const previousStepCompleted = jobs.some(
-        (job) => job.job_type === after && job.status === 'completed'
+      const previousStepCompleted = jobs.some((job) =>
+        isCompletedAutomaticStep(job, after)
       );
       if (!previousStepCompleted) continue;
 
+      // TODO(#2): Decide whether a new OpenAI transcript should invalidate
+      // older completed Summary/Score/Action Items so analysis regenerates.
       const nextStepAlreadyExists = jobs.some((job) => job.job_type === next);
       if (nextStepAlreadyExists || automaticJobsInFlightRef.current.has(next)) {
         continue;
@@ -505,6 +524,8 @@ export function AIActionsPanel({
     const { outputs: fetchedOutputs, error: fetchError } =
       await getSessionAIOutputs(sessionId);
     if (!fetchError && fetchedOutputs.length > 0) {
+      // TODO(#5): Clear stale output state on successful empty fetches, after
+      // verifying no existing UI relies on preserving previous output cards.
       // Index outputs by job_id for easy lookup
       const outputMap: Record<string, AIOutput> = {};
       fetchedOutputs.forEach((output) => {

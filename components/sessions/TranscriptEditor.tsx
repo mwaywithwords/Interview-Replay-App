@@ -68,6 +68,8 @@ export function TranscriptEditor({
   useEffect(() => {
     async function loadTranscript() {
       // Do not overwrite user edits that have not been saved yet.
+      // TODO(#4): Surface that a generated transcript is available and reload
+      // after save/discard instead of silently skipping this refresh.
       if (hasUnsavedChangesRef.current) {
         return;
       }

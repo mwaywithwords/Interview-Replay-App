@@ -15,7 +15,7 @@ import {
 } from '@/app/actions/notes';
 import type { Bookmark, CreateBookmarkInput, BookmarkNote } from '@/types';
 import type { MediaPlayerRef } from '@/components/AudioPlayer';
-import { Button, PrimaryButton, SecondaryButton } from '@/components/ui/button';
+import { Button, SecondaryButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -72,14 +72,6 @@ export function BookmarksListSkeleton() {
 /**
  * Format milliseconds into MM:SS.mmm display format.
  */
-function formatTimestamp(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  const milliseconds = ms % 1000;
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0').slice(0, 1)}`;
-}
-
 /**
  * Format milliseconds into a shorter MM:SS display format (for display).
  */
@@ -251,13 +243,13 @@ function BookmarkItem({
   }
 
   return (
-    <div className="rounded-xl border border-transparent hover:border-border transition-all">
+    <div className="overflow-hidden rounded-3xl border border-border/70 bg-background/45 transition-all hover:border-primary/25">
       {/* Main bookmark row */}
       <div
         className={cn(
-          'group relative flex items-start gap-4 p-4 cursor-pointer',
-          'hover:bg-muted/50 transition-all',
-          showNotes && 'bg-muted/30'
+          'group relative flex cursor-pointer items-start gap-4 p-4',
+          'transition-all hover:bg-accent',
+          showNotes && 'bg-muted/40'
         )}
         onClick={handleSeek}
         role="button"
@@ -270,28 +262,28 @@ function BookmarkItem({
         }}
       >
         {/* Timestamp indicator */}
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-          <Play className="w-4 h-4 text-primary fill-primary" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 transition-colors group-hover:bg-primary/20">
+          <Play className="h-4 w-4 fill-primary text-primary" />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               {formatTimestampShort(bookmark.timestamp_ms)}
             </span>
             {bookmark.category && (
-              <span className="text-[10px] font-bold text-primary/70 uppercase tracking-widest px-2 py-0.5 rounded bg-primary/10">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary/70">
                 {bookmark.category}
               </span>
             )}
           </div>
-          <p className="text-sm font-bold text-foreground truncate">{bookmark.label}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{bookmark.label}</p>
           
           {/* Notes toggle button */}
           <button
             onClick={toggleNotes}
-            className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <MessageSquare className="w-3 h-3" />
             {notes.length > 0 ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Add note'}
@@ -305,7 +297,7 @@ function BookmarkItem({
 
         {/* Actions - show on hover */}
         <div
-          className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
           onClick={(e) => e.stopPropagation()}
         >
           <Button
@@ -335,7 +327,7 @@ function BookmarkItem({
 
       {/* Notes section (expandable) */}
       {showNotes && (
-        <div className="px-4 pb-4 pt-0 border-t border-border/50 bg-muted/20">
+        <div className="border-t border-border/50 bg-muted/20 px-4 pb-4 pt-0">
           {noteError && (
             <Alert variant="destructive" className="mt-3 mb-2">
               <AlertCircle className="h-3 w-3" />
@@ -352,11 +344,11 @@ function BookmarkItem({
 
           {/* Notes list */}
           {!isLoadingNotes && notes.length > 0 && (
-            <div className="space-y-2 mt-3">
+            <div className="mt-3 space-y-2">
               {notes.map((note) => (
                 <div
                   key={note.id}
-                  className="group/note flex items-start gap-2 p-2 rounded-lg bg-background border border-border/50"
+                  className="group/note flex items-start gap-2 rounded-2xl border border-border/50 bg-background p-3"
                 >
                   <p className="flex-1 text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                     {note.content}
@@ -386,7 +378,7 @@ function BookmarkItem({
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
                 placeholder="Write your note..."
-                className="min-h-[60px] text-xs"
+                    className="min-h-[70px] rounded-2xl text-xs"
                 autoFocus
               />
               <div className="flex items-center justify-end gap-2">
@@ -399,7 +391,7 @@ function BookmarkItem({
                     setNoteError(null);
                   }}
                   disabled={isSavingNote}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 rounded-full px-2 text-xs"
                 >
                   Cancel
                 </Button>
@@ -407,7 +399,7 @@ function BookmarkItem({
                   size="sm"
                   onClick={handleAddNote}
                   disabled={isSavingNote || !newNoteContent.trim()}
-                  className="h-7 px-2 text-xs"
+                  className="h-7 rounded-full px-2 text-xs"
                 >
                   {isSavingNote ? (
                     <Loader2 className="w-3 h-3 mr-1 animate-spin" />

@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, Check, Loader2, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface SessionNoteEditorProps {
@@ -132,7 +131,7 @@ export function SessionNoteEditor({ sessionId, initialContent = '' }: SessionNot
   if (!isLoaded) {
     return (
       <div className="space-y-4">
-        <Skeleton className="min-h-[200px] w-full rounded-lg" />
+        <Skeleton className="min-h-[220px] w-full rounded-3xl" />
       </div>
     );
   }
@@ -146,31 +145,31 @@ export function SessionNoteEditor({ sessionId, initialContent = '' }: SessionNot
         </Alert>
       )}
       
-      <div className="relative">
+      <div className="relative rounded-3xl border border-border/70 bg-background/45 p-4 shadow-inner">
         <Textarea
           value={content}
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder="Write your notes about this session here..."
-          className="min-h-[200px] resize-y"
+          className="min-h-[220px] resize-y border-border/70 bg-card/70 leading-7"
         />
         
         {/* Save status indicator */}
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
           {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md">
+            <span className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-2 py-1 text-xs text-muted-foreground backdrop-blur-sm">
               <Loader2 className="h-3 w-3 animate-spin" />
               Saving...
             </span>
           )}
           {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md">
+            <span className="flex items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2 py-1 text-xs text-success backdrop-blur-sm">
               <Check className="h-3 w-3" />
               Saved
             </span>
           )}
           {saveStatus === 'error' && (
-            <span className="flex items-center gap-1.5 text-xs text-destructive bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md">
+            <span className="flex items-center gap-1.5 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs text-destructive backdrop-blur-sm">
               <AlertCircle className="h-3 w-3" />
               Error saving
             </span>

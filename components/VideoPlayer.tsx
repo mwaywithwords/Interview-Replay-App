@@ -5,7 +5,6 @@ import { createSignedVideoUrl } from '@/app/actions/storage';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -54,6 +53,7 @@ interface VideoPlayerProps {
   sessionId: string;
   hasVideo: boolean; // Whether the session has recording_type = 'video'
   className?: string;
+  compact?: boolean;
 }
 
 /**
@@ -71,7 +71,7 @@ interface VideoPlayerProps {
  * - seekToMs(ms): Seeks to the specified position in milliseconds
  */
 export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
-  function VideoPlayer({ sessionId, hasVideo, className }, ref) {
+  function VideoPlayer({ sessionId, hasVideo, className, compact = false }, ref) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -264,18 +264,23 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   // Empty state: No video recording exists
   if (!hasVideo) {
     return (
-      <Card className={cn("border-border bg-card shadow-lg", className)}>
-        <CardHeader className="py-2 px-3">
-          <CardTitle className="flex items-center gap-2 text-sm text-foreground">
-            <Video className="h-4 w-4 text-primary" />
-            Video Playback
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-2 pb-2 pt-0">
-          {/* 16:9 aspect ratio container - taller card */}
-          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-muted/30 rounded-md border border-border">
-              <div className="mb-3 rounded-full bg-muted p-4">
+      <Card className={cn(
+        "overflow-hidden border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur",
+        compact ? "rounded-xl border-0 bg-transparent shadow-none" : "rounded-[1.75rem] border-border/70",
+        className
+      )}>
+        {!compact && (
+          <CardHeader className="px-4 py-3">
+            <CardTitle className="flex items-center gap-2 text-sm text-foreground">
+              <Video className="h-4 w-4 text-primary" />
+              Video Playback
+            </CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className={cn(compact ? "p-0" : "px-3 pb-3 pt-0")}>
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/70 bg-muted/30 text-center">
+              <div className="mb-3 rounded-2xl bg-muted p-4">
                 <VideoOff className="h-8 w-8 text-muted-foreground" />
               </div>
               <p className="text-foreground font-medium text-sm">No video recording yet</p>
@@ -290,18 +295,24 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   }
 
   return (
-    <Card className={cn("border-border bg-card overflow-hidden shadow-lg", className)}>
-      <CardHeader className="py-2 px-3">
-        <CardTitle className="flex items-center gap-2 text-sm text-foreground">
-          <Video className="h-4 w-4 text-primary" />
-          Video Playback
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-2 pb-2 pt-0">
+    <Card className={cn(
+      "overflow-hidden border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur",
+      compact ? "rounded-xl border-0 bg-transparent shadow-none" : "rounded-[1.75rem]",
+      className
+    )}>
+      {!compact && (
+        <CardHeader className="border-b border-border/70 bg-background/35 px-4 py-3">
+          <CardTitle className="flex items-center gap-2 text-sm text-foreground">
+            <Video className="h-4 w-4 text-primary" />
+            Video Playback
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={cn(compact ? "p-0" : "px-3 pb-4 pt-3")}>
         {/* Loading State */}
         {isLoading && !videoUrl && (
-          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
-            <div className="absolute inset-0 flex items-center justify-center bg-muted/30 rounded-md border border-border">
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
+            <div className="absolute inset-0 flex items-center justify-center rounded-3xl border border-border/70 bg-muted/30">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-3 text-muted-foreground">Loading video...</span>
             </div>
@@ -310,8 +321,8 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
-            <div className="absolute inset-0 rounded-md border border-destructive/30 bg-destructive/10 flex items-center justify-center">
+          <div className="relative w-full" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
+            <div className="absolute inset-0 flex items-center justify-center rounded-3xl border border-destructive/30 bg-destructive/10">
               <div className="flex flex-col items-center gap-3 text-center">
                 <AlertCircle className="h-8 w-8 text-destructive flex-shrink-0" />
                 <p className="text-sm text-foreground font-medium">{error}</p>
@@ -333,19 +344,20 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
         {videoUrl && !error && (
           <>
             {/* 16:9 aspect ratio container with min-height for larger video */}
-            <div className="relative w-full rounded-md overflow-hidden bg-black" style={{ aspectRatio: '16/9', minHeight: '320px' }}>
+            <div className="relative w-full overflow-hidden rounded-2xl bg-zinc-950 shadow-[var(--shadow-elevated)] ring-1 ring-white/10" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
               <video
                 ref={videoRef}
                 src={videoUrl}
                 controls
                 playsInline
                 preload="metadata"
-                className="absolute inset-0 w-full h-full object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
               />
+              <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_80px_rgba(0,0,0,0.45)]" aria-hidden />
               
               {/* Loading overlay during URL refresh */}
               {isLoading && (
-                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span className="text-sm font-medium">Refreshing URL...</span>
@@ -355,14 +367,14 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
             </div>
 
             {/* Custom Controls */}
-            <div className="flex flex-col gap-3 pt-3 px-1">
+            <div className={cn("flex flex-col", compact ? "gap-1 px-0 pt-1" : "gap-3 px-1 pt-4")}>
               {/* Skip Controls */}
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={skipBackward}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-muted-foreground backdrop-blur-sm hover:border-border/70 hover:bg-background/80 hover:text-foreground"
                   title="Skip backward 10s"
                 >
                   <SkipBack className="h-4 w-4 mr-1" />
@@ -372,7 +384,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                   size="sm"
                   variant="ghost"
                   onClick={skipForward}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-muted-foreground backdrop-blur-sm hover:border-border/70 hover:bg-background/80 hover:text-foreground"
                   title="Skip forward 10s"
                 >
                   10s
@@ -381,10 +393,10 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
               </div>
 
               {/* Speed Control */}
-              <div className="flex items-center justify-center gap-2">
-                <Gauge className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Speed:</span>
-                <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-border/35 bg-background/40 px-3 py-1.5 backdrop-blur-sm">
+                <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Speed</span>
+                <div className="flex items-center gap-0.5">
                   {speedOptions.map((speed) => (
                     <Button
                       key={speed}
@@ -392,10 +404,10 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                       variant={playbackSpeed === speed ? 'default' : 'ghost'}
                       onClick={() => handleSpeedChange(speed)}
                       className={cn(
-                        "h-7 px-2 text-xs font-medium",
+                        "h-7 min-w-[2.25rem] rounded-full px-2 text-xs font-semibold tabular-nums",
                         playbackSpeed === speed 
-                          ? "bg-primary text-primary-foreground" 
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-primary text-primary-foreground shadow-sm" 
+                          : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
                       )}
                     >
                       {speed}x

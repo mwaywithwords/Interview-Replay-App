@@ -10,7 +10,8 @@ import {
   Volume2, 
   Maximize2, 
   Bookmark,
-  MessageSquareText
+  MessageSquareText,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -82,84 +83,104 @@ export function LandingReplayDemo() {
   const scrubberPosition = (currentTime / TOTAL_DURATION) * 100;
 
   return (
-    <Card className="w-full max-w-6xl mx-auto overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm shadow-2xl">
+    <Card className="mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border-border/70 bg-card/70 shadow-[var(--shadow-elevated)] backdrop-blur-xl">
       <CardContent className="p-0">
-        <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/50">
-          {/* Left Column - Video Player Preview */}
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Play className="w-4 h-4 text-primary" />
+        <div className="border-b border-border/70 bg-background/45 px-5 py-4 backdrop-blur">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
               </div>
-              <span className="text-sm font-semibold text-foreground">Session Replay</span>
+              <div>
+                <div className="text-sm font-semibold tracking-[-0.015em] text-foreground">
+                  Replay room
+                </div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Synced media, transcript, and coachable moments
+                </div>
+              </div>
+            </div>
+            <Badge variant="info" className="w-fit">
+              Live demo
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid divide-y divide-border/70 lg:grid-cols-[1.08fr_0.92fr] lg:divide-x lg:divide-y-0">
+          <div className="space-y-5 p-5 md:p-6">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+                <Play className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Mock interview recording</span>
               <Badge variant="secondary" className="ml-auto text-xs">
-                Interview
+                02:30
               </Badge>
             </div>
 
-            {/* Fake Video Player */}
-            <div className="relative aspect-video bg-gradient-to-br from-muted to-muted/50 rounded-xl overflow-hidden border border-border/50 group">
-              {/* Video placeholder with pattern */}
-              <div className="absolute inset-0 opacity-5">
-                <div className="w-full h-full" style={{
-                  backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
-                  backgroundSize: '24px 24px'
-                }} />
+            <div className="group relative aspect-video overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-muted via-background to-primary/10 shadow-[var(--shadow-card)]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--primary),transparent_34%),radial-gradient(circle_at_70%_80%,var(--info),transparent_30%)] opacity-20" />
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20" />
+              <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Interview practice
               </div>
 
-              {/* Center play button */}
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                className="absolute inset-0 flex cursor-pointer items-center justify-center"
               >
                 <div className={cn(
-                  "w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center shadow-xl transition-all duration-300",
-                  "hover:bg-primary hover:scale-110",
-                  "group-hover:shadow-2xl group-hover:shadow-primary/30"
+                  "flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-primary/90 shadow-2xl shadow-primary/30 backdrop-blur transition-all duration-300",
+                  "hover:scale-110 hover:bg-primary",
+                  "group-hover:shadow-primary/40"
                 )}>
                   {isPlaying ? (
-                    <Pause className="w-8 h-8 text-primary-foreground ml-0" />
+                    <Pause className="ml-0 h-8 w-8 text-primary-foreground" />
                   ) : (
-                    <Play className="w-8 h-8 text-primary-foreground ml-1" />
+                    <Play className="ml-1 h-8 w-8 text-primary-foreground" />
                   )}
                 </div>
               </button>
 
-              {/* Bottom controls overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100">
                 <div className="flex items-center gap-3 text-white">
-                  <span className="text-xs font-medium tabular-nums">{formatTime(currentTime)}</span>
+                  <span className="font-mono text-xs font-medium tabular-nums">{formatTime(currentTime)}</span>
                   <span className="text-xs text-white/60">/</span>
-                  <span className="text-xs text-white/60 tabular-nums">{formatTime(TOTAL_DURATION)}</span>
+                  <span className="font-mono text-xs text-white/60 tabular-nums">{formatTime(TOTAL_DURATION)}</span>
                   <div className="flex-1" />
-                  <Volume2 className="w-4 h-4 text-white/80 hover:text-white cursor-pointer transition-colors" />
-                  <Maximize2 className="w-4 h-4 text-white/80 hover:text-white cursor-pointer transition-colors" />
+                  <Volume2 className="h-4 w-4 cursor-pointer text-white/80 transition-colors hover:text-white" />
+                  <Maximize2 className="h-4 w-4 cursor-pointer text-white/80 transition-colors hover:text-white" />
                 </div>
               </div>
             </div>
 
-            {/* Timeline Scrubber */}
-            <div className="mt-4 space-y-2">
+            <div className="rounded-2xl border border-border/70 bg-background/50 p-4 backdrop-blur">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Timeline
+                </span>
+                <span className="font-mono text-xs font-medium text-muted-foreground">
+                  {formatTime(currentTime)}
+                </span>
+              </div>
               <div 
-                className="relative h-2 bg-muted rounded-full cursor-pointer group/scrubber"
+                className="group/scrubber relative h-2 cursor-pointer rounded-full bg-muted"
                 onClick={handleScrubberClick}
               >
-                {/* Progress bar */}
                 <div 
-                  className="absolute left-0 top-0 h-full bg-primary rounded-full transition-all duration-150"
+                  className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-primary to-info transition-all duration-150"
                   style={{ width: `${scrubberPosition}%` }}
                 />
                 
-                {/* Scrubber thumb */}
                 <div 
                   className={cn(
-                    "absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-lg transition-all duration-150",
-                    "opacity-0 group-hover/scrubber:opacity-100 scale-75 group-hover/scrubber:scale-100"
+                    "absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow-lg transition-all duration-150",
+                    "scale-75 opacity-0 group-hover/scrubber:scale-100 group-hover/scrubber:opacity-100"
                   )}
                   style={{ left: `calc(${scrubberPosition}% - 8px)` }}
                 />
 
-                {/* Bookmark markers on timeline */}
                 {DEMO_BOOKMARKS.map((bookmark) => {
                   const position = (bookmark.time / TOTAL_DURATION) * 100;
                   return (
@@ -170,9 +191,8 @@ export function LandingReplayDemo() {
                         handleBookmarkClick(bookmark);
                       }}
                       className={cn(
-                        "absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all duration-200",
-                        "bg-amber-500 hover:bg-amber-400 hover:scale-150 z-10",
-                        "ring-2 ring-background shadow-sm"
+                        "absolute top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full transition-all duration-200",
+                        "bg-warning shadow-sm ring-2 ring-background hover:scale-150 hover:bg-warning/80"
                       )}
                       style={{ left: `calc(${position}% - 6px)` }}
                       title={bookmark.label}
@@ -181,10 +201,9 @@ export function LandingReplayDemo() {
                 })}
               </div>
 
-              {/* Bookmark buttons row */}
-              <div className="flex items-center gap-2 pt-2">
-                <Bookmark className="w-4 h-4 text-amber-500" />
-                <span className="text-xs text-muted-foreground font-medium">Bookmarks:</span>
+              <div className="flex items-center gap-2 pt-4">
+                <Bookmark className="h-4 w-4 text-warning" />
+                <span className="text-xs font-medium text-muted-foreground">Bookmarks:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {DEMO_BOOKMARKS.map((bookmark) => (
                     <Button
@@ -193,10 +212,9 @@ export function LandingReplayDemo() {
                       size="sm"
                       onClick={() => handleBookmarkClick(bookmark)}
                       className={cn(
-                        "h-7 px-2.5 text-xs font-mono rounded-lg",
-                        "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                        "hover:bg-amber-500/20 hover:text-amber-500",
-                        "border border-amber-500/20 hover:border-amber-500/40",
+                        "h-7 rounded-lg px-2.5 font-mono text-xs",
+                        "border border-warning/20 bg-warning/10 text-warning",
+                        "hover:border-warning/40 hover:bg-warning/20 hover:text-warning",
                         "transition-all duration-200"
                       )}
                     >
@@ -208,11 +226,10 @@ export function LandingReplayDemo() {
             </div>
           </div>
 
-          {/* Right Column - Transcript Panel */}
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <MessageSquareText className="w-4 h-4 text-blue-500" />
+          <div className="space-y-5 p-5 md:p-6">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-info/10">
+                <MessageSquareText className="h-4 w-4 text-info" />
               </div>
               <span className="text-sm font-semibold text-foreground">Transcript</span>
               <Badge variant="info" className="ml-auto text-xs">
@@ -220,24 +237,23 @@ export function LandingReplayDemo() {
               </Badge>
             </div>
 
-            {/* Transcript lines */}
             <div 
               ref={transcriptRef}
-              className="h-[340px] overflow-y-auto space-y-1 pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+              className="h-[340px] space-y-1 overflow-y-auto rounded-2xl border border-border/70 bg-background/45 p-2 pr-2 shadow-inner"
             >
               {DEMO_TRANSCRIPT.map((line, index) => (
                 <div
                   key={index}
                   ref={(el) => { lineRefs.current[index] = el; }}
                   className={cn(
-                    "p-3 rounded-lg transition-all duration-500",
+                    "rounded-xl border border-transparent p-3 transition-all duration-500",
                     highlightedLine === index 
-                      ? "bg-primary/15 border border-primary/30 shadow-sm shadow-primary/10" 
-                      : "hover:bg-muted/50"
+                      ? "border-primary/30 bg-primary/15 shadow-sm shadow-primary/10" 
+                      : "hover:border-border/70 hover:bg-muted/45"
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-muted-foreground tabular-nums">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
                       {line.time}
                     </span>
                     <span className={cn(
@@ -259,10 +275,28 @@ export function LandingReplayDemo() {
               ))}
             </div>
 
-            {/* Transcript footer hint */}
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <p className="text-xs text-muted-foreground text-center">
-                <span className="text-amber-500">Click a bookmark</span> to jump to that moment
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  AI note
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-foreground">
+                  Your strongest answer used a clear metric, but the setup ran long.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Coach tip
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-foreground">
+                  Tighten the first 20 seconds before adding implementation detail.
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t border-border/70 pt-4">
+              <p className="text-center text-xs text-muted-foreground">
+                <span className="font-semibold text-warning">Click a bookmark</span> to jump to that moment
               </p>
             </div>
           </div>

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 interface TranscriptEditorProps {
   sessionId: string;
+  refreshKey?: string | null;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -37,7 +38,10 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
  * - Next/Prev navigation that scrolls within the transcript panel
  * - Works in dark mode
  */
-export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
+export function TranscriptEditor({
+  sessionId,
+  refreshKey = null,
+}: TranscriptEditorProps) {
   // Content state
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
@@ -54,10 +58,20 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const matchRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChangesRef = useRef(false);
 
-  // Load existing transcript on mount
+  useEffect(() => {
+    hasUnsavedChangesRef.current = content !== savedContent;
+  }, [content, savedContent]);
+
+  // Load existing transcript on mount and after AI transcript generation completes.
   useEffect(() => {
     async function loadTranscript() {
+      // Do not overwrite user edits that have not been saved yet.
+      if (hasUnsavedChangesRef.current) {
+        return;
+      }
+
       setIsLoading(true);
       const { transcript, error: loadError } = await getTranscript(sessionId);
 
@@ -72,7 +86,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
     }
 
     loadTranscript();
-  }, [sessionId]);
+  }, [sessionId, refreshKey]);
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = content !== savedContent;

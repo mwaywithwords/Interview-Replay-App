@@ -11,6 +11,12 @@ const VALID_JOB_TYPES: AIJobType[] = [
   'suggest_bookmarks',
   'action_items',
 ];
+const ANALYSIS_PIPELINE_JOB_TYPES: AIJobType[] = [
+  'transcript',
+  'summary',
+  'score',
+  'action_items',
+];
 const ACTIVE_JOB_STATUSES = ['queued', 'processing'];
 const REAL_TRANSCRIPT_PROVIDERS = ['openai', 'manual'];
 const PLACEHOLDER_PROVIDER = 'placeholder';
@@ -24,6 +30,16 @@ type EnsureAIJobResult = {
 };
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+export type AnalysisPipelineResult = {
+  job: AIJob | null;
+  error: string | null;
+  shouldRun: boolean;
+  blocked: boolean;
+  completed: boolean;
+  nextJobType: AIJobType | null;
+  blockedJob: AIJob | null;
+};
 
 function isPlaceholderTranscriptJob(job: AIJob): boolean {
   return (
@@ -170,6 +186,409 @@ async function getReusableJobForCreate(
   );
 
   return { job: realCompletedJob || completedJob, error: null };
+}
+
+async function getAnalysisPipelineJobs(
+  supabase: SupabaseServerClient,
+  sessionId: string,
+  userId: string
+): Promise<{ jobs: AIJob[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from('ai_jobs')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .in('job_type', ANALYSIS_PIPELINE_JOB_TYPES)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { jobs: [], error: error.message };
+  }
+
+  return { jobs: (data as AIJob[]) || [], error: null };
+}
+
+function getJobsForType(jobs: AIJob[], jobType: AIJobType): AIJob[] {
+  return jobs.filter((job) => job.job_type === jobType);
+}
+
+function getActivePipelineJob(jobs: AIJob[]): AIJob | null {
+  // If duplicate active jobs already exist, prefer the in-flight processing job
+  // so the caller does not run another queued job for the same step.
+  return (
+    jobs.find((job) => job.status === 'processing') ||
+    jobs.find((job) => job.status === 'queued') ||
+    null
+  );
+}
+
+function getCompletedPipelineJob(
+  jobs: AIJob[],
+  jobType: AIJobType
+): AIJob | null {
+  const completedJob = jobs.find((job) => job.status === 'completed');
+  if (!completedJob) {
+    return null;
+  }
+
+  if (jobType !== 'transcript') {
+    return completedJob;
+  }
+
+  return (
+    jobs.find(
+      (job) => job.status === 'completed' && !isPlaceholderTranscriptJob(job)
+    ) || null
+  );
+}
+
+function getBlockedPipelineJob(
+  jobs: AIJob[],
+  jobType: AIJobType
+): AIJob | null {
+  return (
+    jobs.find(
+      (job) =>
+        (job.status === 'failed' || job.status === 'cancelled') &&
+        (jobType !== 'transcript' || !isPlaceholderTranscriptJob(job))
+    ) || null
+  );
+}
+
+async function createQueuedAIJobIfNoActiveJob(
+  supabase: SupabaseServerClient,
+  sessionId: string,
+  userId: string,
+  jobType: AIJobType
+): Promise<{ job: AIJob | null; error: string | null; shouldRun: boolean }> {
+  const { data: activeJobs, error: activeJobsError } = await supabase
+    .from('ai_jobs')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .eq('job_type', jobType)
+    .in('status', ACTIVE_JOB_STATUSES)
+    .order('created_at', { ascending: false });
+
+  if (activeJobsError) {
+    return { job: null, error: activeJobsError.message, shouldRun: false };
+  }
+
+  const activeJob = getActivePipelineJob((activeJobs || []) as AIJob[]);
+  if (activeJob) {
+    return {
+      job: activeJob,
+      error: null,
+      shouldRun: activeJob.status === 'queued',
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('ai_jobs')
+    .insert({
+      user_id: userId,
+      session_id: sessionId,
+      job_type: jobType,
+      status: 'queued',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { job: null, error: error.message, shouldRun: false };
+  }
+
+  revalidatePath(`/sessions/${sessionId}`);
+  return { job: data as AIJob, error: null, shouldRun: true };
+}
+
+/**
+ * Server Action: Ensure the next Replay AI analysis pipeline job exists.
+ *
+ * Pipeline order for the first coach experience:
+ * transcript -> summary -> score -> action_items
+ *
+ * Returns a queued/processing job for the next incomplete step. Completed
+ * steps are reused, failed/cancelled steps pause the pipeline, and
+ * suggest_bookmarks is intentionally excluded while it is placeholder-backed.
+ */
+export async function ensureNextAnalysisPipelineJob(
+  sessionId: string
+): Promise<AnalysisPipelineResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('id, user_id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (sessionError || !session) {
+    return {
+      job: null,
+      error: 'Session not found or you do not have permission to access it.',
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  const { jobs, error: jobsError } = await getAnalysisPipelineJobs(
+    supabase,
+    sessionId,
+    user.id
+  );
+
+  if (jobsError) {
+    return {
+      job: null,
+      error: jobsError,
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  const realTranscript = await hasRealTranscriptAvailable(
+    supabase,
+    sessionId,
+    user.id
+  );
+
+  if (realTranscript.error) {
+    return {
+      job: null,
+      error: realTranscript.error,
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  for (const jobType of ANALYSIS_PIPELINE_JOB_TYPES) {
+    const jobsForType = getJobsForType(jobs, jobType);
+    const activeJob = getActivePipelineJob(jobsForType);
+
+    if (activeJob) {
+      return {
+        job: activeJob,
+        error: null,
+        shouldRun: activeJob.status === 'queued',
+        blocked: false,
+        completed: false,
+        nextJobType: jobType,
+        blockedJob: null,
+      };
+    }
+
+    const completedJob = getCompletedPipelineJob(jobsForType, jobType);
+    const stepIsComplete =
+      Boolean(completedJob) ||
+      (jobType === 'transcript' && realTranscript.available);
+
+    if (stepIsComplete) {
+      continue;
+    }
+
+    const blockedJob = getBlockedPipelineJob(jobsForType, jobType);
+    if (blockedJob) {
+      return {
+        job: blockedJob,
+        error: null,
+        shouldRun: false,
+        blocked: true,
+        completed: false,
+        nextJobType: jobType,
+        blockedJob,
+      };
+    }
+
+    const {
+      job,
+      error: createError,
+      shouldRun,
+    } = await createQueuedAIJobIfNoActiveJob(
+      supabase,
+      sessionId,
+      user.id,
+      jobType
+    );
+
+    if (createError || !job) {
+      return {
+        job: null,
+        error: createError || 'Failed to create analysis job.',
+        shouldRun: false,
+        blocked: true,
+        completed: false,
+        nextJobType: jobType,
+        blockedJob: null,
+      };
+    }
+
+    return {
+      job,
+      error: null,
+      shouldRun,
+      blocked: false,
+      completed: false,
+      nextJobType: jobType,
+      blockedJob: null,
+    };
+  }
+
+  return {
+    job: null,
+    error: null,
+    shouldRun: false,
+    blocked: false,
+    completed: true,
+    nextJobType: null,
+    blockedJob: null,
+  };
+}
+
+/**
+ * Server Action: Retry the first failed/cancelled Replay AI analysis step.
+ *
+ * The retry resumes from the failed pipeline step and leaves earlier completed
+ * steps untouched. If there is no failed step, this behaves like
+ * ensureNextAnalysisPipelineJob.
+ */
+export async function retryAnalysisPipelineFromFailedStep(
+  sessionId: string
+): Promise<AnalysisPipelineResult> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('id, user_id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (sessionError || !session) {
+    return {
+      job: null,
+      error: 'Session not found or you do not have permission to access it.',
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  const { jobs, error: jobsError } = await getAnalysisPipelineJobs(
+    supabase,
+    sessionId,
+    user.id
+  );
+
+  if (jobsError) {
+    return {
+      job: null,
+      error: jobsError,
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  const realTranscript = await hasRealTranscriptAvailable(
+    supabase,
+    sessionId,
+    user.id
+  );
+
+  if (realTranscript.error) {
+    return {
+      job: null,
+      error: realTranscript.error,
+      shouldRun: false,
+      blocked: true,
+      completed: false,
+      nextJobType: null,
+      blockedJob: null,
+    };
+  }
+
+  for (const jobType of ANALYSIS_PIPELINE_JOB_TYPES) {
+    const jobsForType = getJobsForType(jobs, jobType);
+    const activeJob = getActivePipelineJob(jobsForType);
+
+    if (activeJob) {
+      return {
+        job: activeJob,
+        error: null,
+        shouldRun: activeJob.status === 'queued',
+        blocked: false,
+        completed: false,
+        nextJobType: jobType,
+        blockedJob: null,
+      };
+    }
+
+    const completedJob = getCompletedPipelineJob(jobsForType, jobType);
+    const stepIsComplete =
+      Boolean(completedJob) ||
+      (jobType === 'transcript' && realTranscript.available);
+
+    if (stepIsComplete) {
+      continue;
+    }
+
+    const blockedJob = getBlockedPipelineJob(jobsForType, jobType);
+    if (!blockedJob) {
+      break;
+    }
+
+    const {
+      job,
+      error: createError,
+      shouldRun,
+    } = await createQueuedAIJobIfNoActiveJob(
+      supabase,
+      sessionId,
+      user.id,
+      jobType
+    );
+
+    if (createError || !job) {
+      return {
+        job: blockedJob,
+        error: createError || 'Failed to retry analysis job.',
+        shouldRun: false,
+        blocked: true,
+        completed: false,
+        nextJobType: jobType,
+        blockedJob,
+      };
+    }
+
+    return {
+      job,
+      error: null,
+      shouldRun,
+      blocked: false,
+      completed: false,
+      nextJobType: jobType,
+      blockedJob: null,
+    };
+  }
+
+  return ensureNextAnalysisPipelineJob(sessionId);
 }
 
 /**

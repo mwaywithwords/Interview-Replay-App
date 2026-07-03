@@ -1,5 +1,7 @@
 // Supabase Edge Function: ai_run_job
-// Processes AI jobs with placeholder outputs (no real AI integration yet)
+// Processes AI jobs. 'summary', 'score', and 'action_items' call OpenAI (gpt-4o-mini)
+// using the session's manual transcript as input. 'transcript' and 'suggest_bookmarks'
+// still use placeholder output (not implemented yet).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.91.0';
 
@@ -9,35 +11,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Placeholder outputs for each job type
+// Job types that are backed by real OpenAI calls (as opposed to placeholder output)
+const AI_GENERATED_JOB_TYPES = new Set(['summary', 'score', 'action_items']);
+
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = 'gpt-4o-mini';
+const OPENAI_TIMEOUT_MS = 30000;
+
+// Placeholder outputs for job types that don't call OpenAI yet
 function getPlaceholderOutput(jobType: string): Record<string, unknown> {
   switch (jobType) {
-    case 'summary':
-      return {
-        summary: 'Placeholder summary of the interview session.',
-        bullets: [
-          'Candidate demonstrated strong communication skills',
-          'Technical concepts were explained clearly',
-          'Good use of examples from past experience',
-          'Areas for improvement: could be more concise',
-        ],
-        confidence: 0.5,
-      };
     case 'transcript':
       return {
         transcript:
           'Placeholder transcript content.\n\n[00:00] Interviewer: Hello, thank you for joining us today.\n\n[00:05] Candidate: Thank you for having me. I am excited about this opportunity.\n\n[00:12] Interviewer: Let us start with your background.\n\n[00:15] Candidate: I have been working in software development for 5 years...',
-      };
-    case 'score':
-      return {
-        score: 72,
-        rubric: [
-          { name: 'Clarity', score: 7, maxScore: 10, feedback: 'Responses were generally clear and well-structured.' },
-          { name: 'Technical Knowledge', score: 8, maxScore: 10, feedback: 'Demonstrated solid technical understanding.' },
-          { name: 'Communication', score: 7, maxScore: 10, feedback: 'Good verbal communication, could improve conciseness.' },
-          { name: 'Problem Solving', score: 6, maxScore: 10, feedback: 'Showed logical thinking, but could elaborate more on approach.' },
-        ],
-        overallFeedback: 'Solid performance overall. Focus on being more concise and elaborating on problem-solving approaches.',
       };
     case 'suggest_bookmarks':
       return {
@@ -52,6 +39,191 @@ function getPlaceholderOutput(jobType: string): Record<string, unknown> {
     default:
       return { message: 'Unknown job type', jobType };
   }
+}
+
+// Builds the system/user prompt pair for a given AI-generated job type
+function buildPrompt(jobType: string, transcript: string): { systemPrompt: string; userPrompt: string } {
+  const basePreamble =
+    'You are an assistant that analyzes interview session transcripts. ' +
+    'You must respond with a single valid JSON object and nothing else - no markdown, no code fences, no explanation text.';
+
+  switch (jobType) {
+    case 'summary':
+      return {
+        systemPrompt:
+          `${basePreamble}\n\nRespond with JSON matching exactly this shape:\n` +
+          `{"summary": string, "bullets": string[], "confidence": number}\n` +
+          `"summary" is a concise paragraph summarizing the session. "bullets" is an array of 3-6 key points. ` +
+          `"confidence" is a number between 0 and 1 representing your confidence in this summary.`,
+        userPrompt: `Here is the interview transcript:\n\n${transcript}`,
+      };
+    case 'score':
+      return {
+        systemPrompt:
+          `${basePreamble}\n\nRespond with JSON matching exactly this shape:\n` +
+          `{"score": number, "rubric": [{"name": string, "score": number, "maxScore": number, "feedback": string}], "overallFeedback": string}\n` +
+          `"score" is an overall score from 0-100. "rubric" contains 4-6 categories (e.g. Clarity, Technical Knowledge, ` +
+          `Communication, Problem Solving) each with a "name", a "score" from 0-10, "maxScore" set to exactly 10, and short "feedback". ` +
+          `"overallFeedback" is a short summary paragraph.`,
+        userPrompt: `Here is the interview transcript:\n\n${transcript}`,
+      };
+    case 'action_items':
+      return {
+        systemPrompt:
+          `${basePreamble}\n\nRespond with JSON matching exactly this shape:\n` +
+          `{"items": [{"title": string, "description": string, "priority": "high" | "medium" | "low"}]}\n` +
+          `Identify 3-6 concrete, actionable follow-up items for the candidate based on the transcript. ` +
+          `"priority" must be exactly one of "high", "medium", or "low".`,
+        userPrompt: `Here is the interview transcript:\n\n${transcript}`,
+      };
+    default:
+      throw new Error(`No prompt defined for job type: ${jobType}`);
+  }
+}
+
+// Basic structural validation for OpenAI's parsed JSON output, per job type
+function isValidOutputShape(jobType: string, content: unknown): boolean {
+  if (!content || typeof content !== 'object') return false;
+  const c = content as Record<string, unknown>;
+
+  switch (jobType) {
+    case 'summary':
+      return typeof c.summary === 'string' && Array.isArray(c.bullets) && typeof c.confidence === 'number';
+    case 'score':
+      return (
+        typeof c.score === 'number' &&
+        Array.isArray(c.rubric) &&
+        c.rubric.every(
+          (item) =>
+            item &&
+            typeof item === 'object' &&
+            typeof (item as Record<string, unknown>).name === 'string' &&
+            typeof (item as Record<string, unknown>).score === 'number' &&
+            typeof (item as Record<string, unknown>).feedback === 'string'
+        ) &&
+        typeof c.overallFeedback === 'string'
+      );
+    case 'action_items':
+      return Array.isArray(c.items);
+    default:
+      return false;
+  }
+}
+
+// Calls the OpenAI Chat Completions API and returns the parsed JSON content.
+// Throws an Error with a descriptive message on any failure (timeout, non-200, invalid JSON, etc).
+async function callOpenAI(
+  jobType: string,
+  transcript: string,
+  apiKey: string
+): Promise<Record<string, unknown>> {
+  const { systemPrompt, userPrompt } = buildPrompt(jobType, transcript);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+
+  // The timeout must stay active for the full request lifecycle - not just
+  // until the response headers arrive, but through reading and parsing the
+  // response body too - so everything below runs inside this try/finally.
+  try {
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.4,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI request timed out.');
+      }
+      throw new Error(`Failed to reach OpenAI API: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    if (!response.ok) {
+      let errorDetail = '';
+      try {
+        errorDetail = await response.text();
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new Error('OpenAI request timed out.');
+        }
+        // ignore other read errors - use empty detail
+      }
+      throw new Error(`OpenAI API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`);
+    }
+
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI request timed out.');
+      }
+      throw new Error('OpenAI API returned a response that could not be parsed as JSON.');
+    }
+
+    const messageContent = (
+      responseBody as { choices?: Array<{ message?: { content?: string } }> }
+    )?.choices?.[0]?.message?.content;
+
+    if (!messageContent || typeof messageContent !== 'string') {
+      throw new Error('OpenAI API response did not include message content.');
+    }
+
+    let parsedContent: unknown;
+    try {
+      parsedContent = JSON.parse(messageContent);
+    } catch {
+      throw new Error('OpenAI returned content that was not valid JSON.');
+    }
+
+    if (!isValidOutputShape(jobType, parsedContent)) {
+      throw new Error('OpenAI returned JSON that did not match the expected shape.');
+    }
+
+    if (jobType === 'score') {
+      // Force maxScore to 10 for every rubric item, regardless of what the model returned
+      const content = parsedContent as Record<string, unknown>;
+      content.rubric = (content.rubric as Array<Record<string, unknown>>).map((item) => ({
+        ...item,
+        maxScore: 10,
+      }));
+    }
+
+    return parsedContent as Record<string, unknown>;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Marks a job as failed with the given error message
+async function markJobFailed(
+  // deno-lint-ignore no-explicit-any
+  serviceClient: any,
+  jobId: string,
+  errorMessage: string
+): Promise<void> {
+  await serviceClient
+    .from('ai_jobs')
+    .update({
+      status: 'failed',
+      error_message: errorMessage,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId);
 }
 
 Deno.serve(async (req: Request) => {
@@ -155,29 +327,83 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 7. Generate placeholder output based on job type
-    const placeholderContent = getPlaceholderOutput(job.job_type);
+    // 7. Generate output content based on job type
+    let outputContent: Record<string, unknown>;
+    let resultProvider: string;
+    let resultModel: string;
 
-    // 8. Insert placeholder output into ai_outputs
+    if (AI_GENERATED_JOB_TYPES.has(job.job_type)) {
+      // 7a. Ensure the OpenAI API key is configured
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (!openaiApiKey) {
+        await markJobFailed(serviceClient, job_id, 'OpenAI API key is not configured.');
+        return new Response(
+          JSON.stringify({ error: 'OpenAI API key is not configured.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 7b. Load the manual transcript for this session
+      const { data: transcriptRow, error: transcriptError } = await serviceClient
+        .from('transcripts_manual')
+        .select('content')
+        .eq('session_id', job.session_id)
+        .eq('user_id', job.user_id)
+        .eq('provider', 'manual')
+        .maybeSingle();
+
+      if (transcriptError) {
+        await markJobFailed(serviceClient, job_id, 'Failed to load transcript for this session.');
+        return new Response(
+          JSON.stringify({ error: 'Failed to load transcript for this session.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const transcriptText = transcriptRow?.content?.trim();
+      if (!transcriptText) {
+        const message = 'No transcript available for this session.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(
+          JSON.stringify({ error: message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 7c. Call OpenAI
+      try {
+        outputContent = await callOpenAI(job.job_type, transcriptText, openaiApiKey);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to generate AI output.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(
+          JSON.stringify({ error: message }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      resultProvider = 'openai';
+      resultModel = OPENAI_MODEL;
+    } else {
+      // Existing placeholder path for 'transcript' and 'suggest_bookmarks'
+      outputContent = getPlaceholderOutput(job.job_type);
+      resultProvider = 'placeholder';
+      resultModel = 'mock-v1';
+    }
+
+    // 8. Insert output into ai_outputs
     const { error: outputError } = await serviceClient.from('ai_outputs').insert({
       user_id: user.id,
       session_id: job.session_id,
       job_id: job_id,
       output_type: job.job_type,
-      content: placeholderContent,
+      content: outputContent,
       created_at: new Date().toISOString(),
     });
 
     if (outputError) {
       // If output insertion fails, mark job as failed
-      await serviceClient
-        .from('ai_jobs')
-        .update({
-          status: 'failed',
-          error_message: 'Failed to insert output',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job_id);
+      await markJobFailed(serviceClient, job_id, 'Failed to insert output');
 
       return new Response(
         JSON.stringify({ error: 'Failed to create output' }),
@@ -190,8 +416,8 @@ Deno.serve(async (req: Request) => {
       .from('ai_jobs')
       .update({
         status: 'completed',
-        provider: 'placeholder',
-        model: 'mock-v1',
+        provider: resultProvider,
+        model: resultModel,
         updated_at: new Date().toISOString(),
       })
       .eq('id', job_id);

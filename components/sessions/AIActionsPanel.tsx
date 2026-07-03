@@ -9,7 +9,7 @@ import {
   cancelAiJob,
   retryAiJob,
 } from '@/app/actions/ai-jobs';
-import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
+import { SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -19,11 +19,9 @@ import {
   FileSearch,
   Star,
   Bookmark,
-  Clock,
   CheckCircle2,
   XCircle,
   Sparkles,
-  Play,
   ChevronDown,
   ChevronUp,
   X,
@@ -31,6 +29,7 @@ import {
   Ban,
   Eye,
   History,
+  ListChecks,
 } from 'lucide-react';
 import type { AIJob, AIJobType, AIOutput } from '@/types';
 import { toast } from 'sonner';
@@ -63,52 +62,77 @@ export function AIActionsPanelSkeleton() {
 interface AIActionsPanelProps {
   sessionId: string;
   initialJobs?: AIJob[];
+  // Notified whenever this panel's own output fetch/poll cycle refreshes AI
+  // outputs, so parent components (e.g. the AI Insights section on the
+  // session page) can stay in sync without running a second fetch loop.
+  onOutputsChange?: (outputs: Record<string, AIOutput>) => void;
 }
 
 const JOB_TYPE_CONFIG: Record<
   AIJobType,
-  { label: string; icon: React.ElementType; description: string }
+  { label: string; icon: React.ElementType; description: string; loadingLabel: string }
 > = {
   transcript: {
     label: 'Generate Transcript',
     icon: FileText,
     description: 'Transcribe audio to text',
+    loadingLabel: 'Transcribing...',
   },
   summary: {
     label: 'Generate Summary',
     icon: FileSearch,
     description: 'Create a summary of the session',
+    loadingLabel: 'Generating summary...',
   },
   score: {
     label: 'Score My Session',
     icon: Star,
     description: 'Get performance feedback',
+    loadingLabel: 'Scoring session...',
   },
   suggest_bookmarks: {
     label: 'Suggest Bookmarks',
     icon: Bookmark,
     description: 'Auto-detect key moments',
+    loadingLabel: 'Finding key moments...',
+  },
+  action_items: {
+    label: 'Suggest Action Items',
+    icon: ListChecks,
+    description: 'Generate follow-up action items',
+    loadingLabel: 'Generating action items...',
   },
 };
+
+const PRIORITY_BADGE_VARIANT: Record<'high' | 'medium' | 'low', 'destructive' | 'warning' | 'secondary'> = {
+  high: 'destructive',
+  medium: 'warning',
+  low: 'secondary',
+};
+
+// Job types shown in the always-visible "AI Results" section, in display order.
+// Excludes 'transcript' and 'suggest_bookmarks', which remain status/history only.
+const RESULT_JOB_TYPES: AIJobType[] = ['summary', 'score', 'action_items'];
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
   const config: Record<
     AIJob['status'],
-    { variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary'; icon: React.ElementType }
+    { variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary'; icon: React.ElementType; label: string }
   > = {
-    queued: { variant: 'info', icon: Clock },
-    processing: { variant: 'warning', icon: Loader2 },
-    completed: { variant: 'success', icon: CheckCircle2 },
-    failed: { variant: 'destructive', icon: XCircle },
-    cancelled: { variant: 'secondary', icon: Ban },
+    queued: { variant: 'info', icon: Loader2, label: 'Starting' },
+    processing: { variant: 'warning', icon: Loader2, label: 'Processing' },
+    completed: { variant: 'success', icon: CheckCircle2, label: 'Completed' },
+    failed: { variant: 'destructive', icon: XCircle, label: 'Failed' },
+    cancelled: { variant: 'secondary', icon: Ban, label: 'Cancelled' },
   };
 
-  const { variant, icon: Icon } = config[status];
+  const { variant, icon: Icon, label } = config[status];
+  const isSpinning = status === 'queued' || status === 'processing';
 
   return (
-    <Badge variant={variant} className="gap-1 capitalize">
-      <Icon className={`h-3 w-3 ${status === 'processing' ? 'animate-spin' : ''}`} />
-      {status}
+    <Badge variant={variant} className="gap-1">
+      <Icon className={`h-3 w-3 ${isSpinning ? 'animate-spin' : ''}`} />
+      {label}
     </Badge>
   );
 }
@@ -132,128 +156,147 @@ function formatRelativeTime(dateString: string): string {
   return `${diffDays}d ago`;
 }
 
-// Component to display AI output content
-function AIOutputDisplay({ output, jobType }: { output: AIOutput; jobType: AIJobType }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const content = output.content as Record<string, unknown>;
+// Renders the actual content of an AI output, per job type. Shared by the
+// inline job-history toggle (AIOutputDisplayWithId) and the always-visible
+// AIResultCard, so both stay in sync with a single source of truth.
+function renderJobOutputContent(jobType: AIJobType, content: Record<string, unknown>) {
+  switch (jobType) {
+    case 'summary':
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-foreground">{content.summary as string}</p>
+          {content.bullets && Array.isArray(content.bullets) ? (
+            <ul className="list-disc list-inside space-y-1">
+              {(content.bullets as string[]).map((bullet, i) => (
+                <li key={i} className="text-sm text-muted-foreground">
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {content.confidence !== undefined ? (
+            <p className="text-xs text-muted-foreground">
+              Confidence: {Math.round((content.confidence as number) * 100)}%
+            </p>
+          ) : null}
+        </div>
+      );
 
-  const renderContent = () => {
-    switch (jobType) {
-      case 'summary':
-        return (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">{content.summary as string}</p>
-            {content.bullets && Array.isArray(content.bullets) ? (
-              <ul className="list-disc list-inside space-y-1">
-                {(content.bullets as string[]).map((bullet, i) => (
-                  <li key={i} className="text-sm text-muted-foreground">
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {content.confidence !== undefined ? (
-              <p className="text-xs text-muted-foreground">
-                Confidence: {Math.round((content.confidence as number) * 100)}%
-              </p>
-            ) : null}
+    case 'transcript':
+      return (
+        <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
+          {content.transcript as string}
+        </div>
+      );
+
+    case 'score':
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl font-bold text-primary">{content.score as number}</span>
+            <span className="text-sm text-muted-foreground">/ 100</span>
           </div>
-        );
-
-      case 'transcript':
-        return (
-          <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
-            {content.transcript as string}
-          </div>
-        );
-
-      case 'score':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-primary">{content.score as number}</span>
-              <span className="text-sm text-muted-foreground">/ 100</span>
+          {content.rubric && Array.isArray(content.rubric) ? (
+            <div className="space-y-2">
+              {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
+                (item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{item.name}</span>
+                    <span className="font-medium">
+                      {item.score}/{item.maxScore || 10}
+                    </span>
+                  </div>
+                )
+              )}
             </div>
-            {content.rubric && Array.isArray(content.rubric) ? (
-              <div className="space-y-2">
-                {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
-                  (item, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{item.name}</span>
-                      <span className="font-medium">
-                        {item.score}/{item.maxScore || 10}
+          ) : null}
+          {content.overallFeedback ? (
+            <p className="text-sm text-muted-foreground italic">
+              {content.overallFeedback as string}
+            </p>
+          ) : null}
+        </div>
+      );
+
+    case 'suggest_bookmarks':
+      return (
+        <div className="space-y-2">
+          {content.bookmarks && Array.isArray(content.bookmarks) ? (
+            <>
+              {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
+                (bm, i) => {
+                  const seconds = Math.floor(bm.timestamp_ms / 1000);
+                  const mins = Math.floor(seconds / 60);
+                  const secs = seconds % 60;
+                  const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
+                    >
+                      <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
+                        {timeStr}
                       </span>
+                      <span className="text-sm text-foreground flex-1">{bm.label}</span>
+                      {bm.category ? (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {bm.category}
+                        </Badge>
+                      ) : null}
                     </div>
-                  )
-                )}
-              </div>
-            ) : null}
-            {content.overallFeedback ? (
-              <p className="text-sm text-muted-foreground italic">
-                {content.overallFeedback as string}
-              </p>
-            ) : null}
-          </div>
-        );
+                  );
+                }
+              )}
+            </>
+          ) : null}
+        </div>
+      );
 
-      case 'suggest_bookmarks':
-        return (
-          <div className="space-y-2">
-            {content.bookmarks && Array.isArray(content.bookmarks) ? (
-              <>
-                {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
-                  (bm, i) => {
-                    const seconds = Math.floor(bm.timestamp_ms / 1000);
-                    const mins = Math.floor(seconds / 60);
-                    const secs = seconds % 60;
-                    const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-                    return (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
-                      >
-                        <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
-                          {timeStr}
-                        </span>
-                        <span className="text-sm text-foreground flex-1">{bm.label}</span>
-                        {bm.category ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {bm.category}
-                          </Badge>
-                        ) : null}
-                      </div>
-                    );
-                  }
-                )}
-              </>
-            ) : null}
-          </div>
-        );
+    case 'action_items':
+      return (
+        <div className="space-y-2">
+          {content.items && Array.isArray(content.items) ? (
+            <>
+              {(content.items as Array<{ title: string; description: string; priority?: 'high' | 'medium' | 'low' }>).map(
+                (item, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-lg bg-muted/30 border border-border space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-foreground">{item.title}</span>
+                      {item.priority ? (
+                        <Badge
+                          variant={PRIORITY_BADGE_VARIANT[item.priority] || 'secondary'}
+                          className="text-[10px] capitalize shrink-0"
+                        >
+                          {item.priority}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {item.description ? (
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    ) : null}
+                  </div>
+                )
+              )}
+            </>
+          ) : null}
+        </div>
+      );
 
-      default:
-        return (
-          <pre className="text-xs text-muted-foreground overflow-auto">
-            {JSON.stringify(content, null, 2)}
-          </pre>
-        );
-    }
-  };
-
-  return (
-    <div className="mt-2 pt-2 border-t border-border">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors w-full"
-      >
-        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        {isExpanded ? 'Hide output' : 'View output'}
-      </button>
-      {isExpanded && <div className="mt-3">{renderContent()}</div>}
-    </div>
-  );
+    default:
+      return (
+        <pre className="text-xs text-muted-foreground overflow-auto">
+          {JSON.stringify(content, null, 2)}
+        </pre>
+      );
+  }
 }
 
-// Component to display AI output content with an ID for external toggle
+// Inline, collapsed-by-default output display used within a job's row in the
+// status/history list. Kept collapsed there since that list can contain many
+// historical runs - the always-visible summary lives in AIResultCard instead.
 function AIOutputDisplayWithId({
   output,
   jobType,
@@ -266,108 +309,6 @@ function AIOutputDisplayWithId({
   const [isExpanded, setIsExpanded] = useState(false);
   const content = output.content as Record<string, unknown>;
 
-  const renderContent = () => {
-    switch (jobType) {
-      case 'summary':
-        return (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">{content.summary as string}</p>
-            {content.bullets && Array.isArray(content.bullets) ? (
-              <ul className="list-disc list-inside space-y-1">
-                {(content.bullets as string[]).map((bullet, i) => (
-                  <li key={i} className="text-sm text-muted-foreground">
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {content.confidence !== undefined ? (
-              <p className="text-xs text-muted-foreground">
-                Confidence: {Math.round((content.confidence as number) * 100)}%
-              </p>
-            ) : null}
-          </div>
-        );
-
-      case 'transcript':
-        return (
-          <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
-            {content.transcript as string}
-          </div>
-        );
-
-      case 'score':
-        return (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-primary">{content.score as number}</span>
-              <span className="text-sm text-muted-foreground">/ 100</span>
-            </div>
-            {content.rubric && Array.isArray(content.rubric) ? (
-              <div className="space-y-2">
-                {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
-                  (item, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{item.name}</span>
-                      <span className="font-medium">
-                        {item.score}/{item.maxScore || 10}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            ) : null}
-            {content.overallFeedback ? (
-              <p className="text-sm text-muted-foreground italic">
-                {content.overallFeedback as string}
-              </p>
-            ) : null}
-          </div>
-        );
-
-      case 'suggest_bookmarks':
-        return (
-          <div className="space-y-2">
-            {content.bookmarks && Array.isArray(content.bookmarks) ? (
-              <>
-                {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
-                  (bm, i) => {
-                    const seconds = Math.floor(bm.timestamp_ms / 1000);
-                    const mins = Math.floor(seconds / 60);
-                    const secs = seconds % 60;
-                    const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-                    return (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
-                      >
-                        <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
-                          {timeStr}
-                        </span>
-                        <span className="text-sm text-foreground flex-1">{bm.label}</span>
-                        {bm.category ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {bm.category}
-                          </Badge>
-                        ) : null}
-                      </div>
-                    );
-                  }
-                )}
-              </>
-            ) : null}
-          </div>
-        );
-
-      default:
-        return (
-          <pre className="text-xs text-muted-foreground overflow-auto">
-            {JSON.stringify(content, null, 2)}
-          </pre>
-        );
-    }
-  };
-
   return (
     <div className="mt-2 pt-2 border-t border-border">
       <button
@@ -378,12 +319,43 @@ function AIOutputDisplayWithId({
         {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         {isExpanded ? 'Hide output' : 'View output'}
       </button>
-      {isExpanded && <div className="mt-3">{renderContent()}</div>}
+      {isExpanded && <div className="mt-3">{renderJobOutputContent(jobType, content)}</div>}
     </div>
   );
 }
 
-export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelProps) {
+// Always-visible result card for the "AI Results" section - no click required
+// to see the content, unlike the collapsed history list above.
+function AIResultCard({
+  jobType,
+  output,
+  updatedAt,
+}: {
+  jobType: AIJobType;
+  output: AIOutput;
+  updatedAt: string;
+}) {
+  const config = JOB_TYPE_CONFIG[jobType];
+  const Icon = config.icon;
+  const content = output.content as Record<string, unknown>;
+
+  return (
+    <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-foreground truncate">{config.label}</p>
+          <p className="text-[11px] text-muted-foreground">{formatRelativeTime(updatedAt)}</p>
+        </div>
+      </div>
+      {renderJobOutputContent(jobType, content)}
+    </div>
+  );
+}
+
+export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
   const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
   const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
@@ -393,6 +365,12 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Forward every output refresh to the parent, if it wants to mirror them
+  // (e.g. to render a live "AI Insights" section elsewhere on the page).
+  useEffect(() => {
+    onOutputsChange?.(outputs);
+  }, [outputs, onOutputsChange]);
 
   // Load jobs on mount if no initial jobs provided
   useEffect(() => {
@@ -454,7 +432,11 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       if (job) {
         // Add the new job to the top of the list
         setJobs((prev) => [job, ...prev]);
-        toast.success('AI job created', { description: `${JOB_TYPE_CONFIG[jobType].label} queued` });
+        toast.success('AI job started', { description: `${JOB_TYPE_CONFIG[jobType].label} is now running` });
+        // Immediately run the job so the user doesn't have to click "Run".
+        // Not awaited: the create button's loading state shouldn't block on the
+        // full run duration - the job card's own status reflects progress instead.
+        runJob(job.id);
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -464,11 +446,14 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
     }
   }
 
-  async function handleRunJob(jobId: string) {
+  // Invokes the edge function for a job and syncs local state with the server
+  // afterward. Used both to auto-run a job immediately after it's created (or
+  // retried) and as the manual "Run" fallback for any job still queued.
+  async function runJob(jobId: string) {
     setError(null);
     setRunningJobId(jobId);
 
-    // Optimistically update the job status to processing
+    // Optimistically show the job as processing right away
     setJobs((prev) =>
       prev.map((job) => (job.id === jobId ? { ...job, status: 'processing' as const } : job))
     );
@@ -477,12 +462,12 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       const { success, error: runError } = await runAIJob(jobId);
 
       if (runError || !success) {
+        // Refresh from the server so the UI reflects the real status/error the
+        // edge function recorded (e.g. 'failed' with error_message) instead of
+        // guessing a status locally.
+        await loadJobs();
         setError(runError || 'Failed to run job');
         toast.error('Failed to run AI job', { description: runError || 'Unknown error' });
-        // Revert the optimistic update
-        setJobs((prev) =>
-          prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))
-        );
         return;
       }
 
@@ -491,12 +476,9 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
       await loadOutputs();
       toast.success('AI job completed');
     } catch (err) {
+      await loadJobs();
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to run AI job');
-      // Revert the optimistic update
-      setJobs((prev) =>
-        prev.map((job) => (job.id === jobId ? { ...job, status: 'queued' as const } : job))
-      );
     } finally {
       setRunningJobId(null);
     }
@@ -539,9 +521,13 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
         return;
       }
 
-      // Refresh jobs list to show the new job
+      // Refresh jobs list to show the new job, then run it immediately -
+      // retries shouldn't require a manual "Run" click either.
       await loadJobs();
-      toast.success('New job created', { description: 'The job has been queued for retry' });
+      toast.success('Retrying job', {
+        description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
+      });
+      runJob(newJob.id);
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to retry job');
@@ -550,7 +536,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
     }
   }
 
-  const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks'];
+  const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks', 'action_items'];
 
   // Filter jobs based on showHistory toggle
   // Active jobs: queued, processing
@@ -561,6 +547,15 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
   );
   const displayedJobs = showHistory ? jobs : activeJobs;
 
+  // The latest completed result for each "insight" job type, in a fixed
+  // display order so the results section stays predictable. `jobs` is kept
+  // newest-first, so the first completed match per type is the latest one.
+  const completedResults = RESULT_JOB_TYPES.map((jobType) => {
+    const job = jobs.find((j) => j.job_type === jobType && j.status === 'completed');
+    const output = job ? outputs[job.id] : undefined;
+    return job && output ? { jobType, job, output } : null;
+  }).filter((result): result is { jobType: AIJobType; job: AIJob; output: AIOutput } => result !== null);
+
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
@@ -568,22 +563,30 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
         {jobTypes.map((jobType) => {
           const config = JOB_TYPE_CONFIG[jobType];
           const Icon = config.icon;
-          const isLoading = loadingJobType === jobType;
-          const isAnyLoading = loadingJobType !== null;
+          const isCreating = loadingJobType === jobType;
+          // A job of this type is already queued/processing - the button
+          // reflects that instead of allowing another one to be started.
+          const activeJobForType = activeJobs.find((j) => j.job_type === jobType);
+          const isActive = isCreating || !!activeJobForType;
+          const label = isActive
+            ? activeJobForType?.status === 'processing'
+              ? config.loadingLabel
+              : 'Starting...'
+            : config.label;
 
           return (
             <SecondaryButton
               key={jobType}
               onClick={() => handleCreateJob(jobType)}
-              disabled={isAnyLoading}
+              disabled={isActive}
               className="flex items-center justify-start gap-2 h-auto py-3 px-4 text-left"
             >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              {isActive ? (
+                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-muted-foreground" />
               ) : (
                 <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
               )}
-              <span className="text-sm font-medium truncate">{config.label}</span>
+              <span className="text-sm font-medium truncate">{label}</span>
             </SecondaryButton>
           );
         })}
@@ -604,7 +607,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-muted-foreground" />
               <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                AI Jobs
+                AI Job Status
               </h4>
               {activeJobs.length > 0 && (
                 <Badge variant="info" className="text-[10px] h-5">
@@ -639,7 +642,6 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
                 const isRunning = runningJobId === job.id || job.status === 'processing';
                 const isCancelling = cancellingJobId === job.id;
                 const isRetrying = retryingJobId === job.id;
-                const canRun = job.status === 'queued';
                 const canCancel = job.status === 'queued' || job.status === 'processing';
                 const canRetry = job.status === 'failed' || job.status === 'cancelled';
                 const output = outputs[job.id];
@@ -664,25 +666,6 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* Run button for queued jobs */}
-                        {canRun && (
-                          <PrimaryButton
-                            size="sm"
-                            onClick={() => handleRunJob(job.id)}
-                            disabled={isRunning || isCancelling}
-                            className="h-7 px-3 text-xs"
-                          >
-                            {isRunning ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <Play className="h-3 w-3 mr-1" />
-                                Run
-                              </>
-                            )}
-                          </PrimaryButton>
-                        )}
-
                         {/* Cancel button for queued/processing jobs */}
                         {canCancel && (
                           <SecondaryButton
@@ -763,6 +746,28 @@ export function AIActionsPanel({ sessionId, initialJobs = [] }: AIActionsPanelPr
           )}
         </div>
       )}
+
+      {/* AI Results - always-visible, no "View output" click required */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+            AI Results
+          </h4>
+        </div>
+
+        {completedResults.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Generate an AI action to see results here.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {completedResults.map(({ jobType, job, output }) => (
+              <AIResultCard key={job.id} jobType={jobType} output={output} updatedAt={job.updated_at} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

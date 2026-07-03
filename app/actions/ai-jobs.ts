@@ -33,7 +33,7 @@ export async function createAIJob(
   }
 
   // Validate job_type
-  const validJobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks'];
+  const validJobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks', 'action_items'];
   if (!validJobTypes.includes(jobType)) {
     return {
       job: null,

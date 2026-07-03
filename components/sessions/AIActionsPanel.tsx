@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   createAIJob,
+  ensureAutomaticAIJob,
   getSessionAIJobs,
   runAIJob,
   getSessionAIOutputs,
@@ -70,7 +71,12 @@ interface AIActionsPanelProps {
 
 const JOB_TYPE_CONFIG: Record<
   AIJobType,
-  { label: string; icon: React.ElementType; description: string; loadingLabel: string }
+  {
+    label: string;
+    icon: React.ElementType;
+    description: string;
+    loadingLabel: string;
+  }
 > = {
   transcript: {
     label: 'Generate Transcript',
@@ -104,7 +110,10 @@ const JOB_TYPE_CONFIG: Record<
   },
 };
 
-const PRIORITY_BADGE_VARIANT: Record<'high' | 'medium' | 'low', 'destructive' | 'warning' | 'secondary'> = {
+const PRIORITY_BADGE_VARIANT: Record<
+  'high' | 'medium' | 'low',
+  'destructive' | 'warning' | 'secondary'
+> = {
   high: 'destructive',
   medium: 'warning',
   low: 'secondary',
@@ -113,11 +122,43 @@ const PRIORITY_BADGE_VARIANT: Record<'high' | 'medium' | 'low', 'destructive' | 
 // Job types shown in the always-visible "AI Results" section, in display order.
 // Excludes 'transcript' and 'suggest_bookmarks', which remain status/history only.
 const RESULT_JOB_TYPES: AIJobType[] = ['summary', 'score', 'action_items'];
+const AUTOMATIC_ANALYSIS_CHAIN: Array<{ after: AIJobType; next: AIJobType }> = [
+  { after: 'transcript', next: 'summary' },
+  { after: 'summary', next: 'score' },
+  { after: 'score', next: 'action_items' },
+];
+const AUTOMATIC_ANALYSIS_JOB_TYPES: AIJobType[] = [
+  'transcript',
+  'summary',
+  'score',
+  'action_items',
+];
+const PLACEHOLDER_TRANSCRIPT_PROVIDER = 'placeholder';
+const PLACEHOLDER_TRANSCRIPT_MODEL = 'mock-v1';
+
+function isCompletedAutomaticStep(job: AIJob, jobType: AIJobType): boolean {
+  if (job.job_type !== jobType || job.status !== 'completed') {
+    return false;
+  }
+
+  if (jobType !== 'transcript') {
+    return true;
+  }
+
+  return (
+    job.provider !== PLACEHOLDER_TRANSCRIPT_PROVIDER &&
+    job.model !== PLACEHOLDER_TRANSCRIPT_MODEL
+  );
+}
 
 function JobStatusBadge({ status }: { status: AIJob['status'] }) {
   const config: Record<
     AIJob['status'],
-    { variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary'; icon: React.ElementType; label: string }
+    {
+      variant: 'info' | 'warning' | 'success' | 'destructive' | 'secondary';
+      icon: React.ElementType;
+      label: string;
+    }
   > = {
     queued: { variant: 'info', icon: Loader2, label: 'Starting' },
     processing: { variant: 'warning', icon: Loader2, label: 'Processing' },
@@ -159,23 +200,26 @@ function formatRelativeTime(dateString: string): string {
 // Renders the actual content of an AI output, per job type. Shared by the
 // inline job-history toggle (AIOutputDisplayWithId) and the always-visible
 // AIResultCard, so both stay in sync with a single source of truth.
-function renderJobOutputContent(jobType: AIJobType, content: Record<string, unknown>) {
+function renderJobOutputContent(
+  jobType: AIJobType,
+  content: Record<string, unknown>
+) {
   switch (jobType) {
     case 'summary':
       return (
         <div className="space-y-3">
-          <p className="text-sm text-foreground">{content.summary as string}</p>
+          <p className="text-foreground text-sm">{content.summary as string}</p>
           {content.bullets && Array.isArray(content.bullets) ? (
-            <ul className="list-disc list-inside space-y-1">
+            <ul className="list-inside list-disc space-y-1">
               {(content.bullets as string[]).map((bullet, i) => (
-                <li key={i} className="text-sm text-muted-foreground">
+                <li key={i} className="text-muted-foreground text-sm">
                   {bullet}
                 </li>
               ))}
             </ul>
           ) : null}
           {content.confidence !== undefined ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Confidence: {Math.round((content.confidence as number) * 100)}%
             </p>
           ) : null}
@@ -184,7 +228,7 @@ function renderJobOutputContent(jobType: AIJobType, content: Record<string, unkn
 
     case 'transcript':
       return (
-        <div className="text-sm text-foreground whitespace-pre-wrap font-mono bg-muted/30 p-3 rounded-lg max-h-[200px] overflow-y-auto">
+        <div className="text-foreground bg-muted/30 max-h-[200px] overflow-y-auto rounded-lg p-3 font-mono text-sm whitespace-pre-wrap">
           {content.transcript as string}
         </div>
       );
@@ -193,25 +237,35 @@ function renderJobOutputContent(jobType: AIJobType, content: Record<string, unkn
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <span className="text-3xl font-bold text-primary">{content.score as number}</span>
-            <span className="text-sm text-muted-foreground">/ 100</span>
+            <span className="text-primary text-3xl font-bold">
+              {content.score as number}
+            </span>
+            <span className="text-muted-foreground text-sm">/ 100</span>
           </div>
           {content.rubric && Array.isArray(content.rubric) ? (
             <div className="space-y-2">
-              {(content.rubric as Array<{ name: string; score: number; maxScore?: number; feedback?: string }>).map(
-                (item, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{item.name}</span>
-                    <span className="font-medium">
-                      {item.score}/{item.maxScore || 10}
-                    </span>
-                  </div>
-                )
-              )}
+              {(
+                content.rubric as Array<{
+                  name: string;
+                  score: number;
+                  maxScore?: number;
+                  feedback?: string;
+                }>
+              ).map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-muted-foreground">{item.name}</span>
+                  <span className="font-medium">
+                    {item.score}/{item.maxScore || 10}
+                  </span>
+                </div>
+              ))}
             </div>
           ) : null}
           {content.overallFeedback ? (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-muted-foreground text-sm italic">
               {content.overallFeedback as string}
             </p>
           ) : null}
@@ -223,30 +277,36 @@ function renderJobOutputContent(jobType: AIJobType, content: Record<string, unkn
         <div className="space-y-2">
           {content.bookmarks && Array.isArray(content.bookmarks) ? (
             <>
-              {(content.bookmarks as Array<{ timestamp_ms: number; label: string; category?: string }>).map(
-                (bm, i) => {
-                  const seconds = Math.floor(bm.timestamp_ms / 1000);
-                  const mins = Math.floor(seconds / 60);
-                  const secs = seconds % 60;
-                  const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
-                    >
-                      <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">
-                        {timeStr}
-                      </span>
-                      <span className="text-sm text-foreground flex-1">{bm.label}</span>
-                      {bm.category ? (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {bm.category}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  );
-                }
-              )}
+              {(
+                content.bookmarks as Array<{
+                  timestamp_ms: number;
+                  label: string;
+                  category?: string;
+                }>
+              ).map((bm, i) => {
+                const seconds = Math.floor(bm.timestamp_ms / 1000);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+                return (
+                  <div
+                    key={i}
+                    className="bg-muted/30 flex items-center gap-3 rounded-lg p-2"
+                  >
+                    <span className="text-primary bg-primary/10 rounded px-2 py-1 font-mono text-xs">
+                      {timeStr}
+                    </span>
+                    <span className="text-foreground flex-1 text-sm">
+                      {bm.label}
+                    </span>
+                    {bm.category ? (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {bm.category}
+                      </Badge>
+                    ) : null}
+                  </div>
+                );
+              })}
             </>
           ) : null}
         </div>
@@ -257,29 +317,39 @@ function renderJobOutputContent(jobType: AIJobType, content: Record<string, unkn
         <div className="space-y-2">
           {content.items && Array.isArray(content.items) ? (
             <>
-              {(content.items as Array<{ title: string; description: string; priority?: 'high' | 'medium' | 'low' }>).map(
-                (item, i) => (
-                  <div
-                    key={i}
-                    className="p-3 rounded-lg bg-muted/30 border border-border space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-foreground">{item.title}</span>
-                      {item.priority ? (
-                        <Badge
-                          variant={PRIORITY_BADGE_VARIANT[item.priority] || 'secondary'}
-                          className="text-[10px] capitalize shrink-0"
-                        >
-                          {item.priority}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    {item.description ? (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
+              {(
+                content.items as Array<{
+                  title: string;
+                  description: string;
+                  priority?: 'high' | 'medium' | 'low';
+                }>
+              ).map((item, i) => (
+                <div
+                  key={i}
+                  className="bg-muted/30 border-border space-y-1 rounded-lg border p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground text-sm font-medium">
+                      {item.title}
+                    </span>
+                    {item.priority ? (
+                      <Badge
+                        variant={
+                          PRIORITY_BADGE_VARIANT[item.priority] || 'secondary'
+                        }
+                        className="shrink-0 text-[10px] capitalize"
+                      >
+                        {item.priority}
+                      </Badge>
                     ) : null}
                   </div>
-                )
-              )}
+                  {item.description ? (
+                    <p className="text-muted-foreground text-xs">
+                      {item.description}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
             </>
           ) : null}
         </div>
@@ -287,7 +357,7 @@ function renderJobOutputContent(jobType: AIJobType, content: Record<string, unkn
 
     default:
       return (
-        <pre className="text-xs text-muted-foreground overflow-auto">
+        <pre className="text-muted-foreground overflow-auto text-xs">
           {JSON.stringify(content, null, 2)}
         </pre>
       );
@@ -310,16 +380,22 @@ function AIOutputDisplayWithId({
   const content = output.content as Record<string, unknown>;
 
   return (
-    <div className="mt-2 pt-2 border-t border-border">
+    <div className="border-border mt-2 border-t pt-2">
       <button
         id={`output-toggle-${jobId}`}
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors w-full"
+        className="text-primary hover:text-primary/80 flex w-full items-center gap-2 text-xs transition-colors"
       >
-        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {isExpanded ? (
+          <ChevronUp className="h-3 w-3" />
+        ) : (
+          <ChevronDown className="h-3 w-3" />
+        )}
         {isExpanded ? 'Hide output' : 'View output'}
       </button>
-      {isExpanded && <div className="mt-3">{renderJobOutputContent(jobType, content)}</div>}
+      {isExpanded && (
+        <div className="mt-3">{renderJobOutputContent(jobType, content)}</div>
+      )}
     </div>
   );
 }
@@ -340,14 +416,18 @@ function AIResultCard({
   const content = output.content as Record<string, unknown>;
 
   return (
-    <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+    <div className="bg-card border-border space-y-3 rounded-xl border p-4">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border">
-          <Icon className="h-4 w-4 text-primary" />
+        <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+          <Icon className="text-primary h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground truncate">{config.label}</p>
-          <p className="text-[11px] text-muted-foreground">{formatRelativeTime(updatedAt)}</p>
+          <p className="text-foreground truncate text-sm font-bold">
+            {config.label}
+          </p>
+          <p className="text-muted-foreground text-[11px]">
+            {formatRelativeTime(updatedAt)}
+          </p>
         </div>
       </div>
       {renderJobOutputContent(jobType, content)}
@@ -355,7 +435,11 @@ function AIResultCard({
   );
 }
 
-export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }: AIActionsPanelProps) {
+export function AIActionsPanel({
+  sessionId,
+  initialJobs = [],
+  onOutputsChange,
+}: AIActionsPanelProps) {
   const [jobs, setJobs] = useState<AIJob[]>(initialJobs);
   const [outputs, setOutputs] = useState<Record<string, AIOutput>>({});
   const [loadingJobType, setLoadingJobType] = useState<AIJobType | null>(null);
@@ -365,12 +449,19 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
   const [error, setError] = useState<string | null>(null);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const automaticJobsInFlightRef = useRef<Set<AIJobType>>(new Set());
 
   // Forward every output refresh to the parent, if it wants to mirror them
   // (e.g. to render a live "AI Insights" section elsewhere on the page).
   useEffect(() => {
     onOutputsChange?.(outputs);
   }, [outputs, onOutputsChange]);
+
+  // Keep local job state in sync when the session page refreshes after an
+  // external event, such as an automatic transcript job created by an upload.
+  useEffect(() => {
+    setJobs(initialJobs);
+  }, [initialJobs]);
 
   // Load jobs on mount if no initial jobs provided
   useEffect(() => {
@@ -382,10 +473,13 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
     }
   }, [sessionId, initialJobs.length]);
 
-  // Poll for job updates when there's a job processing
+  // Poll for job updates when there's an active job. Automatic transcript jobs
+  // can briefly appear as queued before the run request marks them processing.
   useEffect(() => {
-    const processingJobs = jobs.filter((j) => j.status === 'processing');
-    if (processingJobs.length === 0) return;
+    const activeJobs = jobs.filter(
+      (j) => j.status === 'queued' || j.status === 'processing'
+    );
+    if (activeJobs.length === 0) return;
 
     const interval = setInterval(async () => {
       await loadJobs();
@@ -395,9 +489,31 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
     return () => clearInterval(interval);
   }, [jobs, sessionId]);
 
+  // Automatically continue analysis in order:
+  // Transcript -> Summary -> Score -> Action Items.
+  useEffect(() => {
+    for (const { after, next } of AUTOMATIC_ANALYSIS_CHAIN) {
+      const previousStepCompleted = jobs.some((job) =>
+        isCompletedAutomaticStep(job, after)
+      );
+      if (!previousStepCompleted) continue;
+
+      // TODO(#2): Decide whether a new OpenAI transcript should invalidate
+      // older completed Summary/Score/Action Items so analysis regenerates.
+      const nextStepAlreadyExists = jobs.some((job) => job.job_type === next);
+      if (nextStepAlreadyExists || automaticJobsInFlightRef.current.has(next)) {
+        continue;
+      }
+
+      void startAutomaticAnalysisJob(next);
+      break;
+    }
+  }, [jobs, sessionId]);
+
   async function loadJobs() {
     setIsLoadingJobs(true);
-    const { jobs: fetchedJobs, error: fetchError } = await getSessionAIJobs(sessionId);
+    const { jobs: fetchedJobs, error: fetchError } =
+      await getSessionAIJobs(sessionId);
     if (!fetchError) {
       setJobs(fetchedJobs);
     }
@@ -405,8 +521,11 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
   }
 
   const loadOutputs = useCallback(async () => {
-    const { outputs: fetchedOutputs, error: fetchError } = await getSessionAIOutputs(sessionId);
+    const { outputs: fetchedOutputs, error: fetchError } =
+      await getSessionAIOutputs(sessionId);
     if (!fetchError && fetchedOutputs.length > 0) {
+      // TODO(#5): Clear stale output state on successful empty fetches, after
+      // verifying no existing UI relies on preserving previous output cards.
       // Index outputs by job_id for easy lookup
       const outputMap: Record<string, AIOutput> = {};
       fetchedOutputs.forEach((output) => {
@@ -415,6 +534,46 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
       setOutputs(outputMap);
     }
   }, [sessionId]);
+
+  async function startAutomaticAnalysisJob(jobType: AIJobType) {
+    automaticJobsInFlightRef.current.add(jobType);
+
+    try {
+      const {
+        job,
+        error: ensureError,
+        shouldRun,
+        blocked,
+      } = await ensureAutomaticAIJob(sessionId, jobType);
+
+      if (ensureError) {
+        setError(ensureError);
+        toast.error('Failed to continue automatic analysis', {
+          description: ensureError,
+        });
+        return;
+      }
+
+      if (!job || blocked) {
+        return;
+      }
+
+      setJobs((prev) =>
+        prev.some((existingJob) => existingJob.id === job.id)
+          ? prev
+          : [job, ...prev]
+      );
+
+      if (shouldRun) {
+        toast.success('Automatic analysis started', {
+          description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
+        });
+        await runJob(job.id, { automatic: true });
+      }
+    } finally {
+      automaticJobsInFlightRef.current.delete(jobType);
+    }
+  }
 
   async function handleCreateJob(jobType: AIJobType) {
     setError(null);
@@ -430,13 +589,29 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
       }
 
       if (job) {
-        // Add the new job to the top of the list
-        setJobs((prev) => [job, ...prev]);
-        toast.success('AI job started', { description: `${JOB_TYPE_CONFIG[jobType].label} is now running` });
-        // Immediately run the job so the user doesn't have to click "Run".
-        // Not awaited: the create button's loading state shouldn't block on the
-        // full run duration - the job card's own status reflects progress instead.
-        runJob(job.id);
+        setJobs((prev) =>
+          prev.some((existingJob) => existingJob.id === job.id)
+            ? prev
+            : [job, ...prev]
+        );
+
+        if (job.status === 'queued') {
+          toast.success('AI job started', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is now running`,
+          });
+          // Immediately run the job so the user doesn't have to click "Run".
+          // Not awaited: the create button's loading state shouldn't block on the
+          // full run duration - the job card's own status reflects progress instead.
+          runJob(job.id);
+        } else if (job.status === 'processing') {
+          toast.success('AI job already running', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is already in progress`,
+          });
+        } else if (job.status === 'completed') {
+          toast.success('AI job already completed', {
+            description: `${JOB_TYPE_CONFIG[jobType].label} is already available`,
+          });
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -449,13 +624,15 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
   // Invokes the edge function for a job and syncs local state with the server
   // afterward. Used both to auto-run a job immediately after it's created (or
   // retried) and as the manual "Run" fallback for any job still queued.
-  async function runJob(jobId: string) {
+  async function runJob(jobId: string, options: { automatic?: boolean } = {}) {
     setError(null);
     setRunningJobId(jobId);
 
     // Optimistically show the job as processing right away
     setJobs((prev) =>
-      prev.map((job) => (job.id === jobId ? { ...job, status: 'processing' as const } : job))
+      prev.map((job) =>
+        job.id === jobId ? { ...job, status: 'processing' as const } : job
+      )
     );
 
     try {
@@ -467,14 +644,20 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
         // guessing a status locally.
         await loadJobs();
         setError(runError || 'Failed to run job');
-        toast.error('Failed to run AI job', { description: runError || 'Unknown error' });
+        toast.error('Failed to run AI job', {
+          description: runError || 'Unknown error',
+        });
         return;
       }
 
       // Refresh jobs and outputs after successful run
       await loadJobs();
       await loadOutputs();
-      toast.success('AI job completed');
+      toast.success(
+        options.automatic
+          ? 'Automatic analysis step completed'
+          : 'AI job completed'
+      );
     } catch (err) {
       await loadJobs();
       setError('An unexpected error occurred. Please try again.');
@@ -493,7 +676,9 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
 
       if (cancelError || !success) {
         setError(cancelError || 'Failed to cancel job');
-        toast.error('Failed to cancel job', { description: cancelError || 'Unknown error' });
+        toast.error('Failed to cancel job', {
+          description: cancelError || 'Unknown error',
+        });
         return;
       }
 
@@ -517,17 +702,30 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
 
       if (retryError || !newJob) {
         setError(retryError || 'Failed to retry job');
-        toast.error('Failed to retry job', { description: retryError || 'Unknown error' });
+        toast.error('Failed to retry job', {
+          description: retryError || 'Unknown error',
+        });
         return;
       }
 
-      // Refresh jobs list to show the new job, then run it immediately -
-      // retries shouldn't require a manual "Run" click either.
+      // Refresh jobs list to show the retry/reused job, then run queued jobs
+      // immediately - retries shouldn't require a manual "Run" click either.
       await loadJobs();
-      toast.success('Retrying job', {
-        description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
-      });
-      runJob(newJob.id);
+
+      if (newJob.status === 'queued') {
+        toast.success('Retrying job', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is now running`,
+        });
+        runJob(newJob.id);
+      } else if (newJob.status === 'processing') {
+        toast.success('AI job already running', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already in progress`,
+        });
+      } else if (newJob.status === 'completed') {
+        toast.success('AI job already completed', {
+          description: `${JOB_TYPE_CONFIG[newJob.job_type]?.label || newJob.job_type} is already available`,
+        });
+      }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to retry job');
@@ -536,14 +734,25 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
     }
   }
 
-  const jobTypes: AIJobType[] = ['transcript', 'summary', 'score', 'suggest_bookmarks', 'action_items'];
+  const jobTypes: AIJobType[] = [
+    'transcript',
+    'summary',
+    'score',
+    'suggest_bookmarks',
+    'action_items',
+  ];
 
   // Filter jobs based on showHistory toggle
   // Active jobs: queued, processing
   // History jobs: completed, failed, cancelled
-  const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'processing');
+  const activeJobs = jobs.filter(
+    (j) => j.status === 'queued' || j.status === 'processing'
+  );
   const historyJobs = jobs.filter(
-    (j) => j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled'
+    (j) =>
+      j.status === 'completed' ||
+      j.status === 'failed' ||
+      j.status === 'cancelled'
   );
   const displayedJobs = showHistory ? jobs : activeJobs;
 
@@ -551,10 +760,30 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
   // display order so the results section stays predictable. `jobs` is kept
   // newest-first, so the first completed match per type is the latest one.
   const completedResults = RESULT_JOB_TYPES.map((jobType) => {
-    const job = jobs.find((j) => j.job_type === jobType && j.status === 'completed');
+    const job = jobs.find(
+      (j) => j.job_type === jobType && j.status === 'completed'
+    );
     const output = job ? outputs[job.id] : undefined;
     return job && output ? { jobType, job, output } : null;
-  }).filter((result): result is { jobType: AIJobType; job: AIJob; output: AIOutput } => result !== null);
+  }).filter(
+    (result): result is { jobType: AIJobType; job: AIJob; output: AIOutput } =>
+      result !== null
+  );
+  const automaticAnalysisStarted = jobs.some((job) =>
+    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
+  );
+  const automaticAnalysisComplete = AUTOMATIC_ANALYSIS_JOB_TYPES.every(
+    (jobType) =>
+      jobs.some((job) => job.job_type === jobType && job.status === 'completed')
+  );
+  const automaticAnalysisActive = activeJobs.some((job) =>
+    AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type)
+  );
+  const failedAutomaticAnalysisJob = jobs.find(
+    (job) =>
+      AUTOMATIC_ANALYSIS_JOB_TYPES.includes(job.job_type) &&
+      job.status === 'failed'
+  );
 
   return (
     <div className="space-y-6">
@@ -566,7 +795,9 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
           const isCreating = loadingJobType === jobType;
           // A job of this type is already queued/processing - the button
           // reflects that instead of allowing another one to be started.
-          const activeJobForType = activeJobs.find((j) => j.job_type === jobType);
+          const activeJobForType = activeJobs.find(
+            (j) => j.job_type === jobType
+          );
           const isActive = isCreating || !!activeJobForType;
           const label = isActive
             ? activeJobForType?.status === 'processing'
@@ -579,18 +810,31 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
               key={jobType}
               onClick={() => handleCreateJob(jobType)}
               disabled={isActive}
-              className="flex items-center justify-start gap-2 h-auto py-3 px-4 text-left"
+              className="flex h-auto items-center justify-start gap-2 px-4 py-3 text-left"
             >
               {isActive ? (
-                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-muted-foreground" />
+                <Loader2 className="text-muted-foreground h-4 w-4 shrink-0 animate-spin" />
               ) : (
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
               )}
-              <span className="text-sm font-medium truncate">{label}</span>
+              <span className="truncate text-sm font-medium">{label}</span>
             </SecondaryButton>
           );
         })}
       </div>
+
+      {automaticAnalysisStarted && !automaticAnalysisComplete && (
+        <Alert>
+          <Sparkles className="h-4 w-4" />
+          <AlertDescription>
+            {failedAutomaticAnalysisJob
+              ? 'Automatic analysis paused because one step failed. Use Retry below to continue the remaining steps.'
+              : automaticAnalysisActive
+                ? 'Automatic analysis is running. Transcript, Summary, Score, and Action Items run in order.'
+                : 'Automatic analysis will continue as soon as the current step completes.'}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -605,12 +849,12 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+              <Sparkles className="text-muted-foreground h-4 w-4" />
+              <h4 className="text-muted-foreground text-sm font-bold tracking-wider uppercase">
                 AI Job Status
               </h4>
               {activeJobs.length > 0 && (
-                <Badge variant="info" className="text-[10px] h-5">
+                <Badge variant="info" className="h-5 text-[10px]">
                   {activeJobs.length} active
                 </Badge>
               )}
@@ -618,20 +862,22 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
             {historyJobs.length > 0 && (
               <button
                 onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
               >
                 <History className="h-3 w-3" />
-                {showHistory ? 'Hide history' : `Show history (${historyJobs.length})`}
+                {showHistory
+                  ? 'Hide history'
+                  : `Show history (${historyJobs.length})`}
               </button>
             )}
           </div>
 
           {isLoadingJobs ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           ) : displayedJobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-muted-foreground py-4 text-center text-sm">
               {showHistory ? 'No jobs yet' : 'No active jobs'}
             </p>
           ) : (
@@ -639,28 +885,31 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
               {displayedJobs.map((job) => {
                 const config = JOB_TYPE_CONFIG[job.job_type];
                 const Icon = config?.icon || FileText;
-                const isRunning = runningJobId === job.id || job.status === 'processing';
+                const isRunning =
+                  runningJobId === job.id || job.status === 'processing';
                 const isCancelling = cancellingJobId === job.id;
                 const isRetrying = retryingJobId === job.id;
-                const canCancel = job.status === 'queued' || job.status === 'processing';
-                const canRetry = job.status === 'failed' || job.status === 'cancelled';
+                const canCancel =
+                  job.status === 'queued' || job.status === 'processing';
+                const canRetry =
+                  job.status === 'failed' || job.status === 'cancelled';
                 const output = outputs[job.id];
 
                 return (
                   <div
                     key={job.id}
-                    className="p-3 rounded-xl bg-muted/30 border border-border"
+                    className="bg-muted/30 border-border rounded-xl border p-3"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+                          <Icon className="text-muted-foreground h-4 w-4" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
+                          <p className="text-foreground truncate text-sm font-medium">
                             {getJobTypeLabel(job.job_type)}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-muted-foreground text-[11px]">
                             {formatRelativeTime(job.created_at)}
                           </p>
                         </div>
@@ -672,7 +921,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
                             size="sm"
                             onClick={() => handleCancelJob(job.id)}
                             disabled={isCancelling || isRunning}
-                            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                            className="text-destructive hover:text-destructive h-7 px-2 text-xs"
                           >
                             {isCancelling ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -694,7 +943,7 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <>
-                                <RefreshCw className="h-3 w-3 mr-1" />
+                                <RefreshCw className="mr-1 h-3 w-3" />
                                 Retry
                               </>
                             )}
@@ -707,12 +956,14 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
                             size="sm"
                             onClick={() => {
                               // Toggle expand in the output display
-                              const el = document.getElementById(`output-toggle-${job.id}`);
+                              const el = document.getElementById(
+                                `output-toggle-${job.id}`
+                              );
                               if (el) el.click();
                             }}
                             className="h-7 px-3 text-xs"
                           >
-                            <Eye className="h-3 w-3 mr-1" />
+                            <Eye className="mr-1 h-3 w-3" />
                             View
                           </SecondaryButton>
                         )}
@@ -723,20 +974,28 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
 
                     {/* Show output for completed jobs */}
                     {job.status === 'completed' && output && (
-                      <AIOutputDisplayWithId output={output} jobType={job.job_type} jobId={job.id} />
+                      <AIOutputDisplayWithId
+                        output={output}
+                        jobType={job.job_type}
+                        jobId={job.id}
+                      />
                     )}
 
                     {/* Show error for failed jobs */}
                     {job.status === 'failed' && job.error_message && (
-                      <div className="mt-2 pt-2 border-t border-border">
-                        <p className="text-xs text-destructive">{job.error_message}</p>
+                      <div className="border-border mt-2 border-t pt-2">
+                        <p className="text-destructive text-xs">
+                          {job.error_message}
+                        </p>
                       </div>
                     )}
 
                     {/* Show cancellation message for cancelled jobs */}
                     {job.status === 'cancelled' && job.error_message && (
-                      <div className="mt-2 pt-2 border-t border-border">
-                        <p className="text-xs text-muted-foreground">{job.error_message}</p>
+                      <div className="border-border mt-2 border-t pt-2">
+                        <p className="text-muted-foreground text-xs">
+                          {job.error_message}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -750,20 +1009,25 @@ export function AIActionsPanel({ sessionId, initialJobs = [], onOutputsChange }:
       {/* AI Results - always-visible, no "View output" click required */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+          <Sparkles className="text-muted-foreground h-4 w-4" />
+          <h4 className="text-muted-foreground text-sm font-bold tracking-wider uppercase">
             AI Results
           </h4>
         </div>
 
         {completedResults.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <p className="text-muted-foreground py-4 text-center text-sm">
             Generate an AI action to see results here.
           </p>
         ) : (
           <div className="space-y-3">
             {completedResults.map(({ jobType, job, output }) => (
-              <AIResultCard key={job.id} jobType={jobType} output={output} updatedAt={job.updated_at} />
+              <AIResultCard
+                key={job.id}
+                jobType={jobType}
+                output={output}
+                updatedAt={job.updated_at}
+              />
             ))}
           </div>
         )}

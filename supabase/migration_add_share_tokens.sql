@@ -165,16 +165,24 @@ BEGIN
         RETURN; -- Return empty if invalid token
     END IF;
     
-    -- Return transcript for the session owned by the share owner
+    -- Return the preferred transcript for the session owned by the share owner:
+    -- generated OpenAI transcript first, then manual transcript fallback.
     RETURN QUERY
     SELECT 
         t.id,
         t.session_id,
         t.content,
         t.created_at
-    FROM transcripts t
+    FROM transcripts_manual t
     WHERE t.session_id = v_session_id
     AND t.user_id = v_owner_user_id
+    AND t.provider IN ('openai', 'manual')
+    AND LENGTH(BTRIM(t.content)) > 0
+    ORDER BY CASE t.provider
+        WHEN 'openai' THEN 1
+        WHEN 'manual' THEN 2
+        ELSE 3
+    END
     LIMIT 1;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

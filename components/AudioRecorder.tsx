@@ -9,9 +9,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Mic, Square, Pause, Play, Trash2, Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Mic,
+  Square,
+  Pause,
+  Play,
+  Trash2,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
 import { uploadReplayFromClient } from '@/lib/supabase/storage-client';
-import { updateSessionAudioMetadata, getSessionRecordingType } from '@/app/actions/sessions';
+import {
+  updateSessionAudioMetadata,
+  getSessionRecordingType,
+} from '@/app/actions/sessions';
+import { ensureAutomaticAIJob, runAIJob } from '@/app/actions/ai-jobs';
 import { toast } from 'sonner';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -55,7 +69,12 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUploadComplete }: AudioRecorderProps) {
+export function AudioRecorder({
+  sessionId,
+  userId,
+  onRecordingComplete,
+  onUploadComplete,
+}: AudioRecorderProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -70,6 +89,54 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const durationRef = useRef<number>(0);
+
+  const startAutomaticTranscriptJob = useCallback(
+    async (storagePath: string) => {
+      const {
+        job,
+        error: createError,
+        shouldRun,
+        blocked,
+      } = await ensureAutomaticAIJob(sessionId, 'transcript');
+
+      if (createError || !job) {
+        toast.error('Failed to start transcript generation', {
+          description: createError || 'Transcript job could not be created.',
+        });
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      if (blocked) {
+        toast.error('Transcript generation needs attention', {
+          description:
+            'Use the AI status panel to retry the failed transcript job.',
+        });
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      if (!shouldRun) {
+        onUploadComplete?.(storagePath);
+        return;
+      }
+
+      toast.success('Transcript generation started');
+
+      const runPromise = runAIJob(job.id);
+      onUploadComplete?.(storagePath);
+
+      const { success, error: runError } = await runPromise;
+      onUploadComplete?.(storagePath);
+
+      if (runError || !success) {
+        toast.error('Transcript generation failed', {
+          description: runError || 'Check the AI status panel to retry.',
+        });
+      }
+    },
+    [sessionId, onUploadComplete]
+  );
 
   // Cleanup object URLs on unmount
   useEffect(() => {
@@ -111,87 +178,113 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
   /**
    * Upload audio to Supabase Storage and update session metadata
    */
-  const handleUpload = useCallback(async (blob: Blob, durationSeconds: number) => {
-    // Validate authentication
-    if (!userId) {
-      setUploadError('You must be signed in to upload recordings. Please sign in and try again.');
-      setUploadState('error');
-      return;
-    }
-
-    if (!sessionId) {
-      setUploadError('No session ID provided. Please create a session first.');
-      setUploadState('error');
-      return;
-    }
-
-    setUploadState('uploading');
-    setUploadError(null);
-
-    try {
-      // Validate session recording_type is audio
-      const { recording_type, error: typeError } = await getSessionRecordingType(sessionId);
-      
-      if (typeError) {
-        setUploadError(`Failed to validate session: ${typeError}`);
+  const handleUpload = useCallback(
+    async (blob: Blob, durationSeconds: number) => {
+      // Validate authentication
+      if (!userId) {
+        setUploadError(
+          'You must be signed in to upload recordings. Please sign in and try again.'
+        );
         setUploadState('error');
         return;
       }
 
-      if (recording_type !== 'audio') {
-        setUploadError(`Cannot upload audio: this session is configured for '${recording_type || 'unknown'}' recordings.`);
+      if (!sessionId) {
+        setUploadError(
+          'No session ID provided. Please create a session first.'
+        );
         setUploadState('error');
         return;
       }
 
-      // Upload to Supabase Storage with correct filename
-      const { path, error: uploadErr } = await uploadReplayFromClient(
-        userId,
-        sessionId,
-        blob,
-        'audio.webm'
-      );
+      setUploadState('uploading');
+      setUploadError(null);
 
-      if (uploadErr) {
-        // Handle specific Supabase storage errors
-        const errorMessage = uploadErr.message.toLowerCase();
-        if (errorMessage.includes('not authenticated') || errorMessage.includes('jwt')) {
-          setUploadError('Your session has expired. Please sign in again to upload.');
-        } else if (errorMessage.includes('policy')) {
-          setUploadError('You do not have permission to upload to this location.');
-        } else if (errorMessage.includes('size')) {
-          setUploadError('The audio file is too large. Maximum size is 50MB.');
-        } else {
-          setUploadError(`Upload failed: ${uploadErr.message}`);
+      try {
+        // Validate session recording_type is audio
+        const { recording_type, error: typeError } =
+          await getSessionRecordingType(sessionId);
+
+        if (typeError) {
+          setUploadError(`Failed to validate session: ${typeError}`);
+          setUploadState('error');
+          return;
         }
+
+        if (recording_type !== 'audio') {
+          setUploadError(
+            `Cannot upload audio: this session is configured for '${recording_type || 'unknown'}' recordings.`
+          );
+          setUploadState('error');
+          return;
+        }
+
+        // Upload to Supabase Storage with correct filename
+        const { path, error: uploadErr } = await uploadReplayFromClient(
+          userId,
+          sessionId,
+          blob,
+          'audio.webm'
+        );
+
+        if (uploadErr) {
+          // Handle specific Supabase storage errors
+          const errorMessage = uploadErr.message.toLowerCase();
+          if (
+            errorMessage.includes('not authenticated') ||
+            errorMessage.includes('jwt')
+          ) {
+            setUploadError(
+              'Your session has expired. Please sign in again to upload.'
+            );
+          } else if (errorMessage.includes('policy')) {
+            setUploadError(
+              'You do not have permission to upload to this location.'
+            );
+          } else if (errorMessage.includes('size')) {
+            setUploadError(
+              'The audio file is too large. Maximum size is 50MB.'
+            );
+          } else {
+            setUploadError(`Upload failed: ${uploadErr.message}`);
+          }
+          setUploadState('error');
+          return;
+        }
+
+        // Update session with audio metadata via server action
+        const { error: metadataErr } = await updateSessionAudioMetadata(
+          sessionId,
+          {
+            audio_storage_path: path,
+            audio_duration_seconds: durationSeconds,
+            audio_mime_type: blob.type || 'audio/webm',
+            audio_file_size_bytes: blob.size,
+          }
+        );
+
+        if (metadataErr) {
+          setUploadError(`Failed to save recording metadata: ${metadataErr}`);
+          setUploadState('error');
+          return;
+        }
+
+        setUploadState('success');
+        toast.success('Recording uploaded successfully');
+        const transcriptJobPromise = startAutomaticTranscriptJob(path);
+        onUploadComplete?.(path);
+        void transcriptJobPromise;
+      } catch (err) {
+        console.error('Upload error:', err);
+        setUploadError(
+          'An unexpected error occurred during upload. Please try again.'
+        );
         setUploadState('error');
-        return;
+        toast.error('Failed to upload recording');
       }
-
-      // Update session with audio metadata via server action
-      const { error: metadataErr } = await updateSessionAudioMetadata(sessionId, {
-        audio_storage_path: path,
-        audio_duration_seconds: durationSeconds,
-        audio_mime_type: blob.type || 'audio/webm',
-        audio_file_size_bytes: blob.size,
-      });
-
-      if (metadataErr) {
-        setUploadError(`Failed to save recording metadata: ${metadataErr}`);
-        setUploadState('error');
-        return;
-      }
-
-      setUploadState('success');
-      toast.success('Recording uploaded successfully');
-      onUploadComplete?.(path);
-    } catch (err) {
-      console.error('Upload error:', err);
-      setUploadError('An unexpected error occurred during upload. Please try again.');
-      setUploadState('error');
-      toast.error('Failed to upload recording');
-    }
-  }, [userId, sessionId, onUploadComplete]);
+    },
+    [userId, sessionId, onUploadComplete, startAutomaticTranscriptJob]
+  );
 
   const handleStart = useCallback(async () => {
     setError(null);
@@ -347,8 +440,8 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
   return (
     <Card className="border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-lg text-foreground flex items-center gap-2">
-          <Mic className="h-5 w-5 text-muted-foreground" />
+        <CardTitle className="text-foreground flex items-center gap-2 text-lg">
+          <Mic className="text-muted-foreground h-5 w-5" />
           Audio Recorder
         </CardTitle>
         <CardDescription>
@@ -359,7 +452,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
         {/* Timer Display */}
         <div className="flex items-center justify-center py-6">
           <div
-            className={`text-6xl font-mono font-bold tracking-tighter ${
+            className={`font-mono text-6xl font-bold tracking-tighter ${
               isPaused
                 ? 'text-amber-500'
                 : isRecording
@@ -376,12 +469,10 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
           <div className="flex items-center justify-center gap-2">
             <div
               className={`h-2.5 w-2.5 rounded-full ${
-                isPaused
-                  ? 'bg-amber-500'
-                  : 'bg-destructive animate-pulse'
+                isPaused ? 'bg-amber-500' : 'bg-destructive animate-pulse'
               }`}
             />
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-bold tracking-widest uppercase">
               {isPaused ? 'Paused' : 'Recording Live'}
             </span>
           </div>
@@ -389,16 +480,24 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
 
         {/* Recording Error Display */}
         {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
-            <p className="text-sm text-destructive font-medium">{error}</p>
+          <div className="border-destructive/30 bg-destructive/10 space-y-3 rounded-lg border p-4">
+            <p className="text-destructive text-sm font-medium">{error}</p>
             {error.includes('denied') && (
               <>
-                <div className="text-xs text-destructive/80 space-y-1">
+                <div className="text-destructive/80 space-y-1 text-xs">
                   <p>To allow microphone access:</p>
-                  <ol className="list-decimal list-inside space-y-0.5 ml-1">
-                    <li>Click the lock/site icon in your browser&apos;s address bar</li>
-                    <li>Find &quot;Microphone&quot; and set it to &quot;Allow&quot;</li>
-                    <li>Refresh the page or click &quot;Try Again&quot; below</li>
+                  <ol className="ml-1 list-inside list-decimal space-y-0.5">
+                    <li>
+                      Click the lock/site icon in your browser&apos;s address
+                      bar
+                    </li>
+                    <li>
+                      Find &quot;Microphone&quot; and set it to
+                      &quot;Allow&quot;
+                    </li>
+                    <li>
+                      Refresh the page or click &quot;Try Again&quot; below
+                    </li>
                   </ol>
                 </div>
                 <Button
@@ -418,43 +517,49 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
 
         {/* Upload Status Display */}
         {isUploading && (
-          <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
+          <div className="border-primary/30 bg-primary/10 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              <Loader2 className="text-primary h-5 w-5 animate-spin" />
               <div>
-                <p className="text-sm text-primary font-medium">Uploading recording...</p>
-                <p className="text-xs text-muted-foreground">Please wait while your audio is being saved</p>
+                <p className="text-primary text-sm font-medium">
+                  Uploading recording...
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Please wait while your audio is being saved
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {isUploadSuccess && (
-          <div className="rounded-lg border border-success/30 bg-success/10 p-4">
+          <div className="border-success/30 bg-success/10 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-success" />
+              <CheckCircle className="text-success h-5 w-5" />
               <div>
-                <p className="text-sm text-success font-medium">Recording saved successfully!</p>
-                <p className="text-xs text-muted-foreground">Your audio has been uploaded and session updated</p>
+                <p className="text-success text-sm font-medium">
+                  Recording saved successfully!
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Your audio has been uploaded and session updated
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {isUploadError && uploadError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 space-y-3">
+          <div className="border-destructive/30 bg-destructive/10 space-y-3 rounded-lg border p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+              <AlertCircle className="text-destructive h-5 w-5" />
               <div>
-                <p className="text-sm text-destructive font-medium">Upload failed</p>
-                <p className="text-xs text-destructive/70">{uploadError}</p>
+                <p className="text-destructive text-sm font-medium">
+                  Upload failed
+                </p>
+                <p className="text-destructive/70 text-xs">{uploadError}</p>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRetryUpload}
-            >
+            <Button size="sm" variant="outline" onClick={handleRetryUpload}>
               <Upload className="mr-2 h-4 w-4" />
               Retry Upload
             </Button>
@@ -466,7 +571,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
           {isIdle && (
             <Button
               onClick={handleStart}
-              className="rounded-full px-8 shadow-lg shadow-destructive/20"
+              className="shadow-destructive/20 rounded-full px-8 shadow-lg"
               variant="destructive"
             >
               <Mic className="mr-2 h-4 w-4" />
@@ -479,7 +584,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
               <Button
                 variant="outline"
                 onClick={handlePause}
-                className="rounded-full px-6 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                className="rounded-full border-amber-500/50 px-6 text-amber-600 hover:bg-amber-500/10"
               >
                 <Pause className="mr-2 h-4 w-4" />
                 Pause
@@ -499,7 +604,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
             <>
               <Button
                 onClick={handleResume}
-                className="rounded-full px-6 bg-success hover:bg-success/90 text-success-foreground"
+                className="bg-success hover:bg-success/90 text-success-foreground rounded-full px-6"
               >
                 <Play className="mr-2 h-4 w-4" />
                 Resume
@@ -531,7 +636,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
                   onClick={handleReset}
                   variant="ghost"
                   disabled={isUploading}
-                  className="rounded-full px-6 text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 rounded-full px-6"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -543,11 +648,13 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
 
         {/* Audio Playback */}
         {isStopped && audioUrl && (
-          <div className="space-y-4 pt-6 border-t border-border">
+          <div className="border-border space-y-4 border-t pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Review Recording</p>
+              <p className="text-muted-foreground text-xs font-bold tracking-widest uppercase">
+                Review Recording
+              </p>
               {audioBlob && (
-                <p className="text-[10px] text-muted-foreground font-mono">
+                <p className="text-muted-foreground font-mono text-[10px]">
                   {(audioBlob.size / 1024).toFixed(1)} KB
                 </p>
               )}
@@ -555,7 +662,7 @@ export function AudioRecorder({ sessionId, userId, onRecordingComplete, onUpload
             <audio
               controls
               src={audioUrl}
-              className="w-full h-10"
+              className="h-10 w-full"
               aria-label="Recorded audio playback"
             />
           </div>

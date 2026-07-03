@@ -1,39 +1,63 @@
 // Supabase Edge Function: ai_run_job
 // Processes AI jobs. 'summary', 'score', and 'action_items' call OpenAI (gpt-4o-mini)
-// using the session's manual transcript as input. 'transcript' and 'suggest_bookmarks'
-// still use placeholder output (not implemented yet).
+// using the session's preferred transcript as input. 'transcript' calls OpenAI transcription.
+// 'suggest_bookmarks' still uses placeholder output (not implemented yet).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.91.0';
+
+type SupabaseServiceClient = ReturnType<typeof createClient>;
 
 // CORS headers for the function
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
 };
 
 // Job types that are backed by real OpenAI calls (as opposed to placeholder output)
 const AI_GENERATED_JOB_TYPES = new Set(['summary', 'score', 'action_items']);
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_TRANSCRIPTION_API_URL =
+  'https://api.openai.com/v1/audio/transcriptions';
 const OPENAI_MODEL = 'gpt-4o-mini';
+const OPENAI_TRANSCRIPTION_MODEL = 'gpt-4o-transcribe';
 const OPENAI_TIMEOUT_MS = 30000;
+const OPENAI_TRANSCRIPTION_TIMEOUT_MS = 120000;
+const OPENAI_TRANSCRIPTION_MAX_FILE_BYTES = 25 * 1024 * 1024;
+const TRANSCRIPT_PROVIDER_ORDER = ['openai', 'manual'];
 
 // Placeholder outputs for job types that don't call OpenAI yet
 function getPlaceholderOutput(jobType: string): Record<string, unknown> {
   switch (jobType) {
-    case 'transcript':
-      return {
-        transcript:
-          'Placeholder transcript content.\n\n[00:00] Interviewer: Hello, thank you for joining us today.\n\n[00:05] Candidate: Thank you for having me. I am excited about this opportunity.\n\n[00:12] Interviewer: Let us start with your background.\n\n[00:15] Candidate: I have been working in software development for 5 years...',
-      };
     case 'suggest_bookmarks':
       return {
         bookmarks: [
-          { timestamp_ms: 15000, label: 'Introduction and greeting', category: 'opening' },
-          { timestamp_ms: 45000, label: 'Discussed previous project experience', category: 'experience' },
-          { timestamp_ms: 120000, label: 'Technical deep-dive on system design', category: 'technical' },
-          { timestamp_ms: 180000, label: 'Behavioral question response', category: 'behavioral' },
-          { timestamp_ms: 240000, label: 'Questions for the interviewer', category: 'closing' },
+          {
+            timestamp_ms: 15000,
+            label: 'Introduction and greeting',
+            category: 'opening',
+          },
+          {
+            timestamp_ms: 45000,
+            label: 'Discussed previous project experience',
+            category: 'experience',
+          },
+          {
+            timestamp_ms: 120000,
+            label: 'Technical deep-dive on system design',
+            category: 'technical',
+          },
+          {
+            timestamp_ms: 180000,
+            label: 'Behavioral question response',
+            category: 'behavioral',
+          },
+          {
+            timestamp_ms: 240000,
+            label: 'Questions for the interviewer',
+            category: 'closing',
+          },
         ],
       };
     default:
@@ -42,7 +66,10 @@ function getPlaceholderOutput(jobType: string): Record<string, unknown> {
 }
 
 // Builds the system/user prompt pair for a given AI-generated job type
-function buildPrompt(jobType: string, transcript: string): { systemPrompt: string; userPrompt: string } {
+function buildPrompt(
+  jobType: string,
+  transcript: string
+): { systemPrompt: string; userPrompt: string } {
   const basePreamble =
     'You are an assistant that analyzes interview session transcripts. ' +
     'You must respond with a single valid JSON object and nothing else - no markdown, no code fences, no explanation text.';
@@ -88,7 +115,11 @@ function isValidOutputShape(jobType: string, content: unknown): boolean {
 
   switch (jobType) {
     case 'summary':
-      return typeof c.summary === 'string' && Array.isArray(c.bullets) && typeof c.confidence === 'number';
+      return (
+        typeof c.summary === 'string' &&
+        Array.isArray(c.bullets) &&
+        typeof c.confidence === 'number'
+      );
     case 'score':
       return (
         typeof c.score === 'number' &&
@@ -149,7 +180,9 @@ async function callOpenAI(
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('OpenAI request timed out.');
       }
-      throw new Error(`Failed to reach OpenAI API: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(
+        `Failed to reach OpenAI API: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
 
     if (!response.ok) {
@@ -162,7 +195,9 @@ async function callOpenAI(
         }
         // ignore other read errors - use empty detail
       }
-      throw new Error(`OpenAI API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`);
+      throw new Error(
+        `OpenAI API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`
+      );
     }
 
     let responseBody: unknown;
@@ -172,7 +207,9 @@ async function callOpenAI(
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('OpenAI request timed out.');
       }
-      throw new Error('OpenAI API returned a response that could not be parsed as JSON.');
+      throw new Error(
+        'OpenAI API returned a response that could not be parsed as JSON.'
+      );
     }
 
     const messageContent = (
@@ -191,16 +228,20 @@ async function callOpenAI(
     }
 
     if (!isValidOutputShape(jobType, parsedContent)) {
-      throw new Error('OpenAI returned JSON that did not match the expected shape.');
+      throw new Error(
+        'OpenAI returned JSON that did not match the expected shape.'
+      );
     }
 
     if (jobType === 'score') {
       // Force maxScore to 10 for every rubric item, regardless of what the model returned
       const content = parsedContent as Record<string, unknown>;
-      content.rubric = (content.rubric as Array<Record<string, unknown>>).map((item) => ({
-        ...item,
-        maxScore: 10,
-      }));
+      content.rubric = (content.rubric as Array<Record<string, unknown>>).map(
+        (item) => ({
+          ...item,
+          maxScore: 10,
+        })
+      );
     }
 
     return parsedContent as Record<string, unknown>;
@@ -209,10 +250,136 @@ async function callOpenAI(
   }
 }
 
+function getRecordingFileName(storagePath: string): string {
+  return storagePath.split('/').pop() || 'recording.webm';
+}
+
+function formatFileSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function callOpenAITranscription(
+  recordingBlob: Blob,
+  storagePath: string,
+  mimeType: string | null,
+  apiKey: string
+): Promise<string> {
+  if (recordingBlob.size > OPENAI_TRANSCRIPTION_MAX_FILE_BYTES) {
+    throw new Error(
+      `Recording is too large for OpenAI transcription (${formatFileSize(recordingBlob.size)}). ` +
+        `Maximum supported size is ${formatFileSize(OPENAI_TRANSCRIPTION_MAX_FILE_BYTES)}.`
+    );
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    OPENAI_TRANSCRIPTION_TIMEOUT_MS
+  );
+
+  try {
+    const file = new File([recordingBlob], getRecordingFileName(storagePath), {
+      type: mimeType || recordingBlob.type || 'application/octet-stream',
+    });
+
+    const formData = new FormData();
+    formData.append('model', OPENAI_TRANSCRIPTION_MODEL);
+    formData.append('file', file);
+
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_TRANSCRIPTION_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI transcription request timed out.');
+      }
+      throw new Error(
+        `Failed to reach OpenAI transcription API: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+
+    if (!response.ok) {
+      let errorDetail = '';
+      try {
+        errorDetail = await response.text();
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new Error('OpenAI transcription request timed out.');
+        }
+      }
+      throw new Error(
+        `OpenAI transcription API returned an error (status ${response.status}): ${errorDetail.slice(0, 500)}`
+      );
+    }
+
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenAI transcription request timed out.');
+      }
+      throw new Error(
+        'OpenAI transcription API returned a response that could not be parsed as JSON.'
+      );
+    }
+
+    const transcriptText = (responseBody as { text?: unknown })?.text;
+    if (typeof transcriptText !== 'string' || !transcriptText.trim()) {
+      throw new Error(
+        'OpenAI transcription API response did not include transcript text.'
+      );
+    }
+
+    return transcriptText.trim();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function loadPreferredTranscript(
+  serviceClient: SupabaseServiceClient,
+  sessionId: string,
+  userId: string
+): Promise<{ content: string; provider: string } | null> {
+  const { data, error } = await serviceClient
+    .from('transcripts_manual')
+    .select('content, provider')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .in('provider', TRANSCRIPT_PROVIDER_ORDER);
+
+  if (error) {
+    throw new Error('Failed to load transcript for this session.');
+  }
+
+  const transcript = TRANSCRIPT_PROVIDER_ORDER.map((provider) =>
+    data?.find(
+      (row: { content?: string | null; provider?: string | null }) =>
+        row.provider === provider && row.content?.trim()
+    )
+  ).find(Boolean);
+
+  if (!transcript) {
+    return null;
+  }
+
+  return {
+    content: transcript.content.trim(),
+    provider: transcript.provider,
+  };
+}
+
 // Marks a job as failed with the given error message
 async function markJobFailed(
-  // deno-lint-ignore no-explicit-any
-  serviceClient: any,
+  serviceClient: SupabaseServiceClient,
   jobId: string,
   errorMessage: string
 ): Promise<void> {
@@ -238,7 +405,10 @@ Deno.serve(async (req: Request) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -247,10 +417,10 @@ Deno.serve(async (req: Request) => {
     const { job_id } = body;
 
     if (!job_id) {
-      return new Response(
-        JSON.stringify({ error: 'job_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'job_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // 3. Create Supabase clients
@@ -277,7 +447,10 @@ Deno.serve(async (req: Request) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid or expired authentication token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -289,25 +462,33 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (jobError || !job) {
-      return new Response(
-        JSON.stringify({ error: 'Job not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Job not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify the job belongs to the authenticated user
     if (job.user_id !== user.id) {
       return new Response(
         JSON.stringify({ error: 'You do not have permission to run this job' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
     // Check if job is in a valid state to run
     if (job.status !== 'queued') {
       return new Response(
-        JSON.stringify({ error: `Job cannot be run. Current status: ${job.status}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: `Job cannot be run. Current status: ${job.status}`,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -323,7 +504,10 @@ Deno.serve(async (req: Request) => {
     if (updateProcessingError) {
       return new Response(
         JSON.stringify({ error: 'Failed to update job status to processing' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -332,74 +516,245 @@ Deno.serve(async (req: Request) => {
     let resultProvider: string;
     let resultModel: string;
 
-    if (AI_GENERATED_JOB_TYPES.has(job.job_type)) {
+    if (job.job_type === 'transcript') {
       // 7a. Ensure the OpenAI API key is configured
       const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
       if (!openaiApiKey) {
-        await markJobFailed(serviceClient, job_id, 'OpenAI API key is not configured.');
+        await markJobFailed(
+          serviceClient,
+          job_id,
+          'OpenAI API key is not configured.'
+        );
         return new Response(
           JSON.stringify({ error: 'OpenAI API key is not configured.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
         );
       }
 
-      // 7b. Load the manual transcript for this session
-      const { data: transcriptRow, error: transcriptError } = await serviceClient
-        .from('transcripts_manual')
-        .select('content')
-        .eq('session_id', job.session_id)
+      // 7b. Load the session recording metadata
+      const { data: session, error: sessionError } = await serviceClient
+        .from('sessions')
+        .select(
+          'id, recording_type, audio_storage_path, audio_mime_type, audio_file_size_bytes, video_storage_path, video_mime_type, video_file_size_bytes'
+        )
+        .eq('id', job.session_id)
         .eq('user_id', job.user_id)
-        .eq('provider', 'manual')
-        .maybeSingle();
+        .single();
 
-      if (transcriptError) {
-        await markJobFailed(serviceClient, job_id, 'Failed to load transcript for this session.');
+      if (sessionError || !session) {
+        const message = 'Session not found for this transcript job.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      let storagePath: string | null = null;
+      let mimeType: string | null = null;
+      let fileSizeBytes: number | null = null;
+
+      if (session.recording_type === 'audio') {
+        storagePath = session.audio_storage_path;
+        mimeType = session.audio_mime_type;
+        fileSizeBytes =
+          session.audio_file_size_bytes === null ||
+          session.audio_file_size_bytes === undefined
+            ? null
+            : Number(session.audio_file_size_bytes);
+      } else if (session.recording_type === 'video') {
+        storagePath = session.video_storage_path;
+        mimeType = session.video_mime_type;
+        fileSizeBytes =
+          session.video_file_size_bytes === null ||
+          session.video_file_size_bytes === undefined
+            ? null
+            : Number(session.video_file_size_bytes);
+      } else {
+        const message = 'No recording type is configured for this session.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (!storagePath) {
+        const message = 'No recording available for this session.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (
+        fileSizeBytes !== null &&
+        Number.isFinite(fileSizeBytes) &&
+        fileSizeBytes > OPENAI_TRANSCRIPTION_MAX_FILE_BYTES
+      ) {
+        const message =
+          `Recording is too large for OpenAI transcription (${formatFileSize(fileSizeBytes)}). ` +
+          `Maximum supported size is ${formatFileSize(OPENAI_TRANSCRIPTION_MAX_FILE_BYTES)}.`;
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 7c. Retrieve the private recording from Supabase Storage
+      const { data: recordingBlob, error: recordingError } =
+        await serviceClient.storage.from('replays').download(storagePath);
+
+      if (recordingError || !recordingBlob) {
+        const message = 'Failed to retrieve recording from storage.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 7d. Transcribe the recording with OpenAI
+      let transcriptText: string;
+      try {
+        transcriptText = await callOpenAITranscription(
+          recordingBlob,
+          storagePath,
+          mimeType,
+          openaiApiKey
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to transcribe recording.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 7e. Store generated transcripts separately from user-edited manual transcripts.
+      const { error: transcriptSaveError } = await serviceClient
+        .from('transcripts_manual')
+        .upsert(
+          {
+            user_id: job.user_id,
+            session_id: job.session_id,
+            provider: 'openai',
+            content: transcriptText,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'session_id,provider' }
+        );
+
+      if (transcriptSaveError) {
+        const message = 'Failed to save transcript for this session.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      outputContent = { transcript: transcriptText };
+      resultProvider = 'openai';
+      resultModel = OPENAI_TRANSCRIPTION_MODEL;
+    } else if (AI_GENERATED_JOB_TYPES.has(job.job_type)) {
+      // 7a. Ensure the OpenAI API key is configured
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (!openaiApiKey) {
+        await markJobFailed(
+          serviceClient,
+          job_id,
+          'OpenAI API key is not configured.'
+        );
         return new Response(
-          JSON.stringify({ error: 'Failed to load transcript for this session.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'OpenAI API key is not configured.' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
         );
       }
 
-      const transcriptText = transcriptRow?.content?.trim();
-      if (!transcriptText) {
+      // 7b. Load the preferred transcript for this session
+      let transcriptRow: { content: string; provider: string } | null;
+      try {
+        transcriptRow = await loadPreferredTranscript(
+          serviceClient,
+          job.session_id,
+          job.user_id
+        );
+      } catch {
+        await markJobFailed(
+          serviceClient,
+          job_id,
+          'Failed to load transcript for this session.'
+        );
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to load transcript for this session.',
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      if (!transcriptRow) {
         const message = 'No transcript available for this session.';
         await markJobFailed(serviceClient, job_id, message);
-        return new Response(
-          JSON.stringify({ error: message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       // 7c. Call OpenAI
       try {
-        outputContent = await callOpenAI(job.job_type, transcriptText, openaiApiKey);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to generate AI output.';
-        await markJobFailed(serviceClient, job_id, message);
-        return new Response(
-          JSON.stringify({ error: message }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        outputContent = await callOpenAI(
+          job.job_type,
+          transcriptRow.content,
+          openaiApiKey
         );
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to generate AI output.';
+        await markJobFailed(serviceClient, job_id, message);
+        return new Response(JSON.stringify({ error: message }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       resultProvider = 'openai';
       resultModel = OPENAI_MODEL;
     } else {
-      // Existing placeholder path for 'transcript' and 'suggest_bookmarks'
+      // Existing placeholder path for suggest_bookmarks
       outputContent = getPlaceholderOutput(job.job_type);
       resultProvider = 'placeholder';
       resultModel = 'mock-v1';
     }
 
     // 8. Insert output into ai_outputs
-    const { error: outputError } = await serviceClient.from('ai_outputs').insert({
-      user_id: user.id,
-      session_id: job.session_id,
-      job_id: job_id,
-      output_type: job.job_type,
-      content: outputContent,
-      created_at: new Date().toISOString(),
-    });
+    const { error: outputError } = await serviceClient
+      .from('ai_outputs')
+      .insert({
+        user_id: user.id,
+        session_id: job.session_id,
+        job_id: job_id,
+        output_type: job.job_type,
+        content: outputContent,
+        created_at: new Date().toISOString(),
+      });
 
     if (outputError) {
       // If output insertion fails, mark job as failed
@@ -407,7 +762,10 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({ error: 'Failed to create output' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -425,7 +783,10 @@ Deno.serve(async (req: Request) => {
     if (updateCompletedError) {
       return new Response(
         JSON.stringify({ error: 'Failed to update job status to completed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
@@ -436,13 +797,16 @@ Deno.serve(async (req: Request) => {
         status: 'completed',
         message: 'Job completed successfully',
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
     );
   } catch (error) {
     console.error('Edge function error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

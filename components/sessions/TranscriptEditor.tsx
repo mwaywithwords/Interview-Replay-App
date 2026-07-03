@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 interface TranscriptEditorProps {
   sessionId: string;
+  refreshKey?: string | null;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -37,10 +38,14 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
  * - Next/Prev navigation that scrolls within the transcript panel
  * - Works in dark mode
  */
-export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
+export function TranscriptEditor({
+  sessionId,
+  refreshKey = null,
+}: TranscriptEditorProps) {
   // Content state
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
+  const [transcriptProvider, setTranscriptProvider] = useState('manual');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,10 +58,22 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const matchRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasUnsavedChangesRef = useRef(false);
 
-  // Load existing transcript on mount
+  useEffect(() => {
+    hasUnsavedChangesRef.current = content !== savedContent;
+  }, [content, savedContent]);
+
+  // Load existing transcript on mount and after AI transcript generation completes.
   useEffect(() => {
     async function loadTranscript() {
+      // Do not overwrite user edits that have not been saved yet.
+      // TODO(#4): Surface that a generated transcript is available and reload
+      // after save/discard instead of silently skipping this refresh.
+      if (hasUnsavedChangesRef.current) {
+        return;
+      }
+
       setIsLoading(true);
       const { transcript, error: loadError } = await getTranscript(sessionId);
 
@@ -65,12 +82,13 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
       } else if (transcript) {
         setContent(transcript.content);
         setSavedContent(transcript.content);
+        setTranscriptProvider(transcript.provider);
       }
       setIsLoading(false);
     }
 
     loadTranscript();
-  }, [sessionId]);
+  }, [sessionId, refreshKey]);
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = content !== savedContent;
@@ -82,7 +100,8 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
 
     const { transcript, error: saveError } = await saveTranscript(
       sessionId,
-      content
+      content,
+      transcriptProvider
     );
 
     if (saveError) {
@@ -94,6 +113,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
 
     if (transcript) {
       setSavedContent(transcript.content);
+      setTranscriptProvider(transcript.provider);
       setSaveStatus('saved');
       toast.success('Transcript saved');
 
@@ -165,7 +185,9 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
   // Navigate to previous match
   const goToPrevMatch = useCallback(() => {
     if (matches.length === 0) return;
-    setCurrentMatchIndex((prev) => (prev - 1 + matches.length) % matches.length);
+    setCurrentMatchIndex(
+      (prev) => (prev - 1 + matches.length) % matches.length
+    );
   }, [matches.length]);
 
   // Clear search
@@ -200,7 +222,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
 
     if (!searchQuery.trim() || matches.length === 0) {
       return (
-        <p className="whitespace-pre-wrap text-foreground leading-relaxed">
+        <p className="text-foreground leading-relaxed whitespace-pre-wrap">
           {savedContent}
         </p>
       );
@@ -234,7 +256,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
             'rounded px-0.5',
             isCurrentMatch
               ? 'bg-primary text-primary-foreground'
-              : 'bg-yellow-300 dark:bg-yellow-600 text-foreground dark:text-foreground'
+              : 'text-foreground dark:text-foreground bg-yellow-300 dark:bg-yellow-600'
           )}
         >
           {savedContent.slice(match.start, match.end)}
@@ -252,7 +274,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
     }
 
     return (
-      <p className="whitespace-pre-wrap text-foreground leading-relaxed">
+      <p className="text-foreground leading-relaxed whitespace-pre-wrap">
         {elements}
       </p>
     );
@@ -291,7 +313,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
         />
 
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
             {saveStatus === 'saving' && (
               <span className="flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -305,7 +327,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
               </span>
             )}
             {saveStatus === 'error' && (
-              <span className="flex items-center gap-1.5 text-destructive">
+              <span className="text-destructive flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5" />
                 Error saving
               </span>
@@ -323,9 +345,9 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
             size="sm"
           >
             {saveStatus === 'saving' ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="mr-2 h-4 w-4" />
             )}
             Save Transcript
           </PrimaryButton>
@@ -338,27 +360,27 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
           {/* Search Bar */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search transcript..."
-                className="pl-9 pr-20"
+                className="pr-20 pl-9"
               />
               {searchQuery && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
+                  <span className="text-muted-foreground text-xs whitespace-nowrap">
                     {matches.length > 0
                       ? `${currentMatchIndex + 1}/${matches.length}`
                       : '0 results'}
                   </span>
                   <button
                     onClick={clearSearch}
-                    className="p-0.5 hover:bg-muted rounded"
+                    className="hover:bg-muted rounded p-0.5"
                     aria-label="Clear search"
                   >
-                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    <X className="text-muted-foreground h-3.5 w-3.5" />
                   </button>
                 </div>
               )}
@@ -390,7 +412,7 @@ export function TranscriptEditor({ sessionId }: TranscriptEditorProps) {
           {/* Transcript Display */}
           <div
             ref={transcriptContainerRef}
-            className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-muted/30 p-4"
+            className="border-border bg-muted/30 max-h-[400px] overflow-y-auto rounded-lg border p-4"
           >
             {renderHighlightedContent()}
           </div>

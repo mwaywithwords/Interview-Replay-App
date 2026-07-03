@@ -4,14 +4,18 @@ import { revalidatePath } from 'next/cache';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import type { Transcript } from '@/types';
 
+const TRANSCRIPT_PROVIDER_ORDER = ['openai', 'manual'];
+
 /**
  * Server Action: Get the transcript for a session
- * Returns null if no transcript exists yet
+ * Returns null if no transcript exists yet.
+ * By default, generated OpenAI transcripts are preferred with manual transcripts as a fallback.
+ * Passing a provider preserves exact-provider reads for callers that need them.
  * Enforces ownership: user must own the session
  */
 export async function getTranscript(
   sessionId: string,
-  provider: string = 'manual'
+  provider?: string
 ): Promise<{
   transcript: Transcript | null;
   error: string | null;
@@ -31,25 +35,46 @@ export async function getTranscript(
     return { transcript: null, error: 'Session not found or access denied' };
   }
 
-  // Fetch the transcript
-  const { data, error } = await supabase
+  const query = supabase
     .from('transcripts_manual')
-    .select('id, user_id, session_id, provider, content, created_at, updated_at')
+    .select(
+      'id, user_id, session_id, provider, content, created_at, updated_at'
+    )
     .eq('session_id', sessionId)
-    .eq('user_id', user.id)
-    .eq('provider', provider)
-    .single();
+    .eq('user_id', user.id);
 
-  // No transcript exists yet - that's fine, return null
-  if (error?.code === 'PGRST116') {
-    return { transcript: null, error: null };
+  if (provider) {
+    const { data, error } = await query.eq('provider', provider).single();
+
+    // No transcript exists yet - that's fine, return null
+    if (error?.code === 'PGRST116') {
+      return { transcript: null, error: null };
+    }
+
+    if (error) {
+      return { transcript: null, error: error.message };
+    }
+
+    return { transcript: data as Transcript, error: null };
   }
+
+  const { data, error } = await query.in('provider', TRANSCRIPT_PROVIDER_ORDER);
 
   if (error) {
     return { transcript: null, error: error.message };
   }
 
-  return { transcript: data as Transcript, error: null };
+  const transcript = TRANSCRIPT_PROVIDER_ORDER.map((preferredProvider) =>
+    data?.find(
+      (row) => row.provider === preferredProvider && row.content?.trim()
+    )
+  ).find(Boolean);
+
+  if (!transcript) {
+    return { transcript: null, error: null };
+  }
+
+  return { transcript: transcript as Transcript, error: null };
 }
 
 /**
@@ -76,7 +101,8 @@ export async function saveTranscript(
   if (sessionError || !session) {
     return {
       transcript: null,
-      error: 'Session not found or you do not have permission to save transcripts',
+      error:
+        'Session not found or you do not have permission to save transcripts',
     };
   }
 
@@ -94,7 +120,9 @@ export async function saveTranscript(
         onConflict: 'session_id,provider',
       }
     )
-    .select('id, user_id, session_id, provider, content, created_at, updated_at')
+    .select(
+      'id, user_id, session_id, provider, content, created_at, updated_at'
+    )
     .single();
 
   if (error) {

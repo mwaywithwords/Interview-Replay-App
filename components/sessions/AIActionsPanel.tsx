@@ -34,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export function AIActionsPanelSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-12 rounded-lg" />
@@ -339,13 +339,13 @@ function AIResultCard({
   const content = output.content as Record<string, unknown>;
 
   return (
-    <div className="bg-card border-border space-y-3 rounded-xl border p-4">
+    <div className="space-y-3 rounded-2xl border border-border/70 bg-card/65 p-4">
       <div className="flex items-center gap-3">
-        <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background">
           <Icon className="text-primary h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-foreground truncate text-sm font-bold">
+          <p className="truncate text-sm font-semibold text-foreground">
             {config.label}
           </p>
           <p className="text-muted-foreground text-[11px]">
@@ -664,15 +664,15 @@ export function AIActionsPanel({
       )}
 
       {!pipelineStarted && !reportComplete && (
-        <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+        <div className="space-y-4 rounded-3xl border border-border/70 bg-background/55 p-5 shadow-[var(--shadow-soft)]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Sparkles className="text-primary h-5 w-5" />
-              <h4 className="text-foreground text-base font-bold">
+              <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
                 Replay AI Interview Coach
               </h4>
             </div>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm font-medium leading-6 text-muted-foreground">
               Analyze your interview to generate a transcript, summary, score,
               and action items.
             </p>
@@ -680,7 +680,7 @@ export function AIActionsPanel({
           <PrimaryButton
             onClick={handleAnalyzeInterview}
             disabled={isStartingAnalysis || isLoadingJobs}
-            className="w-full"
+            className="w-full rounded-full"
           >
             {isStartingAnalysis ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -693,16 +693,16 @@ export function AIActionsPanel({
       )}
 
       {shouldShowProgress && (
-        <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+        <div className="space-y-4 rounded-3xl border border-border/70 bg-background/55 p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <Sparkles className="text-primary h-5 w-5" />
-                <h4 className="text-foreground text-base font-bold">
+                <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
                   {failedStep ? 'Analysis Paused' : 'Analyzing Interview...'}
                 </h4>
               </div>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
                 {failedStep
                   ? `${getJobTypeLabel(failedStep.jobType)} needs attention before the coach can continue.`
                   : 'Replay AI is working through your interview analysis.'}
@@ -758,15 +758,15 @@ export function AIActionsPanel({
               return (
                 <div
                   key={step.jobType}
-                  className="bg-muted/30 border-border rounded-xl border p-3"
+                  className="rounded-2xl border border-border/70 bg-card/65 p-3"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background">
                         <Icon className="text-muted-foreground h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-foreground truncate text-sm font-medium">
+                        <p className="truncate text-sm font-semibold text-foreground">
                           {getJobTypeLabel(step.jobType)}
                         </p>
                         {step.job?.error_message && step.status === 'failed' ? (
@@ -794,7 +794,7 @@ export function AIActionsPanel({
             <SecondaryButton
               onClick={handleRetryAnalysis}
               disabled={isRetryingAnalysis}
-              className="w-full"
+              className="w-full rounded-full"
             >
               {isRetryingAnalysis ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -809,12 +809,12 @@ export function AIActionsPanel({
 
       {reportComplete && !shouldShowProgress && (
         <div className="space-y-4">
-          <div className="bg-card border-border space-y-4 rounded-xl border p-5">
+          <div className="space-y-4 rounded-3xl border border-border/70 bg-background/55 p-5 shadow-[var(--shadow-soft)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <Sparkles className="text-primary h-5 w-5" />
-                  <h4 className="text-foreground text-base font-bold">
+                  <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
                     Interview Report
                   </h4>
                 </div>

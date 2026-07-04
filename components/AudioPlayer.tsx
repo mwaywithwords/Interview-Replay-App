@@ -242,7 +242,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
   // Empty state: No audio recording exists or missing audio_storage_path
   if (!hasAudio || (!isLoading && !audioUrl && !error)) {
     return (
-      <Card className={cn("border-border bg-card", className)}>
+      <Card className={cn("rounded-[1.75rem] border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur", className)}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg text-foreground">
             <Volume2 className="h-5 w-5 text-muted-foreground" />
@@ -254,7 +254,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="mb-4 rounded-full bg-muted p-4">
+            <div className="mb-4 rounded-2xl bg-muted p-4">
               <Music className="h-8 w-8 text-muted-foreground" />
             </div>
             <p className="text-foreground font-medium">No audio recording yet</p>
@@ -268,8 +268,8 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
   }
 
   return (
-    <Card className={cn("border-border bg-card", className)}>
-      <CardHeader>
+    <Card className={cn("overflow-hidden rounded-[1.75rem] border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur", className)}>
+      <CardHeader className="border-b border-border/70 bg-background/35">
         <CardTitle className="flex items-center gap-2 text-lg text-foreground">
           <Volume2 className="h-5 w-5 text-muted-foreground" />
           Audio Playback
@@ -278,7 +278,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
           Listen to your recorded interview audio
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 p-5">
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-8">
@@ -289,7 +289,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-center">
             <div className="flex flex-col items-center gap-3">
               <AlertCircle className="h-5 w-5 text-destructive" />
               <p className="text-sm text-foreground font-medium">{error}</p>
@@ -307,7 +307,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
 
         {/* Audio Player */}
         {audioUrl && !isLoading && !error && (
-          <div className="space-y-4">
+          <div className="rounded-3xl border border-border/70 bg-background/45 p-5 shadow-inner">
             {/* Hidden audio element */}
             <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
@@ -324,7 +324,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
               max={duration || 0}
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted
                 [&::-webkit-slider-thumb]:appearance-none
                 [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:h-4
@@ -342,7 +342,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
             />
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-4">
               {/* Skip backward button */}
               <Button
                 size="icon"
@@ -367,7 +367,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                     }
                   }
                 }}
-                className="rounded-full px-8 shadow-md"
+                className="rounded-full px-8 shadow-[var(--shadow-soft)]"
               >
                 {isPlaying ? (
                   <>
@@ -424,7 +424,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
             </div>
 
             {/* Speed Control */}
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
               <Gauge className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Speed:</span>
               <div className="flex items-center gap-1">
@@ -435,7 +435,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                     variant={playbackSpeed === speed ? 'default' : 'ghost'}
                     onClick={() => handleSpeedChange(speed)}
                     className={cn(
-                      "h-7 px-2 text-xs font-medium",
+                      "h-7 rounded-full px-2 text-xs font-medium",
                       playbackSpeed === speed 
                         ? "bg-primary text-primary-foreground" 
                         : "text-muted-foreground hover:text-foreground"

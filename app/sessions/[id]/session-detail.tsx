@@ -33,18 +33,13 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
-  Pencil,
   Trash2,
   Save,
-  X,
   Clock,
   Calendar,
-  ChevronRight,
-  Play,
   FileText,
   MessageSquare,
   Bookmark,
-  Activity,
   Lightbulb,
   Video,
   Mic,
@@ -55,6 +50,7 @@ import {
   Link as LinkIcon,
   Trash,
   ListChecks,
+  Sparkles,
 } from 'lucide-react';
 import type { SessionShare, AIJob, AIOutput } from '@/types';
 import type {
@@ -68,7 +64,6 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { VideoRecorder } from '@/components/VideoRecorder';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { SectionCard } from '@/components/layout/SectionCard';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -86,10 +81,10 @@ interface SessionDetailProps {
   initialAIOutputs?: AIOutput[];
 }
 
-const PRIORITY_DOT_COLOR: Record<'high' | 'medium' | 'low', string> = {
-  high: 'bg-red-500',
-  medium: 'bg-amber-500',
-  low: 'bg-muted-foreground',
+const PRIORITY_PILL_CLASS: Record<'high' | 'medium' | 'low', string> = {
+  high: 'border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400',
+  medium: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  low: 'border-border/60 bg-muted/50 text-muted-foreground',
 };
 
 interface ActionItem {
@@ -133,12 +128,50 @@ function getActionItems(output: AIOutput | null): ActionItem[] {
   return Array.isArray(content.items) ? (content.items as ActionItem[]) : [];
 }
 
+function getScoreInsights(output: AIOutput | null): {
+  score: number | null;
+  feedback: string | null;
+  rubric: Array<{
+    name: string;
+    score: number;
+    maxScore?: number;
+    feedback?: string;
+  }>;
+} {
+  if (!output) return { score: null, feedback: null, rubric: [] };
+  const content = output.content as Record<string, unknown>;
+  const score = typeof content.score === 'number' ? content.score : null;
+  const feedback =
+    typeof content.overallFeedback === 'string'
+      ? content.overallFeedback
+      : null;
+  const rubric = Array.isArray(content.rubric)
+    ? (content.rubric as Array<{
+        name: string;
+        score: number;
+        maxScore?: number;
+        feedback?: string;
+      }>)
+    : [];
+
+  return { score, feedback, rubric };
+}
+
 function getSessionTypeLabel(type: string | undefined): string {
   const labels: Record<string, string> = {
     interview: 'Interview',
     trading: 'Trading',
   };
   return labels[type || ''] || 'Unknown';
+}
+
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (!seconds || seconds <= 0) return null;
+  const totalMinutes = Math.round(seconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -156,10 +189,119 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant={variants[status] || 'secondary'}
-      className="px-3 py-1 text-[10px] tracking-wider uppercase"
+      className="rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase shadow-sm"
     >
       {status}
     </Badge>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+      {children}
+    </p>
+  );
+}
+
+function CircularScoreGauge({
+  value,
+  label,
+  helper,
+}: {
+  value: number;
+  label: string;
+  helper: string;
+}) {
+  const clampedValue = Math.max(0, Math.min(100, value));
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card/95 via-card/75 to-primary/[0.05] p-5 shadow-[var(--shadow-card)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--primary),transparent_55%)] opacity-[0.08]" />
+      <div className="relative flex items-center justify-between gap-4">
+        <div>
+          <SectionLabel>{label}</SectionLabel>
+          <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground/90">
+            {helper}
+          </p>
+        </div>
+        <div className="relative grid h-28 w-28 shrink-0 place-items-center">
+          <div
+            className="absolute inset-0 rounded-full opacity-90 blur-sm"
+            style={{
+              background: `conic-gradient(from 220deg, var(--primary) ${clampedValue * 3.6}deg, transparent 0deg)`,
+            }}
+          />
+          <div className="absolute inset-0 rounded-full bg-muted/40" />
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `conic-gradient(from 220deg, var(--primary) ${clampedValue * 3.6}deg, var(--muted) 0deg)`,
+            }}
+          />
+          <div className="absolute inset-[7px] rounded-full bg-card shadow-inner" />
+          <div className="relative text-center">
+            <div className="text-3xl font-semibold tracking-[-0.05em] text-foreground">
+              {clampedValue}
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              score
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressRing({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  const clampedValue = Math.max(0, Math.min(100, value));
+
+  return (
+    <div className="group flex items-center gap-3 rounded-2xl border border-border/40 bg-gradient-to-r from-background/70 to-background/40 p-3 transition-colors hover:border-primary/20 hover:bg-background/80">
+      <div className="relative grid h-12 w-12 shrink-0 place-items-center">
+        <div
+          className="absolute inset-0 rounded-full opacity-60 blur-[2px]"
+          style={{
+            background: `conic-gradient(var(--primary) ${clampedValue * 3.6}deg, transparent 0deg)`,
+          }}
+        />
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `conic-gradient(var(--primary) ${clampedValue * 3.6}deg, var(--muted) 0deg)`,
+          }}
+        />
+        <div className="absolute inset-1.5 rounded-full bg-card shadow-inner" />
+        <span className="relative text-xs font-semibold tabular-nums text-foreground">
+          {clampedValue}
+        </span>
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold tracking-[-0.02em] text-foreground">{label}</div>
+        <div className="text-xs font-medium text-muted-foreground/80">
+          {clampedValue}% rubric
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoreSnapshot({ score }: { score: number }) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.12] via-background/70 to-background/50 px-3 py-2.5 shadow-[var(--shadow-soft)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--primary),transparent_60%)] opacity-20" />
+      <div className="relative flex items-center justify-between gap-3">
+        <SectionLabel>Interview score</SectionLabel>
+        <span className="text-2xl font-semibold tabular-nums tracking-[-0.05em] text-foreground">{score}</span>
+      </div>
+    </div>
   );
 }
 
@@ -195,9 +337,18 @@ export function SessionDetail({
     () => getLatestOutputByType(aiOutputs, 'action_items'),
     [aiOutputs]
   );
+  const latestScoreOutput = useMemo(
+    () => getLatestOutputByType(aiOutputs, 'score'),
+    [aiOutputs]
+  );
   const { summary: summaryText, bullets: summaryBullets } =
     getSummaryInsights(latestSummaryOutput);
   const actionItems = getActionItems(latestActionItemsOutput);
+  const {
+    score: aiScore,
+    feedback: scoreFeedback,
+    rubric: scoreRubric,
+  } = getScoreInsights(latestScoreOutput);
   const hasAIInsights =
     Boolean(summaryText) || summaryBullets.length > 0 || actionItems.length > 0;
 
@@ -228,7 +379,6 @@ export function SessionDetail({
     isAudioSession && session.audio_storage_path !== null;
   const hasVideoRecording =
     isVideoSession && session.video_storage_path !== null;
-  const isReady = session.status === 'ready';
 
   // Form state
   const [title, setTitle] = useState(session.title);
@@ -265,7 +415,7 @@ export function SessionDetail({
       setIsEditing(false);
       toast.success('Session updated');
       router.refresh();
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to update session');
     } finally {
@@ -291,7 +441,7 @@ export function SessionDetail({
         description: 'Redirecting to dashboard...',
       });
       router.push('/dashboard');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       toast.error('Failed to delete session');
       setIsDeleting(false);
@@ -329,7 +479,7 @@ export function SessionDetail({
         setExistingShares((prev) => [result.share!, ...prev]);
         toast.success('Share link created');
       }
-    } catch (err) {
+    } catch {
       setShareError('Failed to generate share link. Please try again.');
       toast.error('Failed to generate share link');
     } finally {
@@ -384,7 +534,7 @@ export function SessionDetail({
         setShareUrl(null);
         toast.success('Share link revoked');
       }
-    } catch (err) {
+    } catch {
       setShareError('Failed to revoke share link. Please try again.');
       toast.error('Failed to revoke share link');
     } finally {
@@ -404,276 +554,239 @@ export function SessionDetail({
     }
   }
 
+  const displayScore = aiScore;
+  const sessionDuration =
+    session.duration_seconds ??
+    (isVideoSession ? session.video_duration_seconds : session.audio_duration_seconds);
+  const formattedDuration = formatDuration(sessionDuration);
+  const rubricSignals =
+    scoreRubric.length > 0
+      ? scoreRubric.slice(0, 4).map((item) => ({
+          label: item.name,
+          value: Math.round((item.score / (item.maxScore || 10)) * 100),
+        }))
+      : [];
+  const coachPreviewText = scoreFeedback || summaryText;
+  const topActionItems = actionItems.slice(0, 3);
+
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-10">
-      <div className="mb-10">
-        <Link
-          href="/dashboard"
-          className="text-muted-foreground hover:text-primary group mb-6 inline-flex items-center gap-2 text-sm font-bold transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          Back to Sessions
-        </Link>
+    <div className="relative mx-auto w-full max-w-[1600px] px-4 py-2 sm:px-6 lg:px-8 lg:py-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120px] bg-[radial-gradient(circle_at_top,var(--primary),transparent_55%)] opacity-10" />
 
-        <div className="bg-card border-border flex flex-col justify-between gap-6 rounded-2xl border p-6 shadow-sm md:flex-row md:items-center">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <StatusBadge status={session.status} />
-              <span className="text-muted-foreground flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase">
-                {isAudioSession ? (
-                  <Mic className="h-3 w-3" />
-                ) : (
-                  <Video className="h-3 w-3" />
-                )}
-                {getSessionTypeLabel(sessionType)}
-              </span>
-            </div>
-            <h1 className="text-foreground text-3xl font-extrabold tracking-tight">
-              {session.title}
-            </h1>
-            <div className="text-muted-foreground flex items-center gap-6 text-sm font-bold">
-              <span className="flex items-center gap-2">
-                <Calendar className="text-muted-foreground h-4 w-4" />
-                {new Date(session.created_at).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </span>
-              <span className="flex items-center gap-2">
-                <Clock className="text-muted-foreground h-4 w-4" />
-                {new Date(session.created_at).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          </div>
+      {/* Compact session header */}
+      <header className="mb-2 rounded-2xl border border-border/40 bg-card/55 px-3 py-2 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-start gap-3">
+            <Link
+              href="/sessions"
+              className="group mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-border/50 bg-background/50 p-1.5 text-muted-foreground shadow-sm transition-all hover:border-border hover:bg-accent/80 hover:text-foreground"
+              aria-label="Back to sessions"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            </Link>
 
-          <div className="flex items-center gap-3">
-            {!isEditing && (
-              <>
-                {/* Share Button */}
-                <Dialog
-                  open={isShareDialogOpen}
-                  onOpenChange={handleShareDialogChange}
-                >
-                  <DialogTrigger asChild>
-                    <SecondaryButton
-                      size="sm"
-                      className="border-border bg-muted/50 hover:bg-accent text-foreground rounded-full px-4 transition-colors"
-                    >
-                      <Share2 className="text-muted-foreground mr-2 h-4 w-4" />
-                      Share
-                    </SecondaryButton>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <Share2 className="h-5 w-5" />
-                        Share Session
-                      </DialogTitle>
-                      <DialogDescription>
-                        Create a secure link to share this session. Anyone with
-                        the link can view the replay in read-only mode.
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-4">
-                      {shareError && (
-                        <Alert variant="destructive">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>{shareError}</AlertDescription>
-                        </Alert>
-                      )}
-
-                      {/* Generate new share link */}
-                      {!shareUrl && (
-                        <PrimaryButton
-                          onClick={handleGenerateShareLink}
-                          disabled={isGeneratingShare}
-                          className="w-full"
-                        >
-                          {isGeneratingShare ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Generating...
-                            </>
-                          ) : (
-                            <>
-                              <LinkIcon className="mr-2 h-4 w-4" />
-                              Generate Share Link
-                            </>
-                          )}
-                        </PrimaryButton>
-                      )}
-
-                      {/* Display generated share link */}
-                      {shareUrl && (
-                        <div className="space-y-3">
-                          <Label>Share Link</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={shareUrl}
-                              readOnly
-                              className="font-mono text-sm"
-                            />
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              onClick={handleCopyShareUrl}
-                              className="shrink-0"
-                            >
-                              {copied ? (
-                                <Check className="h-4 w-4 text-emerald-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            Anyone with this link can view the session in
-                            read-only mode.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Existing shares */}
-                      {existingShares.length > 0 && (
-                        <div className="space-y-3 border-t pt-4">
-                          <Label className="text-muted-foreground">
-                            Active Share Links ({existingShares.length})
-                          </Label>
-                          <div className="max-h-[200px] space-y-2 overflow-y-auto">
-                            {existingShares.map((share) => {
-                              const baseUrl =
-                                typeof window !== 'undefined'
-                                  ? window.location.origin
-                                  : '';
-                              const url = `${baseUrl}/share/${share.share_token ?? ''}`;
-                              return (
-                                <div
-                                  key={share.id}
-                                  className="bg-muted/50 border-border flex items-center justify-between rounded-lg border p-2"
-                                >
-                                  <div className="mr-2 min-w-0 flex-1">
-                                    <p className="text-muted-foreground truncate font-mono text-xs">
-                                      {share.share_token?.slice(0, 20) ?? 'N/A'}
-                                      ...
-                                    </p>
-                                    <p className="text-muted-foreground text-[10px]">
-                                      Created{' '}
-                                      {new Date(
-                                        share.created_at
-                                      ).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-7 w-7"
-                                      onClick={() => handleCopyUrl(url)}
-                                    >
-                                      <Copy className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="text-destructive hover:text-destructive h-7 w-7"
-                                      onClick={() =>
-                                        handleRevokeShare(share.id)
-                                      }
-                                      disabled={revokingShareId === share.id}
-                                    >
-                                      {revokingShareId === share.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Trash className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {isLoadingShares && (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <SecondaryButton
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  className="border-border bg-muted/50 hover:bg-accent text-foreground rounded-full px-4 transition-colors"
-                >
-                  <Settings2 className="text-muted-foreground mr-2 h-4 w-4" />
-                  Session Settings
-                </SecondaryButton>
-              </>
-            )}
-            {isEditing && (
-              <div className="flex items-center gap-2">
-                <SecondaryButton
-                  size="sm"
-                  onClick={handleCancelEdit}
-                  disabled={isLoading}
-                  className="border-border rounded-full px-4"
-                >
-                  Cancel
-                </SecondaryButton>
-                <PrimaryButton
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={isLoading || !title.trim()}
-                  className="shadow-primary/20 rounded-full px-5 shadow-lg"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save Changes
-                </PrimaryButton>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="truncate text-lg font-semibold tracking-[-0.03em] text-foreground sm:text-xl">
+                  {session.title}
+                </h1>
+                <StatusBadge status={session.status} />
+                <Badge variant="outline" className="gap-1 rounded-full border-border/50 bg-background/40 px-2 py-0.5 text-[10px]">
+                  {isAudioSession ? <Mic className="h-3 w-3" /> : <Video className="h-3 w-3" />}
+                  {getSessionTypeLabel(sessionType)}
+                </Badge>
               </div>
-            )}
+
+              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-medium text-muted-foreground">
+                <span>{session.status === 'ready' ? 'Recorded' : session.status}</span>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(session.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {new Date(session.created_at).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>
+                {formattedDuration && (
+                  <>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span>{formattedDuration}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="hidden shrink-0 items-center sm:flex">
+              <div className="flex items-center gap-1.5 rounded-full border border-border/40 bg-gradient-to-r from-background/70 to-background/40 px-2.5 py-1 shadow-sm">
+                <SectionLabel>Score</SectionLabel>
+                <span className={cn('text-sm font-semibold tabular-nums', displayScore !== null ? 'text-foreground' : 'text-muted-foreground')}>
+                  {displayScore ?? '—'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5">
+              {!isEditing && (
+                <>
+                  <Dialog open={isShareDialogOpen} onOpenChange={handleShareDialogChange}>
+                    <DialogTrigger asChild>
+                      <SecondaryButton size="sm" className="h-8 rounded-full border-border/70 bg-background/70 px-2.5">
+                        <Share2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Share</span>
+                      </SecondaryButton>
+                    </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Share2 className="h-5 w-5" />
+                            Share Session
+                          </DialogTitle>
+                          <DialogDescription>
+                            Create a secure link to share this session. Anyone with the link can view the replay in read-only mode.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                          {shareError && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription>{shareError}</AlertDescription>
+                            </Alert>
+                          )}
+
+                          {!shareUrl && (
+                            <PrimaryButton onClick={handleGenerateShareLink} disabled={isGeneratingShare} className="w-full">
+                              {isGeneratingShare ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <LinkIcon className="h-4 w-4" />
+                                  Generate Share Link
+                                </>
+                              )}
+                            </PrimaryButton>
+                          )}
+
+                          {shareUrl && (
+                            <div className="space-y-3">
+                              <Label>Share Link</Label>
+                              <div className="flex items-center gap-2">
+                                <Input value={shareUrl} readOnly className="font-mono text-sm" />
+                                <Button size="icon" variant="outline" onClick={handleCopyShareUrl} className="shrink-0">
+                                  {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Anyone with this link can view the session in read-only mode.</p>
+                            </div>
+                          )}
+
+                          {existingShares.length > 0 && (
+                            <div className="space-y-3 border-t border-border/70 pt-4">
+                              <Label className="text-muted-foreground">Active Share Links ({existingShares.length})</Label>
+                              <div className="max-h-[200px] space-y-2 overflow-y-auto">
+                                {existingShares.map((share) => {
+                                  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                                  const url = `${baseUrl}/share/${share.share_token ?? ''}`;
+                                  return (
+                                    <div key={share.id} className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 p-2">
+                                      <div className="mr-2 min-w-0 flex-1">
+                                        <p className="truncate font-mono text-xs text-muted-foreground">
+                                          {share.share_token?.slice(0, 20) ?? 'N/A'}...
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">Created {new Date(share.created_at).toLocaleDateString()}</p>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleCopyUrl(url)}>
+                                          <Copy className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 text-destructive hover:text-destructive"
+                                          onClick={() => handleRevokeShare(share.id)}
+                                          disabled={revokingShareId === share.id}
+                                        >
+                                          {revokingShareId === share.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash className="h-3 w-3" />}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {isLoadingShares && (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    <SecondaryButton size="sm" onClick={() => setIsEditing(true)} className="h-8 rounded-full border-border/70 bg-background/70 px-2.5">
+                      <Settings2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Settings</span>
+                    </SecondaryButton>
+                  </>
+                )}
+                {isEditing && (
+                  <div className="flex items-center gap-1.5">
+                    <SecondaryButton size="sm" onClick={handleCancelEdit} disabled={isLoading} className="h-8 rounded-full border-border px-2.5">
+                      Cancel
+                    </SecondaryButton>
+                    <PrimaryButton size="sm" onClick={handleSave} disabled={isLoading || !title.trim()} className="h-8 rounded-full px-3 shadow-lg shadow-primary/20">
+                      {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Save
+                    </PrimaryButton>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          {/* Mobile score row */}
+          <div className="flex items-center gap-1.5 sm:hidden">
+            <div className="flex flex-1 items-center justify-between rounded-xl border border-border/70 bg-background/55 px-2.5 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">AI Score</span>
+              <span className={cn('text-sm font-semibold tabular-nums', displayScore !== null ? 'text-foreground' : 'text-muted-foreground')}>
+                {displayScore ?? '—'}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {error && (
-        <Alert variant="destructive" className="mb-8">
+        <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {isEditing && (
-        <SectionCard className="mb-8" title="Edit Session Information">
+        <SectionCard className="mb-6" title="Edit Session Information">
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Session Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Google Mock Interview"
-                />
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Google Mock Interview" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="session_type">Session Type</Label>
-                <Select
-                  value={sessionType}
-                  onValueChange={(value: SessionType) => setSessionType(value)}
-                >
+                <Select value={sessionType} onValueChange={(value: SessionType) => setSessionType(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -686,45 +799,21 @@ export function SessionDetail({
             </div>
             <div className="space-y-2">
               <Label htmlFor="prompt">Context / Prompt</Label>
-              <Textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Job description, specific questions, etc."
-                className="h-[110px]"
-              />
+              <Textarea id="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Job description, specific questions, etc." className="h-[110px]" />
             </div>
           </div>
 
-          <div className="border-border mt-6 flex justify-end border-t pt-6">
+          <div className="mt-6 flex justify-end border-t border-border pt-6">
             {!showDeleteConfirm ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
+              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 className="h-3.5 w-3.5" />
                 Delete Session
               </Button>
             ) : (
               <div className="flex items-center gap-4">
-                <span className="text-muted-foreground text-sm">
-                  Are you sure?
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
+                <span className="text-sm text-muted-foreground">Are you sure?</span>
+                <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
                   {isDeleting ? 'Deleting...' : 'Confirm Delete'}
                 </Button>
               </div>
@@ -733,295 +822,243 @@ export function SessionDetail({
         </SectionCard>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
-        {/* Left Column */}
-        <div className="space-y-8">
-          {/* Recording/Playback Section */}
-          <SectionCard className="border-none bg-transparent p-0 shadow-none">
+      <div className="flex flex-col gap-1 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(280px,31%)] xl:items-start xl:gap-x-2 xl:gap-y-1">
+        {/* Left column row 1 / mobile order 1: video */}
+        <section className="order-1 min-w-0 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-b from-zinc-950/90 via-zinc-950 to-zinc-950/95 p-0.5 shadow-[var(--shadow-elevated)] ring-1 ring-white/[0.06] backdrop-blur xl:order-none xl:col-start-1 xl:row-start-1">
+          <div className="p-0.5 sm:p-1">
             {isAudioSession && !hasAudioRecording && (
-              <AudioRecorder
-                sessionId={session.id}
-                userId={session.user_id}
-                onUploadComplete={() => {
-                  router.refresh();
-                }}
-              />
+              <AudioRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />
             )}
-            {isAudioSession && hasAudioRecording && (
-              <AudioPlayer
-                ref={mediaPlayerRef}
-                sessionId={session.id}
-                hasAudio={true}
-              />
-            )}
+            {isAudioSession && hasAudioRecording && <AudioPlayer ref={mediaPlayerRef} sessionId={session.id} hasAudio={true} />}
             {isVideoSession && !hasVideoRecording && (
-              <VideoRecorder
-                sessionId={session.id}
-                userId={session.user_id}
-                onUploadComplete={() => {
-                  router.refresh();
-                }}
-              />
+              <VideoRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />
             )}
             {isVideoSession && hasVideoRecording && (
-              <VideoPlayer
-                ref={mediaPlayerRef}
-                sessionId={session.id}
-                hasVideo={true}
-              />
+              <VideoPlayer ref={mediaPlayerRef} sessionId={session.id} hasVideo={true} compact />
             )}
             {!isAudioSession && !isVideoSession && (
-              <EmptyState
-                icon={AlertCircle}
-                title="Configuration Missing"
-                description="This session doesn't have a recording type configured."
-              />
+              <EmptyState icon={AlertCircle} title="Configuration Missing" description="This session doesn't have a recording type configured." />
             )}
-          </SectionCard>
+          </div>
+        </section>
 
-          {/* Tabbed Content */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="space-y-6"
-          >
-            <TabsList className="bg-muted border-border h-12 w-full justify-start gap-1 rounded-xl border p-1">
-              <TabsTrigger
-                value="transcript"
-                active={activeTab === 'transcript'}
-                className="data-[state=active]:bg-background data-[state=active]:text-primary h-10 gap-2 rounded-lg px-4 data-[state=active]:shadow-sm"
-              >
-                <MessageSquare className="h-4 w-4" />
+        {/* Right column / mobile order 2: compact AI Coach — spans left-column rows so row 1 height matches video only */}
+        <aside className="order-2 min-w-0 xl:order-none xl:col-start-2 xl:row-start-1 xl:row-span-3 xl:self-start">
+          <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-3 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-4">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,var(--primary),transparent_55%)] opacity-[0.12]" />
+            <div className="relative mb-3 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary/80">Companion</p>
+                <h2 className="text-base font-semibold tracking-[-0.03em] text-foreground">AI Coach</h2>
+                <p className="text-xs font-medium text-muted-foreground/85">Summary and analysis controls.</p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">
+                <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              </div>
+            </div>
+
+            <div className="relative mb-3 space-y-2">
+              {displayScore !== null && <ScoreSnapshot score={displayScore} />}
+
+              {coachPreviewText && (
+                <div className="rounded-xl border border-border/35 bg-background/45 p-3 backdrop-blur-sm">
+                  <div className="mb-1.5 flex items-center gap-2 border-l-2 border-primary/50 pl-2">
+                    <SectionLabel>Summary</SectionLabel>
+                  </div>
+                  <p className="line-clamp-3 text-sm font-medium leading-6 text-muted-foreground/90">
+                    {coachPreviewText}
+                  </p>
+                </div>
+              )}
+
+              {topActionItems.length > 0 && (
+                <div className="rounded-xl border border-border/35 bg-background/45 p-3 backdrop-blur-sm">
+                  <SectionLabel>Top actions</SectionLabel>
+                  <div className="mt-2 space-y-1.5">
+                    {topActionItems.map((item, i) => (
+                      <div
+                        key={`top-action-${i}`}
+                        className="flex items-start gap-2 rounded-lg border border-transparent px-1 py-0.5 transition-colors hover:border-border/40 hover:bg-background/50"
+                      >
+                        {item.priority && (
+                          <span className={cn('mt-1.5 inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider', PRIORITY_PILL_CLASS[item.priority])}>
+                            {item.priority}
+                          </span>
+                        )}
+                        <span className="line-clamp-2 text-sm font-medium leading-6 text-foreground">{item.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {actionItems.length > topActionItems.length && (
+                    <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+                      {actionItems.length - topActionItems.length} more in the full report below.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <AIActionsPanel sessionId={session.id} initialJobs={initialAIJobs} onOutputsChange={handleAIOutputsChange} />
+          </section>
+        </aside>
+
+        {/* Left column row 2 / mobile order 3: transcript workspace */}
+        <section className="order-3 min-w-0 rounded-2xl border border-border/40 bg-gradient-to-b from-background/80 via-background/65 to-background/55 px-3 py-2 shadow-[var(--shadow-soft)] backdrop-blur-sm sm:px-4 sm:py-3 xl:order-none xl:col-start-1 xl:row-start-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-2">
+            <TabsList className="h-auto w-full justify-start gap-0.5 overflow-x-auto rounded-xl border border-border/35 bg-muted/40 p-0.5 backdrop-blur-sm">
+              <TabsTrigger value="transcript" active={activeTab === 'transcript'} className="h-8 gap-1.5 rounded-lg px-3 text-xs data-[state=active]:shadow-sm">
+                <MessageSquare className="h-3.5 w-3.5" />
                 Transcript
               </TabsTrigger>
-              <TabsTrigger
-                value="notes"
-                active={activeTab === 'notes'}
-                className="data-[state=active]:bg-background data-[state=active]:text-primary h-10 gap-2 rounded-lg px-4 data-[state=active]:shadow-sm"
-              >
-                <FileText className="h-4 w-4" />
+              <TabsTrigger value="notes" active={activeTab === 'notes'} className="h-8 gap-1.5 rounded-lg px-3 text-xs data-[state=active]:shadow-sm">
+                <FileText className="h-3.5 w-3.5" />
                 Notes
               </TabsTrigger>
-              <TabsTrigger
-                value="bookmarks"
-                active={activeTab === 'bookmarks'}
-                className="data-[state=active]:bg-background data-[state=active]:text-primary h-10 gap-2 rounded-lg px-4 data-[state=active]:shadow-sm"
-              >
-                <Bookmark className="h-4 w-4" />
+              <TabsTrigger value="bookmarks" active={activeTab === 'bookmarks'} className="h-8 gap-1.5 rounded-lg px-3 text-xs data-[state=active]:shadow-sm">
+                <Bookmark className="h-3.5 w-3.5" />
                 Bookmarks
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="transcript" active={activeTab === 'transcript'}>
-              <SectionCard
-                title="Session Transcript"
-                className="bg-card border-border"
-              >
-                <TranscriptEditor
-                  sessionId={session.id}
-                  refreshKey={latestTranscriptOutput?.id ?? null}
-                />
-              </SectionCard>
+              <TranscriptEditor sessionId={session.id} refreshKey={latestTranscriptOutput?.id ?? null} />
             </TabsContent>
-
             <TabsContent value="notes" active={activeTab === 'notes'}>
-              <SectionCard title="Personal Notes">
-                <SessionNoteEditor sessionId={session.id} />
-              </SectionCard>
+              <SessionNoteEditor sessionId={session.id} />
             </TabsContent>
-
             <TabsContent value="bookmarks" active={activeTab === 'bookmarks'}>
-              <SectionCard title="Saved Moments">
-                <BookmarksList
-                  sessionId={session.id}
-                  initialBookmarks={initialBookmarks}
-                  mediaPlayerRef={mediaPlayerRef}
-                />
-              </SectionCard>
+              <BookmarksList sessionId={session.id} initialBookmarks={initialBookmarks} mediaPlayerRef={mediaPlayerRef} />
             </TabsContent>
           </Tabs>
-        </div>
+        </section>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          {/* Replay AI */}
-          <SectionCard title="Replay AI" className="bg-card border-border">
-            <AIActionsPanel
-              sessionId={session.id}
-              initialJobs={initialAIJobs}
-              onOutputsChange={handleAIOutputsChange}
-            />
-          </SectionCard>
-
-          {/*
-            Speech Analysis - TODO: still placeholder data.
-            Filler word count and pace both require transcript-derived timing
-            (word-level timestamps), which isn't produced by ai_run_job yet.
-            Wire this up once a transcript/timing analysis job type exists.
-          */}
-          <SectionCard
-            title="Performance Metrics"
-            className="bg-card border-border"
-          >
-            <div className="space-y-8">
-              <div className="group">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-2 text-sm font-bold">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
-                      <MessageSquare className="h-4 w-4 text-amber-500" />
-                    </div>
-                    Filler Words
-                  </span>
-                  <span className="text-foreground text-xl font-black">12</span>
-                </div>
-                <div className="bg-muted h-3 w-full overflow-hidden rounded-full">
-                  <div className="h-full w-[70%] origin-left rounded-full bg-amber-500 transition-all duration-500 group-hover:scale-x-105" />
-                </div>
-                <p className="text-muted-foreground mt-2 text-[11px] font-medium">
-                  Try to reduce 'um' and 'like' usage by 20%.
-                </p>
+        {/* Left column row 3 / mobile order 4: detailed report */}
+        {(displayScore !== null || hasAIInsights) && (
+          <section className="order-4 min-w-0 rounded-2xl border border-border/40 bg-gradient-to-b from-card/70 via-card/60 to-background/50 p-4 shadow-[var(--shadow-soft)] backdrop-blur-sm sm:p-5 xl:order-none xl:col-start-1 xl:row-start-3">
+            <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+              <div>
+                <SectionLabel>Detailed analysis</SectionLabel>
+                <h2 className="mt-1 text-base font-semibold tracking-[-0.03em] text-foreground">Interview report</h2>
+                <p className="text-xs font-medium text-muted-foreground/85">Score, rubric breakdown, and coaching feedback.</p>
               </div>
-
-              <div className="group">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-2 text-sm font-bold">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-                      <Activity className="h-4 w-4 text-emerald-500" />
-                    </div>
-                    Pace
-                  </span>
-                  <span className="text-foreground text-xl font-black">
-                    135{' '}
-                    <span className="text-muted-foreground text-xs font-normal">
-                      wpm
-                    </span>
-                  </span>
-                </div>
-                <div className="bg-muted h-3 w-full overflow-hidden rounded-full">
-                  <div className="h-full w-[85%] origin-left rounded-full bg-emerald-500 transition-all duration-500 group-hover:scale-x-105" />
-                </div>
-                <p className="text-muted-foreground mt-2 text-[11px] font-medium">
-                  Excellent! You are within the ideal speaking range.
-                </p>
-              </div>
+              <Badge variant={aiScore === null ? 'secondary' : 'success'} className="rounded-full">
+                {aiScore === null ? 'Pending' : 'Scored'}
+              </Badge>
             </div>
-          </SectionCard>
 
-          {/* AI Feedback - driven by the latest completed Summary and Action Items outputs */}
-          <SectionCard title="AI Insights" className="bg-card border-border">
-            {!hasAIInsights ? (
-              <p className="text-muted-foreground py-4 text-center text-sm">
-                Generate AI insights to see personalized feedback.
-              </p>
-            ) : (
+            {displayScore !== null ? (
               <div className="space-y-4">
-                {summaryText && (
-                  <div className="bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/20 group flex gap-4 rounded-xl border p-4 transition-all">
-                    <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-                      <Lightbulb className="h-4 w-4 text-amber-500" />
+                <CircularScoreGauge value={displayScore} label="Interview score" helper="Composite score from the latest AI report." />
+
+                {rubricSignals.length > 0 && (
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold tracking-[-0.02em] text-foreground">Rubric breakdown</h3>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {rubricSignals.map((item) => (
+                        <ProgressRing key={item.label} value={item.value} label={item.label} />
+                      ))}
                     </div>
-                    <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                      {summaryText}
+                  </div>
+                )}
+
+                {(scoreFeedback || summaryText) && (
+                  <div className="rounded-xl border border-border/35 bg-gradient-to-br from-background/70 to-background/40 p-4 backdrop-blur-sm">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-warning/20 bg-warning/10">
+                        <Lightbulb className="h-4 w-4 text-warning" />
+                      </div>
+                      <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Coaching feedback</h3>
+                    </div>
+                    <p className="text-sm font-medium leading-7 text-muted-foreground/90">
+                      {scoreFeedback || summaryText}
                     </p>
                   </div>
                 )}
 
-                {summaryBullets.map((bullet, i) => (
-                  <div
-                    key={`summary-bullet-${i}`}
-                    className="bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/20 group flex gap-4 rounded-xl border p-4 transition-all"
-                  >
-                    <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-                      <Activity className="h-4 w-4 text-blue-500" />
+                {summaryBullets.length > 0 && (
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold tracking-[-0.02em] text-foreground">Key takeaways</h3>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {summaryBullets.map((bullet, i) => (
+                        <div key={i} className="rounded-xl border border-border/35 bg-background/45 p-3 text-sm font-medium leading-6 text-muted-foreground/90 transition-colors hover:border-border/60 hover:bg-background/60">
+                          {bullet}
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                      {bullet}
+                  </div>
+                )}
+
+                {actionItems.length > 0 && (
+                  <div className="border-t border-border/60 pt-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-semibold text-foreground">Full action plan</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {actionItems.map((item, i) => (
+                        <div key={`action-item-${i}`} className="rounded-xl border border-border/35 bg-background/45 p-3 transition-colors hover:border-primary/15 hover:bg-background/60">
+                          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold leading-6 text-foreground">
+                            {item.priority && (
+                              <span className={cn('inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider', PRIORITY_PILL_CLASS[item.priority])}>
+                                {item.priority}
+                              </span>
+                            )}
+                            {item.title}
+                          </p>
+                          {item.description && <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground/85">{item.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {(scoreFeedback || summaryText) && (
+                  <div className="rounded-xl border border-border/35 bg-gradient-to-br from-background/70 to-background/40 p-4 backdrop-blur-sm">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-warning/20 bg-warning/10">
+                        <Lightbulb className="h-4 w-4 text-warning" />
+                      </div>
+                      <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">Coaching feedback</h3>
+                    </div>
+                    <p className="text-sm font-medium leading-7 text-muted-foreground/90">
+                      {scoreFeedback || summaryText}
                     </p>
                   </div>
-                ))}
+                )}
 
-                {actionItems.map((item, i) => (
-                  <div
-                    key={`action-item-${i}`}
-                    className="bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/20 group flex gap-4 rounded-xl border p-4 transition-all"
-                  >
-                    <div className="bg-background border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm">
-                      <ListChecks className="text-primary h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-foreground flex items-center gap-2 text-sm leading-relaxed font-bold">
-                        {item.priority && (
-                          <span
-                            className={cn(
-                              'h-1.5 w-1.5 shrink-0 rounded-full',
-                              PRIORITY_DOT_COLOR[item.priority]
-                            )}
-                          />
-                        )}
-                        {item.title}
-                      </p>
-                      {item.description && (
-                        <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed font-medium">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
+                {summaryBullets.length > 0 && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {summaryBullets.map((bullet, i) => (
+                      <div key={i} className="rounded-xl border border-border/35 bg-background/45 p-3 text-sm font-medium leading-6 text-muted-foreground/90">
+                        {bullet}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {actionItems.length > 0 && (
+                  <div className="space-y-2">
+                    {actionItems.map((item, i) => (
+                      <div key={`action-item-${i}`} className="rounded-xl border border-border/35 bg-background/45 p-3">
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold leading-6 text-foreground">
+                          {item.priority && (
+                            <span className={cn('inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider', PRIORITY_PILL_CLASS[item.priority])}>
+                              {item.priority}
+                            </span>
+                          )}
+                          {item.title}
+                        </p>
+                        {item.description && <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground/85">{item.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </SectionCard>
-
-          {/*
-            Key Moments - TODO: still placeholder data.
-            Real "jump to moment" timestamps depend on either bookmarks with
-            timestamps (see suggest_bookmarks job/BookmarksList) or transcript
-            timing data. Wire this up to real bookmarks once that flow is
-            surfaced here instead of this static sample list.
-          */}
-          <SectionCard
-            title="Jump to Moments"
-            className="bg-card border-border"
-          >
-            <div className="space-y-3">
-              {[
-                {
-                  time: '03:10',
-                  label: 'Strengths & Weaknesses',
-                  icon: MessageSquare,
-                },
-                {
-                  time: '07:45',
-                  label: 'Case Study Question',
-                  icon: Lightbulb,
-                },
-                { time: '12:30', label: 'Follow-up Questions', icon: Activity },
-              ].map((moment, i) => (
-                <button
-                  key={i}
-                  className="hover:border-border hover:bg-muted/50 group bg-muted/30 flex w-full items-center justify-between rounded-xl border border-transparent p-3.5 text-left shadow-sm transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="bg-background text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary border-border flex h-10 w-10 items-center justify-center rounded-lg border transition-colors">
-                      <moment.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] font-bold tracking-widest uppercase">
-                        {moment.time}
-                      </span>
-                      <span className="text-foreground text-sm font-bold">
-                        {moment.label}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-background border-border flex h-8 w-8 items-center justify-center rounded-full border opacity-0 transition-all group-hover:opacity-100">
-                    <Play className="text-primary h-3 w-3 fill-current" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
+          </section>
+        )}
       </div>
     </div>
   );

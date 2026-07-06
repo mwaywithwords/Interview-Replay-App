@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { SignInForm } from '@/components/auth/SignInForm';
+import { AuthShell } from '@/components/auth/AuthShell';
 import { AppShell } from '@/components/layout/AppShell';
 import type { Metadata } from 'next';
 
@@ -10,11 +11,15 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <AppShell showNav={false}>
-      <div className="flex-1 flex items-center justify-center bg-background px-4 py-12">
+      <AuthShell
+        eyebrow="Welcome back"
+        title="Sign in to Replay AI"
+        description="Continue your interview practice with recordings, bookmarks, and focused review."
+      >
         <Suspense fallback={<SignInFormSkeleton />}>
           <SignInForm />
         </Suspense>
-      </div>
+      </AuthShell>
     </AppShell>
   );
 }

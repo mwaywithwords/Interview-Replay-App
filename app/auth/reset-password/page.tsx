@@ -1,4 +1,5 @@
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
+import { AuthShell } from '@/components/auth/AuthShell';
 import { AppShell } from '@/components/layout/AppShell';
 import type { Metadata } from 'next';
 
@@ -9,9 +10,13 @@ export const metadata: Metadata = {
 export default function ResetPasswordPage() {
   return (
     <AppShell showNav={false}>
-      <div className="flex-1 flex items-center justify-center bg-background px-4 py-12">
+      <AuthShell
+        eyebrow="New password"
+        title="Choose a stronger key"
+        description="Update your password without changing the existing recovery flow."
+      >
         <ResetPasswordForm />
-      </div>
+      </AuthShell>
     </AppShell>
   );
 }

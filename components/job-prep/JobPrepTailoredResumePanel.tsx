@@ -302,7 +302,13 @@ export function JobPrepTailoredResumePanel({
               Regenerate
             </SecondaryButton>
           </div>
-          {showResults && <JobPrepTailoredResumeResults result={parsedResult} />}
+          {showResults && (
+            <JobPrepTailoredResumeResults
+              result={parsedResult}
+              companyName={project.job_description?.company_name}
+              roleTitle={project.job_description?.role_title}
+            />
+          )}
         </div>
       )}
 

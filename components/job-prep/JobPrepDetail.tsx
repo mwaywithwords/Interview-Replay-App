@@ -145,7 +145,11 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
               </h2>
             </div>
             {showTailoredResumeResults ? (
-              <JobPrepTailoredResumeResults result={parsedTailoredResume} />
+              <JobPrepTailoredResumeResults
+                result={parsedTailoredResume}
+                companyName={company}
+                roleTitle={role}
+              />
             ) : (
               <JobPrepTailoredResumePanel
                 projectId={project.id}

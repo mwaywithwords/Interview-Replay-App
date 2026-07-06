@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/supabase/server';
 import { getSessions } from '@/app/actions/sessions';
+import { getDashboardStats } from '@/app/actions/stats';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -30,10 +31,46 @@ function getSessionTypeLabel(session: InterviewSessionWithGroupings): string {
   const metadata = session.metadata as SessionMetadata;
   const labels: Record<string, string> = {
     interview: 'Interview',
-    trading: 'Trading',
+    trading: 'Practice',
   };
 
   return labels[metadata?.session_type || ''] || 'Practice';
+}
+
+function formatSessionDisplayTitle(session: InterviewSessionWithGroupings): string {
+  const metadata = session.metadata as SessionMetadata;
+  const sessionType = metadata?.session_type;
+  const company = session.companies?.[0]?.name;
+
+  if (company) {
+    return `${company} interview practice`;
+  }
+
+  if (sessionType === 'trading' || /^trading\s+/i.test(session.title)) {
+    const remainder = session.title.replace(/^trading\s+/i, '').trim();
+    const looksLikeTicker = /^[A-Z]{1,5}([.-][A-Z]+)?$/i.test(remainder);
+
+    if (!remainder || looksLikeTicker) {
+      return 'Interview practice session';
+    }
+
+    return remainder;
+  }
+
+  return session.title;
+}
+
+function formatWeeklyTrend(thisWeekCount: number, lastWeekCount: number): string {
+  if (lastWeekCount === 0) {
+    return thisWeekCount > 0 ? 'New' : '0%';
+  }
+
+  if (thisWeekCount === 0) {
+    return '0%';
+  }
+
+  const change = Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100);
+  return `${change > 0 ? '+' : ''}${change}%`;
 }
 
 function formatActivityDate(date: string): string {
@@ -43,16 +80,12 @@ function formatActivityDate(date: string): string {
   });
 }
 
-function getStartOfWeek(date: Date): Date {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - start.getDay());
-  return start;
-}
-
 export default async function Dashboard() {
   const user = await requireUser();
-  const recentResult = await getSessions({ limit: 8, offset: 0 });
+  const [recentResult, statsResult] = await Promise.all([
+    getSessions({ limit: 8, offset: 0 }),
+    getDashboardStats(),
+  ]);
   const recentSessions = recentResult.sessions.slice(0, 3);
   const mobileRecentSessions = recentResult.sessions.slice(0, 5);
   const latestSession = recentSessions[0];
@@ -61,18 +94,9 @@ export default async function Dashboard() {
   const interviewScore =
     totalSessions === 0 ? 0 : Math.min(92, 58 + Math.min(totalSessions, 8) * 4 + readySessions * 2);
   const goalProgress = Math.min(100, Math.round((Math.min(recentSessions.length, 3) / 3) * 100));
-  const today = new Date();
-  const startOfThisWeek = getStartOfWeek(today);
-  const startOfLastWeek = new Date(startOfThisWeek);
-  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
-  const recentForTrend = recentResult.sessions;
-  const thisWeekCount = recentForTrend.filter((session) => new Date(session.created_at) >= startOfThisWeek).length;
-  const lastWeekCount = recentForTrend.filter((session) => {
-    const createdAt = new Date(session.created_at);
-    return createdAt >= startOfLastWeek && createdAt < startOfThisWeek;
-  }).length;
-  const weeklyImprovement =
-    lastWeekCount === 0 ? (thisWeekCount > 0 ? 100 : 0) : Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100);
+  const thisWeekCount = statsResult.stats?.sessionsThisWeek ?? 0;
+  const lastWeekCount = statsResult.stats?.sessionsLastWeek ?? 0;
+  const weeklyTrendLabel = formatWeeklyTrend(thisWeekCount, lastWeekCount);
   const dailyGoalProgress = latestSession ? 100 : 0;
   const mobileCoachCards = [
     {
@@ -141,7 +165,7 @@ export default async function Dashboard() {
                 </h1>
                 <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
                   {latestSession
-                    ? `Continue ${latestSession.title}`
+                    ? `Continue ${formatSessionDisplayTitle(latestSession)}`
                     : 'Start a Job Prep project for the role you’re targeting.'}
                 </p>
               </div>
@@ -208,11 +232,10 @@ export default async function Dashboard() {
                 </div>
                 <div>
                   <p className="text-xl font-semibold tracking-[-0.05em] text-foreground">
-                    {weeklyImprovement > 0 ? '+' : ''}
-                    {weeklyImprovement}%
+                    {weeklyTrendLabel}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    weekly
+                    {lastWeekCount === 0 && thisWeekCount > 0 ? 'vs last week' : 'weekly'}
                   </p>
                 </div>
               </div>
@@ -267,7 +290,7 @@ export default async function Dashboard() {
                       {getSessionTypeLabel(session)}
                     </Badge>
                     <h3 className="mt-4 line-clamp-2 text-base font-semibold tracking-[-0.03em] text-foreground">
-                      {session.title}
+                      {formatSessionDisplayTitle(session)}
                     </h3>
                     <div className="mt-4 flex items-center justify-between text-xs font-semibold text-muted-foreground">
                       <span>{formatActivityDate(session.created_at)}</span>
@@ -523,7 +546,7 @@ export default async function Dashboard() {
                 >
                   <Badge variant="secondary">{getSessionTypeLabel(latestSession)}</Badge>
                   <h3 className="mt-4 line-clamp-2 text-base font-semibold tracking-[-0.02em] text-foreground">
-                    {latestSession.title}
+                    {formatSessionDisplayTitle(latestSession)}
                   </h3>
                   <p className="mt-2 text-xs font-semibold text-muted-foreground">
                     {formatActivityDate(latestSession.created_at)} · {latestSession.status}
@@ -606,7 +629,7 @@ export default async function Dashboard() {
                     >
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-foreground">
-                          {session.title}
+                          {formatSessionDisplayTitle(session)}
                         </div>
                         <div className="mt-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                           <span>{getSessionTypeLabel(session)}</span>

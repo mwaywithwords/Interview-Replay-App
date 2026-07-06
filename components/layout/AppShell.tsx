@@ -5,6 +5,7 @@ import {
   Briefcase,
   LayoutDashboard,
   Library,
+  LogOut,
   PlusCircle,
   Settings2,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 import { branding } from '@/lib/branding';
 import { ThemeToggle } from './ThemeToggle';
 import { BrandMark } from '@/components/BrandLogo';
+import { MobileTopNav } from './MobileTopNav';
 
 interface AppShellProps {
   children: ReactNode;
@@ -144,11 +146,11 @@ export function AppShell({
           </aside>
 
           <div className="flex min-w-0 flex-col">
-            <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-              <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-                <Link href="/dashboard" className="flex items-center gap-2.5 lg:hidden">
-                  <BrandMark size="sm" />
-                  <span className="text-lg font-semibold tracking-[-0.04em] text-foreground">
+            <header className="sticky top-0 z-50 border-b border-border/70 bg-background/95 backdrop-blur-xl">
+              <div className="flex h-14 min-w-0 items-center justify-between gap-3 px-3 sm:px-6 lg:h-16 lg:px-8">
+                <Link href="/dashboard" className="flex min-w-0 items-center gap-2 lg:hidden">
+                  <BrandMark size="sm" className="shrink-0" />
+                  <span className="truncate text-base font-semibold tracking-[-0.04em] text-foreground">
                     {branding.brandName}
                   </span>
                 </Link>
@@ -159,33 +161,30 @@ export function AppShell({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
                   <div className="hidden lg:block">
                     <ThemeToggle />
                   </div>
-                  {headerActions}
+                  <div className="hidden lg:flex">{headerActions}</div>
+                  {headerActions && (
+                    <form action="/auth/signout" method="post" className="lg:hidden">
+                      <button
+                        type="submit"
+                        aria-label="Sign out"
+                        className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        <span>Sign out</span>
+                      </button>
+                    </form>
+                  )}
                 </div>
               </div>
 
-              <nav className="fixed inset-x-3 bottom-3 z-50 flex gap-1 overflow-x-auto rounded-[1.35rem] border border-border/60 bg-background/85 p-1.5 shadow-[var(--shadow-elevated)] backdrop-blur-xl lg:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {appNavItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-[1rem] px-3 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
+              <MobileTopNav />
             </header>
 
-            <main className="flex flex-1 flex-col pb-24 lg:pb-0">{children}</main>
+            <main className="flex flex-1 flex-col pt-3 lg:pt-0">{children}</main>
           </div>
         </div>
       </div>

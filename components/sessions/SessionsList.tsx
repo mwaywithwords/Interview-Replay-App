@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { getSessions, type SessionsFilter } from '@/app/actions/sessions';
 import { getCompanies } from '@/app/actions/companies';
-import { getSymbols } from '@/app/actions/symbols';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,9 +32,32 @@ const SESSIONS_PER_PAGE = 50;
 function getSessionTypeLabel(type: string | undefined): string {
   const labels: Record<string, string> = {
     interview: 'Interview',
-    trading: 'Trading',
+    trading: 'Practice',
   };
-  return labels[type || ''] || 'Unknown';
+  return labels[type || ''] || 'Practice';
+}
+
+function formatSessionDisplayTitle(session: InterviewSessionWithGroupings): string {
+  const metadata = session.metadata as SessionMetadata;
+  const sessionType = metadata?.session_type;
+  const company = session.companies?.[0]?.name;
+
+  if (company) {
+    return `${company} interview practice`;
+  }
+
+  if (sessionType === 'trading' || /^trading\s+/i.test(session.title)) {
+    const remainder = session.title.replace(/^trading\s+/i, '').trim();
+    const looksLikeTicker = /^[A-Z]{1,5}([.-][A-Z]+)?$/i.test(remainder);
+
+    if (!remainder || looksLikeTicker) {
+      return 'Interview practice session';
+    }
+
+    return remainder;
+  }
+
+  return session.title;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -105,7 +127,7 @@ function SessionCard({ session }: { session: InterviewSessionWithGroupings }) {
         <div className="flex h-full flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <h3 className="line-clamp-2 flex-1 text-base font-semibold tracking-[-0.02em] text-foreground transition-colors group-hover:text-primary">
-              {session.title}
+              {formatSessionDisplayTitle(session)}
             </h3>
             <StatusBadge status={session.status} />
           </div>
@@ -162,7 +184,6 @@ export function SessionsList() {
   const [sessionType, setSessionType] = useState<SessionType | 'all'>('all');
   const [status, setStatus] = useState<SessionStatus | 'all'>('all');
   const [companyId, setCompanyId] = useState<string | 'all'>('all');
-  const [symbolId, setSymbolId] = useState<string | 'all'>('all');
   const [offset, setOffset] = useState(0);
 
   // Debounce search query (300ms)
@@ -173,11 +194,10 @@ export function SessionsList() {
     ...(sessionType !== 'all' && { session_type: sessionType }),
     ...(status !== 'all' && { status }),
     ...(companyId !== 'all' && { company_id: companyId }),
-    ...(symbolId !== 'all' && { symbol_id: symbolId }),
     ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
     limit: SESSIONS_PER_PAGE,
     offset,
-  }), [sessionType, status, companyId, symbolId, debouncedSearch, offset]);
+  }), [sessionType, status, companyId, debouncedSearch, offset]);
 
   // Fetch sessions
   const {
@@ -191,56 +211,37 @@ export function SessionsList() {
     placeholderData: (previousData) => previousData, // Keep previous data while fetching
   });
 
-  // Fetch companies (only if filtering by interview or showing company filter)
-  const shouldFetchCompanies = sessionType === 'all' || sessionType === 'interview';
+  // Fetch companies for company/role filtering
   const {
     data: companiesData,
     isLoading: companiesLoading,
   } = useQuery({
     queryKey: ['companies'],
     queryFn: () => getCompanies(),
-    enabled: shouldFetchCompanies,
-  });
-
-  // Fetch symbols (only if filtering by trading or showing symbol filter)
-  const shouldFetchSymbols = sessionType === 'all' || sessionType === 'trading';
-  const {
-    data: symbolsData,
-    isLoading: symbolsLoading,
-  } = useQuery({
-    queryKey: ['symbols'],
-    queryFn: () => getSymbols(),
-    enabled: shouldFetchSymbols,
   });
 
   const sessions = sessionsData?.sessions || [];
   const total = sessionsData?.total || 0;
   const hasMore = sessionsData?.hasMore || false;
   const companies = companiesData?.companies || [];
-  const symbols = symbolsData?.symbols || [];
-  const isInitialLoading = sessionsLoading || companiesLoading || symbolsLoading;
+  const isInitialLoading = sessionsLoading || companiesLoading;
 
   // Reset offset when filters change
   const handleFilterChange = useCallback((
-    type: 'sessionType' | 'status' | 'company' | 'symbol',
+    type: 'sessionType' | 'status' | 'company',
     value: string
   ) => {
     setOffset(0); // Reset pagination
     switch (type) {
       case 'sessionType':
         setSessionType(value as SessionType | 'all');
-        // Clear related filters when session type changes
         setCompanyId('all');
-        setSymbolId('all');
         break;
       case 'status':
         setStatus(value as SessionStatus | 'all');
         break;
       case 'company':
         setCompanyId(value);
-        break;
-      case 'symbol':
-        setSymbolId(value);
         break;
     }
   }, []);
@@ -256,14 +257,12 @@ export function SessionsList() {
     setOffset((prev) => prev + SESSIONS_PER_PAGE);
   }, []);
 
-  // Group sessions when filters are applied
-  const shouldGroupByCompany = sessionType === 'interview';
-  const shouldGroupBySymbol = sessionType === 'trading';
+  const shouldGroupByCompany = sessionType === 'interview' || sessionType === 'all';
 
-  // Group sessions by company or symbol
+  // Group sessions by company
   const groupedSessions = useMemo(() => {
     const map = new Map<string, InterviewSessionWithGroupings[]>();
-    
+
     if (shouldGroupByCompany) {
       sessions.forEach((session) => {
         const company = session.companies?.[0];
@@ -277,31 +276,17 @@ export function SessionsList() {
           map.set(key, [...existing, session]);
         }
       });
-    } else if (shouldGroupBySymbol) {
-      sessions.forEach((session) => {
-        const symbol = session.symbols?.[0];
-        if (symbol) {
-          const key = symbol.id;
-          const existing = map.get(key) || [];
-          map.set(key, [...existing, session]);
-        } else {
-          const key = '__unassigned__';
-          const existing = map.get(key) || [];
-          map.set(key, [...existing, session]);
-        }
-      });
     }
 
     return map;
-  }, [sessions, shouldGroupByCompany, shouldGroupBySymbol]);
+  }, [sessions, shouldGroupByCompany]);
 
   // Check if any filters are active
-  const hasActiveFilters = sessionType !== 'all' || status !== 'all' || companyId !== 'all' || symbolId !== 'all' || debouncedSearch.trim();
+  const hasActiveFilters = sessionType !== 'all' || status !== 'all' || companyId !== 'all' || debouncedSearch.trim();
   const activeFilterCount = [
     sessionType !== 'all',
     status !== 'all',
     companyId !== 'all',
-    symbolId !== 'all',
     Boolean(debouncedSearch.trim()),
   ].filter(Boolean).length;
 
@@ -345,18 +330,17 @@ export function SessionsList() {
 
         {/* Filter Row */}
         <div className="flex flex-wrap items-center gap-2 p-4">
-          {/* Session Type Filter */}
+          {/* Interview type filter */}
           <Select
             value={sessionType}
             onValueChange={(value) => handleFilterChange('sessionType', value)}
           >
-            <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[150px]">
-              <SelectValue placeholder="Type" />
+            <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[170px]">
+              <SelectValue placeholder="Interview type" />
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-popover">
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="interview">Interview</SelectItem>
-              <SelectItem value="trading">Trading</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
+              <SelectItem value="interview">Interview prep</SelectItem>
             </SelectContent>
           </Select>
 
@@ -378,8 +362,8 @@ export function SessionsList() {
             </SelectContent>
           </Select>
 
-          {/* Company Filter - shown when filtering interview sessions */}
-          {shouldFetchCompanies && companies.length > 0 && (
+          {/* Company filter */}
+          {companies.length > 0 && (
             <Select
               value={companyId}
               onValueChange={(value) => handleFilterChange('company', value)}
@@ -388,30 +372,10 @@ export function SessionsList() {
                 <SelectValue placeholder="Company" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-border bg-popover">
-                <SelectItem value="all">All Companies</SelectItem>
+                <SelectItem value="all">All companies</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Symbol Filter - shown when filtering trading sessions */}
-          {shouldFetchSymbols && symbols.length > 0 && (
-            <Select
-              value={symbolId}
-              onValueChange={(value) => handleFilterChange('symbol', value)}
-            >
-              <SelectTrigger className="h-10 w-full rounded-full border-border/70 bg-background/70 font-semibold sm:w-[190px]">
-                <SelectValue placeholder="Symbol" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border bg-popover">
-                <SelectItem value="all">All Symbols</SelectItem>
-                {symbols.map((symbol) => (
-                  <SelectItem key={symbol.id} value={symbol.id}>
-                    {symbol.ticker}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -473,36 +437,25 @@ export function SessionsList() {
                 )
               }
             />
-          ) : shouldGroupByCompany || shouldGroupBySymbol ? (
-            // Grouped view
+          ) : shouldGroupByCompany && sessionType === 'interview' ? (
+            // Grouped view by company when filtering interview prep
             <div className="space-y-9">
               {Array.from(groupedSessions.entries())
                 .sort(([groupIdA], [groupIdB]) => {
                   // Sort unassigned to the end
                   if (groupIdA === '__unassigned__') return 1;
                   if (groupIdB === '__unassigned__') return -1;
-                  
-                  if (shouldGroupByCompany) {
-                    const companyA = companies.find((c) => c.id === groupIdA);
-                    const companyB = companies.find((c) => c.id === groupIdB);
-                    return (companyA?.name || '').localeCompare(companyB?.name || '');
-                  } else {
-                    const symbolA = symbols.find((s) => s.id === groupIdA);
-                    const symbolB = symbols.find((s) => s.id === groupIdB);
-                    return (symbolA?.ticker || '').localeCompare(symbolB?.ticker || '');
-                  }
+
+                  const companyA = companies.find((c) => c.id === groupIdA);
+                  const companyB = companies.find((c) => c.id === groupIdB);
+                  return (companyA?.name || '').localeCompare(companyB?.name || '');
                 })
                 .map(([groupId, groupSessions]) => {
-                  const company = shouldGroupByCompany
-                    ? companies.find((c) => c.id === groupId)
-                    : null;
-                  const symbol = shouldGroupBySymbol
-                    ? symbols.find((s) => s.id === groupId)
-                    : null;
+                  const company = companies.find((c) => c.id === groupId);
                   const groupTitle =
                     groupId === '__unassigned__'
                       ? 'Unassigned'
-                      : company?.name || symbol?.ticker || 'Unknown';
+                      : company?.name || 'Unknown';
 
                   return (
                     <div key={groupId}>

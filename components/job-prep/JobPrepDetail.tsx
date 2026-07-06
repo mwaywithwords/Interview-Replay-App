@@ -6,7 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { JobPrepAnalysisPanel } from '@/components/job-prep/JobPrepAnalysisPanel';
 import { JobPrepAnalysisResults } from '@/components/job-prep/JobPrepAnalysisResults';
+import { JobPrepTailoredResumePanel } from '@/components/job-prep/JobPrepTailoredResumePanel';
+import { JobPrepTailoredResumeResults } from '@/components/job-prep/JobPrepTailoredResumeResults';
 import { parseResumeJobAnalysisSummary } from '@/lib/job-prep/analysis';
+import { parseTailoredResumeResult } from '@/lib/job-prep/tailored-resume';
 import { ArrowLeft, Briefcase, Building2, FileText, Sparkles } from 'lucide-react';
 import type { JobPrepProjectWithDetails } from '@/types';
 
@@ -40,8 +43,15 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
     () => parseResumeJobAnalysisSummary(project.analysis?.summary ?? null),
     [project.analysis?.summary]
   );
+  const parsedTailoredResume = useMemo(
+    () => parseTailoredResumeResult(project.tailored_resume?.result ?? null),
+    [project.tailored_resume?.result]
+  );
   const showFullResults =
     project.analysis?.status === 'completed' && parsedSummary !== null;
+  const showTailoredResumeResults =
+    project.tailored_resume?.status === 'completed' && parsedTailoredResume !== null;
+  const fitAnalysisComplete = project.analysis?.status === 'completed';
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -120,9 +130,28 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
               <JobPrepAnalysisResults analysis={parsedSummary} />
             </section>
           )}
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+                Tailored résumé
+              </h2>
+            </div>
+            {showTailoredResumeResults ? (
+              <JobPrepTailoredResumeResults result={parsedTailoredResume} />
+            ) : (
+              <JobPrepTailoredResumePanel
+                projectId={project.id}
+                initialProject={project}
+                fitAnalysisComplete={fitAnalysisComplete}
+                onProjectChange={setProject}
+              />
+            )}
+          </section>
         </div>
 
-        <aside className="min-w-0 xl:sticky xl:top-6">
+        <aside className="min-w-0 xl:sticky xl:top-6 space-y-4">
           <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,var(--primary),transparent_55%)] opacity-[0.12]" />
             <div className="relative mb-4 flex items-center justify-between gap-2">
@@ -149,6 +178,18 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
               onProjectChange={setProject}
             />
           </section>
+
+          {showTailoredResumeResults && (
+            <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
+              <JobPrepTailoredResumePanel
+                projectId={project.id}
+                initialProject={project}
+                showResults={false}
+                fitAnalysisComplete={fitAnalysisComplete}
+                onProjectChange={setProject}
+              />
+            </section>
+          )}
         </aside>
       </div>
     </div>

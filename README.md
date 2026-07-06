@@ -180,6 +180,7 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
    migration_fix_single_recording_constraint.sql
    migration_add_job_prep.sql
    migration_add_job_prep_analysis_fields.sql
+   migration_add_job_prep_tailored_resume.sql
    ```
 
    **Job Prep Phase 2 deployment checklist**
@@ -188,7 +189,9 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
 
    - [ ] Run `supabase/migration_add_job_prep.sql` in the Supabase SQL Editor
    - [ ] Run `supabase/migration_add_job_prep_analysis_fields.sql` in the Supabase SQL Editor
-   - [ ] Deploy the Job Prep edge function: `supabase functions deploy ai_run_job_prep_analysis`
+   - [ ] Run `supabase/migration_add_job_prep_tailored_resume.sql` in the Supabase SQL Editor
+   - [ ] Deploy fit analysis edge function: `supabase functions deploy ai_run_job_prep_analysis`
+   - [ ] Deploy tailored résumé edge function: `supabase functions deploy ai_run_job_prep_tailored_resume`
    - [ ] Run `npm run lint`
    - [ ] Run `npm run build`
 
@@ -201,6 +204,7 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
    supabase link --project-ref YOUR_PROJECT_REF
    supabase functions deploy ai_run_job
    supabase functions deploy ai_run_job_prep_analysis
+   supabase functions deploy ai_run_job_prep_tailored_resume
    ```
 
 6. **Run the development server**

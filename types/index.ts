@@ -449,6 +449,34 @@ export interface ResumeJobAnalysisSummary {
   summary: string;
 }
 
+export type TailoredResumeGenerationStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+
+export interface TailoredResumeResult {
+  tailored_resume_text: string;
+  change_summary: string[];
+  truthfulness_warnings: string[];
+  suggested_additions_user_must_confirm: string[];
+}
+
+export interface TailoredResumeGeneration {
+  id: string;
+  user_id: string;
+  project_id: string;
+  resume_id: string;
+  job_description_id: string;
+  status: TailoredResumeGenerationStatus;
+  result: TailoredResumeResult | null;
+  error_message: string | null;
+  provider: string | null;
+  model: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface InterviewQuestion {
   id: string;
   user_id: string;
@@ -476,6 +504,7 @@ export interface JobPrepProjectWithDetails extends JobPrepProject {
   job_description: JobDescription | null;
   resume: Resume | null;
   analysis: ResumeJobAnalysis | null;
+  tailored_resume: TailoredResumeGeneration | null;
 }
 
 export interface CreateJobPrepProjectInput {

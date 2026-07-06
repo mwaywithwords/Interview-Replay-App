@@ -7,7 +7,35 @@ import type {
   JobPrepProject,
   JobPrepProjectWithDetails,
   ResumeJobAnalysisStatus,
+  TailoredResumeGenerationStatus,
 } from '@/types';
+
+const JOB_PREP_PROJECT_SELECT = `
+  *,
+  job_description:job_descriptions(*),
+  resume:resumes(*),
+  analysis:resume_job_analyses(*),
+  tailored_resume:tailored_resume_generations(*)
+`;
+
+function normalizeJobPrepProject(row: Record<string, unknown>): JobPrepProjectWithDetails {
+  const jobDescription = Array.isArray(row.job_description)
+    ? row.job_description[0] ?? null
+    : row.job_description;
+  const resume = Array.isArray(row.resume) ? row.resume[0] ?? null : row.resume;
+  const analysis = Array.isArray(row.analysis) ? row.analysis[0] ?? null : row.analysis;
+  const tailoredResume = Array.isArray(row.tailored_resume)
+    ? row.tailored_resume[0] ?? null
+    : row.tailored_resume;
+
+  return {
+    ...row,
+    job_description: jobDescription,
+    resume,
+    analysis,
+    tailored_resume: tailoredResume,
+  } as JobPrepProjectWithDetails;
+}
 
 function deriveProjectTitle(input: CreateJobPrepProjectInput): string {
   const trimmedTitle = input.title.trim();
@@ -42,12 +70,7 @@ export async function getJobPrepProjects(): Promise<{
 
   const { data, error } = await supabase
     .from('job_prep_projects')
-    .select(`
-      *,
-      job_description:job_descriptions(*),
-      resume:resumes(*),
-      analysis:resume_job_analyses(*)
-    `)
+    .select(JOB_PREP_PROJECT_SELECT)
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false });
 
@@ -55,20 +78,9 @@ export async function getJobPrepProjects(): Promise<{
     return { projects: [], error: error.message };
   }
 
-  const projects = (data ?? []).map((row) => {
-    const jobDescription = Array.isArray(row.job_description)
-      ? row.job_description[0] ?? null
-      : row.job_description;
-    const resume = Array.isArray(row.resume) ? row.resume[0] ?? null : row.resume;
-    const analysis = Array.isArray(row.analysis) ? row.analysis[0] ?? null : row.analysis;
-
-    return {
-      ...row,
-      job_description: jobDescription,
-      resume,
-      analysis,
-    } as JobPrepProjectWithDetails;
-  });
+  const projects = (data ?? []).map((row) =>
+    normalizeJobPrepProject(row as Record<string, unknown>)
+  );
 
   return { projects, error: null };
 }
@@ -156,6 +168,21 @@ export async function createJobPrepProject(
     return { project: null, error: analysisError.message };
   }
 
+  const { error: tailoredResumeError } = await supabase
+    .from('tailored_resume_generations')
+    .insert({
+      user_id: user.id,
+      project_id: project.id,
+      resume_id: resume.id,
+      job_description_id: jobDescription.id,
+      status: 'pending',
+    });
+
+  if (tailoredResumeError) {
+    await supabase.from('job_prep_projects').delete().eq('id', project.id);
+    return { project: null, error: tailoredResumeError.message };
+  }
+
   revalidatePath('/job-prep');
 
   return { project: project as JobPrepProject, error: null };
@@ -169,12 +196,7 @@ export async function getJobPrepProject(
 
   const { data, error } = await supabase
     .from('job_prep_projects')
-    .select(`
-      *,
-      job_description:job_descriptions(*),
-      resume:resumes(*),
-      analysis:resume_job_analyses(*)
-    `)
+    .select(JOB_PREP_PROJECT_SELECT)
     .eq('id', projectId)
     .eq('user_id', user.id)
     .single();
@@ -186,19 +208,8 @@ export async function getJobPrepProject(
     return { project: null, error: error.message };
   }
 
-  const jobDescription = Array.isArray(data.job_description)
-    ? data.job_description[0] ?? null
-    : data.job_description;
-  const resume = Array.isArray(data.resume) ? data.resume[0] ?? null : data.resume;
-  const analysis = Array.isArray(data.analysis) ? data.analysis[0] ?? null : data.analysis;
-
   return {
-    project: {
-      ...data,
-      job_description: jobDescription,
-      resume,
-      analysis,
-    } as JobPrepProjectWithDetails,
+    project: normalizeJobPrepProject(data as Record<string, unknown>),
     error: null,
   };
 }
@@ -362,4 +373,233 @@ export async function retryResumeJobAnalysis(
   }
 
   return runResumeJobAnalysis(projectId);
+}
+
+async function ensureTailoredResumeGeneration(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  projectId: string
+): Promise<{ generationId: string | null; error: string | null }> {
+  const { data: existing, error: existingError } = await supabase
+    .from('tailored_resume_generations')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { generationId: null, error: existingError.message };
+  }
+
+  if (existing) {
+    return { generationId: existing.id, error: null };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from('job_prep_projects')
+    .select(`
+      id,
+      resume:resumes(id),
+      job_description:job_descriptions(id)
+    `)
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .single();
+
+  if (projectError || !project) {
+    return { generationId: null, error: 'Project not found for tailored résumé generation.' };
+  }
+
+  const resume = Array.isArray(project.resume) ? project.resume[0] : project.resume;
+  const jobDescription = Array.isArray(project.job_description)
+    ? project.job_description[0]
+    : project.job_description;
+
+  if (!resume?.id || !jobDescription?.id) {
+    return {
+      generationId: null,
+      error: 'Résumé and job description are required before generating a tailored résumé.',
+    };
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from('tailored_resume_generations')
+    .insert({
+      user_id: userId,
+      project_id: projectId,
+      resume_id: resume.id,
+      job_description_id: jobDescription.id,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (createError || !created) {
+    return { generationId: null, error: createError?.message ?? 'Failed to create generation record.' };
+  }
+
+  return { generationId: created.id, error: null };
+}
+
+export async function runTailoredResumeGeneration(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: TailoredResumeGenerationStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('job_prep_projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (projectError || !project) {
+    return {
+      success: false,
+      error: 'Project not found or you do not have permission to access it.',
+    };
+  }
+
+  const { generationId, error: ensureError } = await ensureTailoredResumeGeneration(
+    supabase,
+    user.id,
+    projectId
+  );
+
+  if (ensureError || !generationId) {
+    return { success: false, error: ensureError ?? 'Failed to prepare tailored résumé generation.' };
+  }
+
+  const { data: generation, error: generationError } = await supabase
+    .from('tailored_resume_generations')
+    .select('id, status')
+    .eq('id', generationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (generationError || !generation) {
+    return { success: false, error: 'Tailored résumé generation record not found.' };
+  }
+
+  if (generation.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (generation.status === 'completed') {
+    return { success: true, status: 'completed', error: null };
+  }
+
+  if (generation.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('tailored_resume_generations')
+      .update({
+        status: 'pending',
+        error_message: null,
+        result: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', generation.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  }
+
+  if (generation.status !== 'pending' && generation.status !== 'failed') {
+    return {
+      success: false,
+      error: `Generation cannot be run. Current status: ${generation.status}`,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'ai_run_job_prep_tailored_resume',
+      {
+        body: { generation_id: generation.id },
+      }
+    );
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to generate tailored résumé',
+      };
+    }
+
+    revalidatePath(`/job-prep/${projectId}`);
+    revalidatePath('/job-prep');
+
+    return {
+      success: true,
+      status: (data?.status as TailoredResumeGenerationStatus) || 'completed',
+      error: null,
+    };
+  } catch {
+    return {
+      success: false,
+      error: 'Failed to connect to AI service. Please try again.',
+    };
+  }
+}
+
+export async function retryTailoredResumeGeneration(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: TailoredResumeGenerationStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { generationId, error: ensureError } = await ensureTailoredResumeGeneration(
+    supabase,
+    user.id,
+    projectId
+  );
+
+  if (ensureError || !generationId) {
+    return { success: false, error: ensureError ?? 'Failed to prepare tailored résumé generation.' };
+  }
+
+  const { data: generation, error: generationError } = await supabase
+    .from('tailored_resume_generations')
+    .select('id, status')
+    .eq('id', generationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (generationError || !generation) {
+    return { success: false, error: 'Tailored résumé generation record not found.' };
+  }
+
+  if (generation.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (generation.status === 'completed' || generation.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('tailored_resume_generations')
+      .update({
+        status: 'pending',
+        error_message: null,
+        result: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', generation.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  }
+
+  return runTailoredResumeGeneration(projectId);
 }

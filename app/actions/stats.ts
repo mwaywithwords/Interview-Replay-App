@@ -5,6 +5,7 @@ import type { SessionType } from '@/types';
 
 export interface DashboardStats {
   sessionsThisWeek: number;
+  sessionsLastWeek: number;
   totalMinutesPracticed: number;
   topSessionType: SessionType | null;
 }
@@ -32,8 +33,13 @@ export async function getDashboardStats(): Promise<{
   const supabase = await createClient();
 
   try {
-    // 1. Get sessions this week
-    const startOfWeek = getStartOfWeek().toISOString();
+    // 1. Get sessions this week and last week
+    const startOfWeekDate = getStartOfWeek();
+    const startOfWeek = startOfWeekDate.toISOString();
+    const startOfLastWeek = new Date(startOfWeekDate);
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+    const startOfLastWeekIso = startOfLastWeek.toISOString();
+
     const { count: sessionsThisWeek, error: weekError } = await supabase
       .from('sessions')
       .select('id', { count: 'exact', head: true })
@@ -42,6 +48,17 @@ export async function getDashboardStats(): Promise<{
 
     if (weekError) {
       return { stats: null, error: weekError.message };
+    }
+
+    const { count: sessionsLastWeek, error: lastWeekError } = await supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', startOfLastWeekIso)
+      .lt('created_at', startOfWeek);
+
+    if (lastWeekError) {
+      return { stats: null, error: lastWeekError.message };
     }
 
     // 2. Get total minutes practiced (sum of audio/video duration for recorded sessions)
@@ -117,6 +134,7 @@ export async function getDashboardStats(): Promise<{
     return {
       stats: {
         sessionsThisWeek: sessionsThisWeek || 0,
+        sessionsLastWeek: sessionsLastWeek || 0,
         totalMinutesPracticed,
         topSessionType,
       },

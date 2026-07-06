@@ -26,9 +26,9 @@ function getSessionTypeLabel(type: string | null): string {
   if (!type) return '—';
   const labels: Record<string, string> = {
     interview: 'Interview',
-    trading: 'Trading',
+    trading: 'Practice',
   };
-  return labels[type] || type;
+  return labels[type] || 'Practice';
 }
 
 export function StatsCards() {

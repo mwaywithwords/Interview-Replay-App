@@ -75,7 +75,7 @@ export function NewJobPrepForm() {
       }
 
       toast.success('Job prep project saved');
-      router.push('/job-prep');
+      router.push(`/job-prep/${result.project.id}`);
       router.refresh();
     } catch {
       setError('Something went wrong. Please try again.');

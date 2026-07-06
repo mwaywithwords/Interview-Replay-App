@@ -6,6 +6,7 @@ import type {
   CreateJobPrepProjectInput,
   JobPrepProject,
   JobPrepProjectWithDetails,
+  ResumeJobAnalysisStatus,
 } from '@/types';
 
 function deriveProjectTitle(input: CreateJobPrepProjectInput): string {
@@ -158,4 +159,207 @@ export async function createJobPrepProject(
   revalidatePath('/job-prep');
 
   return { project: project as JobPrepProject, error: null };
+}
+
+export async function getJobPrepProject(
+  projectId: string
+): Promise<{ project: JobPrepProjectWithDetails | null; error: string | null }> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('job_prep_projects')
+    .select(`
+      *,
+      job_description:job_descriptions(*),
+      resume:resumes(*),
+      analysis:resume_job_analyses(*)
+    `)
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return { project: null, error: 'Project not found' };
+    }
+    return { project: null, error: error.message };
+  }
+
+  const jobDescription = Array.isArray(data.job_description)
+    ? data.job_description[0] ?? null
+    : data.job_description;
+  const resume = Array.isArray(data.resume) ? data.resume[0] ?? null : data.resume;
+  const analysis = Array.isArray(data.analysis) ? data.analysis[0] ?? null : data.analysis;
+
+  return {
+    project: {
+      ...data,
+      job_description: jobDescription,
+      resume,
+      analysis,
+    } as JobPrepProjectWithDetails,
+    error: null,
+  };
+}
+
+export async function runResumeJobAnalysis(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: ResumeJobAnalysisStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('job_prep_projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (projectError || !project) {
+    return {
+      success: false,
+      error: 'Project not found or you do not have permission to access it.',
+    };
+  }
+
+  const { data: analysis, error: analysisError } = await supabase
+    .from('resume_job_analyses')
+    .select('id, status')
+    .eq('project_id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (analysisError || !analysis) {
+    return { success: false, error: 'Analysis record not found for this project.' };
+  }
+
+  if (analysis.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (analysis.status === 'completed') {
+    return { success: true, status: 'completed', error: null };
+  }
+
+  if (analysis.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('resume_job_analyses')
+      .update({
+        status: 'pending',
+        error_message: null,
+        summary: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', analysis.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+
+    await supabase
+      .from('job_prep_projects')
+      .update({
+        status: 'draft',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', projectId)
+      .eq('user_id', user.id);
+  }
+
+  if (analysis.status !== 'pending' && analysis.status !== 'failed') {
+    return {
+      success: false,
+      error: `Analysis cannot be run. Current status: ${analysis.status}`,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'ai_run_job_prep_analysis',
+      {
+        body: { analysis_id: analysis.id },
+      }
+    );
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to run resume fit analysis',
+      };
+    }
+
+    revalidatePath(`/job-prep/${projectId}`);
+    revalidatePath('/job-prep');
+
+    return {
+      success: true,
+      status: (data?.status as ResumeJobAnalysisStatus) || 'completed',
+      error: null,
+    };
+  } catch {
+    return {
+      success: false,
+      error: 'Failed to connect to AI service. Please try again.',
+    };
+  }
+}
+
+export async function retryResumeJobAnalysis(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: ResumeJobAnalysisStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: analysis, error: analysisError } = await supabase
+    .from('resume_job_analyses')
+    .select('id, status')
+    .eq('project_id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (analysisError || !analysis) {
+    return { success: false, error: 'Analysis record not found for this project.' };
+  }
+
+  if (analysis.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (analysis.status === 'completed' || analysis.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('resume_job_analyses')
+      .update({
+        status: 'pending',
+        error_message: null,
+        summary: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', analysis.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+
+    await supabase
+      .from('job_prep_projects')
+      .update({
+        status: 'draft',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', projectId)
+      .eq('user_id', user.id);
+  }
+
+  return runResumeJobAnalysis(projectId);
 }

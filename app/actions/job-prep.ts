@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import type {
   CreateJobPrepProjectInput,
+  InterviewQuestionGenerationStatus,
   JobPrepProject,
   JobPrepProjectWithDetails,
   ResumeJobAnalysisStatus,
@@ -15,7 +16,9 @@ const JOB_PREP_PROJECT_SELECT = `
   job_description:job_descriptions(*),
   resume:resumes(*),
   analysis:resume_job_analyses(*),
-  tailored_resume:tailored_resume_generations(*)
+  tailored_resume:tailored_resume_generations(*),
+  interview_question_generation:interview_question_generations(*),
+  interview_questions:interview_questions(*)
 `;
 
 function normalizeJobPrepProject(row: Record<string, unknown>): JobPrepProjectWithDetails {
@@ -27,6 +30,14 @@ function normalizeJobPrepProject(row: Record<string, unknown>): JobPrepProjectWi
   const tailoredResume = Array.isArray(row.tailored_resume)
     ? row.tailored_resume[0] ?? null
     : row.tailored_resume;
+  const interviewQuestionGeneration = Array.isArray(row.interview_question_generation)
+    ? row.interview_question_generation[0] ?? null
+    : row.interview_question_generation;
+  const interviewQuestions = Array.isArray(row.interview_questions)
+    ? [...row.interview_questions].sort(
+        (a, b) => (a.sort_order as number) - (b.sort_order as number)
+      )
+    : [];
 
   return {
     ...row,
@@ -34,6 +45,8 @@ function normalizeJobPrepProject(row: Record<string, unknown>): JobPrepProjectWi
     resume,
     analysis,
     tailored_resume: tailoredResume,
+    interview_question_generation: interviewQuestionGeneration,
+    interview_questions: interviewQuestions,
   } as JobPrepProjectWithDetails;
 }
 
@@ -602,4 +615,250 @@ export async function retryTailoredResumeGeneration(
   }
 
   return runTailoredResumeGeneration(projectId);
+}
+
+async function ensureInterviewQuestionGeneration(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  projectId: string
+): Promise<{ generationId: string | null; error: string | null }> {
+  const { data: existing, error: existingError } = await supabase
+    .from('interview_question_generations')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { generationId: null, error: existingError.message };
+  }
+
+  if (existing) {
+    return { generationId: existing.id, error: null };
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from('job_prep_projects')
+    .select(`
+      id,
+      resume:resumes(id),
+      job_description:job_descriptions(id),
+      analysis:resume_job_analyses(id, status)
+    `)
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .single();
+
+  if (projectError || !project) {
+    return { generationId: null, error: 'Project not found for interview question generation.' };
+  }
+
+  const resume = Array.isArray(project.resume) ? project.resume[0] : project.resume;
+  const jobDescription = Array.isArray(project.job_description)
+    ? project.job_description[0]
+    : project.job_description;
+  const analysis = Array.isArray(project.analysis) ? project.analysis[0] : project.analysis;
+
+  if (!resume?.id || !jobDescription?.id) {
+    return {
+      generationId: null,
+      error: 'Résumé and job description are required before generating interview questions.',
+    };
+  }
+
+  if (!analysis?.id || analysis.status !== 'completed') {
+    return {
+      generationId: null,
+      error: 'Complete fit analysis before generating interview questions.',
+    };
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from('interview_question_generations')
+    .insert({
+      user_id: userId,
+      project_id: projectId,
+      analysis_id: analysis.id,
+      resume_id: resume.id,
+      job_description_id: jobDescription.id,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (createError || !created) {
+    return {
+      generationId: null,
+      error: createError?.message ?? 'Failed to create interview question generation record.',
+    };
+  }
+
+  return { generationId: created.id, error: null };
+}
+
+export async function runInterviewQuestionGeneration(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: InterviewQuestionGenerationStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from('job_prep_projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (projectError || !project) {
+    return {
+      success: false,
+      error: 'Project not found or you do not have permission to access it.',
+    };
+  }
+
+  const { generationId, error: ensureError } = await ensureInterviewQuestionGeneration(
+    supabase,
+    user.id,
+    projectId
+  );
+
+  if (ensureError || !generationId) {
+    return {
+      success: false,
+      error: ensureError ?? 'Failed to prepare interview question generation.',
+    };
+  }
+
+  const { data: generation, error: generationError } = await supabase
+    .from('interview_question_generations')
+    .select('id, status')
+    .eq('id', generationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (generationError || !generation) {
+    return { success: false, error: 'Interview question generation record not found.' };
+  }
+
+  if (generation.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (generation.status === 'completed') {
+    return { success: true, status: 'completed', error: null };
+  }
+
+  if (generation.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('interview_question_generations')
+      .update({
+        status: 'pending',
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', generation.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  }
+
+  if (generation.status !== 'pending' && generation.status !== 'failed') {
+    return {
+      success: false,
+      error: `Generation cannot be run. Current status: ${generation.status}`,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'ai_run_job_prep_interview_questions',
+      {
+        body: { generation_id: generation.id },
+      }
+    );
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to generate interview questions',
+      };
+    }
+
+    revalidatePath(`/job-prep/${projectId}`);
+    revalidatePath('/job-prep');
+
+    return {
+      success: true,
+      status: (data?.status as InterviewQuestionGenerationStatus) || 'completed',
+      error: null,
+    };
+  } catch {
+    return {
+      success: false,
+      error: 'Failed to connect to AI service. Please try again.',
+    };
+  }
+}
+
+export async function retryInterviewQuestionGeneration(
+  projectId: string
+): Promise<{
+  success: boolean;
+  status?: InterviewQuestionGenerationStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { generationId, error: ensureError } = await ensureInterviewQuestionGeneration(
+    supabase,
+    user.id,
+    projectId
+  );
+
+  if (ensureError || !generationId) {
+    return {
+      success: false,
+      error: ensureError ?? 'Failed to prepare interview question generation.',
+    };
+  }
+
+  const { data: generation, error: generationError } = await supabase
+    .from('interview_question_generations')
+    .select('id, status')
+    .eq('id', generationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (generationError || !generation) {
+    return { success: false, error: 'Interview question generation record not found.' };
+  }
+
+  if (generation.status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (generation.status === 'completed' || generation.status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('interview_question_generations')
+      .update({
+        status: 'pending',
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', generation.id)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  }
+
+  return runInterviewQuestionGeneration(projectId);
 }

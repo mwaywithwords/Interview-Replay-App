@@ -8,9 +8,11 @@ import { JobPrepAnalysisPanel } from '@/components/job-prep/JobPrepAnalysisPanel
 import { JobPrepAnalysisResults } from '@/components/job-prep/JobPrepAnalysisResults';
 import { JobPrepTailoredResumePanel } from '@/components/job-prep/JobPrepTailoredResumePanel';
 import { JobPrepTailoredResumeResults } from '@/components/job-prep/JobPrepTailoredResumeResults';
+import { JobPrepInterviewQuestionsPanel } from '@/components/job-prep/JobPrepInterviewQuestionsPanel';
+import { JobPrepInterviewQuestionsResults } from '@/components/job-prep/JobPrepInterviewQuestionsResults';
 import { parseResumeJobAnalysisSummary } from '@/lib/job-prep/analysis';
 import { parseTailoredResumeResult } from '@/lib/job-prep/tailored-resume';
-import { ArrowLeft, Briefcase, Building2, FileText, Sparkles } from 'lucide-react';
+import { ArrowLeft, Briefcase, Building2, FileText, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import type { JobPrepProjectWithDetails } from '@/types';
 
 interface JobPrepDetailProps {
@@ -52,6 +54,10 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
   const showTailoredResumeResults =
     project.tailored_resume?.status === 'completed' && parsedTailoredResume !== null;
   const fitAnalysisComplete = project.analysis?.status === 'completed';
+  const interviewQuestions = project.interview_questions ?? [];
+  const showInterviewQuestionsResults =
+    project.interview_question_generation?.status === 'completed' &&
+    interviewQuestions.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -149,6 +155,25 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
               />
             )}
           </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <MessageCircleQuestion className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+                Interview questions
+              </h2>
+            </div>
+            {showInterviewQuestionsResults ? (
+              <JobPrepInterviewQuestionsResults questions={interviewQuestions} />
+            ) : (
+              <JobPrepInterviewQuestionsPanel
+                projectId={project.id}
+                initialProject={project}
+                fitAnalysisComplete={fitAnalysisComplete}
+                onProjectChange={setProject}
+              />
+            )}
+          </section>
         </div>
 
         <aside className="min-w-0 xl:sticky xl:top-6 space-y-4">
@@ -182,6 +207,46 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
           {showTailoredResumeResults && (
             <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
               <JobPrepTailoredResumePanel
+                projectId={project.id}
+                initialProject={project}
+                showResults={false}
+                fitAnalysisComplete={fitAnalysisComplete}
+                onProjectChange={setProject}
+              />
+            </section>
+          )}
+
+          {fitAnalysisComplete && !showInterviewQuestionsResults && (
+            <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
+              <div className="relative mb-4 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary/80">
+                    Companion
+                  </p>
+                  <h2 className="text-base font-semibold tracking-[-0.03em] text-foreground">
+                    Interview Questions
+                  </h2>
+                  <p className="text-xs font-medium text-muted-foreground/85">
+                    Tailored practice questions from your fit analysis.
+                  </p>
+                </div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">
+                  <MessageCircleQuestion className="h-4 w-4 shrink-0 text-primary" />
+                </div>
+              </div>
+              <JobPrepInterviewQuestionsPanel
+                projectId={project.id}
+                initialProject={project}
+                showResults={false}
+                fitAnalysisComplete={fitAnalysisComplete}
+                onProjectChange={setProject}
+              />
+            </section>
+          )}
+
+          {showInterviewQuestionsResults && (
+            <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
+              <JobPrepInterviewQuestionsPanel
                 projectId={project.id}
                 initialProject={project}
                 showResults={false}

@@ -390,6 +390,18 @@ export type JobPrepProjectStatus = 'draft' | 'analyzing' | 'ready' | 'archived';
 export type ResumeSource = 'paste' | 'upload';
 export type ResumeJobAnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type InterviewQuestionCategory = 'behavioral' | 'technical' | 'situational' | 'general';
+export type InterviewQuestionType =
+  | 'behavioral'
+  | 'technical'
+  | 'resume_specific'
+  | 'gap_risk'
+  | 'why_role_company';
+export type InterviewQuestionDifficulty = 'easy' | 'medium' | 'hard';
+export type InterviewQuestionGenerationStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed';
 
 export interface JobPrepProject {
   id: string;
@@ -484,7 +496,27 @@ export interface InterviewQuestion {
   analysis_id: string;
   question_text: string;
   category: InterviewQuestionCategory;
+  question_type: InterviewQuestionType;
+  difficulty: InterviewQuestionDifficulty;
+  what_good_answer_should_include: string;
+  related_resume_section: string;
+  related_job_requirement: string;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterviewQuestionGeneration {
+  id: string;
+  user_id: string;
+  project_id: string;
+  analysis_id: string;
+  resume_id: string;
+  job_description_id: string;
+  status: InterviewQuestionGenerationStatus;
+  error_message: string | null;
+  provider: string | null;
+  model: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -505,6 +537,8 @@ export interface JobPrepProjectWithDetails extends JobPrepProject {
   resume: Resume | null;
   analysis: ResumeJobAnalysis | null;
   tailored_resume: TailoredResumeGeneration | null;
+  interview_question_generation: InterviewQuestionGeneration | null;
+  interview_questions: InterviewQuestion[];
 }
 
 export interface CreateJobPrepProjectInput {

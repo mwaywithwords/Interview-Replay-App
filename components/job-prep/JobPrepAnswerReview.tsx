@@ -7,6 +7,8 @@ import { VideoPlayer, type MediaPlayerRef } from '@/components/VideoPlayer';
 import { TranscriptEditor } from '@/components/sessions/TranscriptEditor';
 import { AIActionsPanel } from '@/components/sessions/AIActionsPanel';
 import { PracticeAnswerButton } from '@/components/job-prep/PracticeAnswerButton';
+import { JobPrepAnswerRatingPanel } from '@/components/job-prep/JobPrepAnswerRatingPanel';
+import { JobPrepAnswerRatingResults } from '@/components/job-prep/JobPrepAnswerRatingResults';
 import { Badge } from '@/components/ui/badge';
 import { SecondaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
@@ -14,6 +16,7 @@ import {
   INTERVIEW_QUESTION_DIFFICULTY_LABELS,
   INTERVIEW_QUESTION_TYPE_LABELS,
 } from '@/lib/job-prep/interview-questions';
+import { parseInterviewAnswerRatingResult } from '@/lib/job-prep/answer-rating';
 import type { AIJob, AIOutput, InterviewAnswerAttemptWithDetails } from '@/types';
 import {
   ArrowLeft,
@@ -30,6 +33,7 @@ interface JobPrepAnswerReviewProps {
   attempt: InterviewAnswerAttemptWithDetails;
   initialAIJobs: AIJob[];
   initialAIOutputs: AIOutput[];
+  initialHasTranscript?: boolean;
 }
 
 function SectionLabel({ children }: { children: string }) {
@@ -41,17 +45,25 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 export function JobPrepAnswerReview({
-  attempt,
+  attempt: initialAttempt,
   initialAIJobs,
   initialAIOutputs,
+  initialHasTranscript = false,
 }: JobPrepAnswerReviewProps) {
   const mediaPlayerRef = useRef<MediaPlayerRef>(null);
+  const [attempt, setAttempt] = useState(initialAttempt);
   const [aiOutputs, setAiOutputs] = useState<AIOutput[]>(initialAIOutputs);
 
   const question = attempt.question;
   const session = attempt.session;
   const projectId = attempt.project_id;
   const jobPrepPath = `/job-prep/${projectId}`;
+  const parsedRating = useMemo(
+    () => parseInterviewAnswerRatingResult(attempt.rating_result),
+    [attempt.rating_result]
+  );
+  const showRatingResults =
+    attempt.rating_status === 'completed' && parsedRating !== null;
 
   const handleAIOutputsChange = useCallback((outputsMap: Record<string, AIOutput>) => {
     setAiOutputs(Object.values(outputsMap));
@@ -67,6 +79,17 @@ export function JobPrepAnswerReview({
         )[0] ?? null,
     [aiOutputs]
   );
+
+  const hasTranscript = useMemo(() => {
+    if (initialHasTranscript || attempt.answer_text.trim()) {
+      return true;
+    }
+    if (latestTranscriptOutput) {
+      const content = latestTranscriptOutput.content as Record<string, unknown>;
+      return typeof content.text === 'string' && content.text.trim().length > 0;
+    }
+    return false;
+  }, [attempt.answer_text, initialHasTranscript, latestTranscriptOutput]);
 
   if (!question) {
     return (
@@ -125,6 +148,10 @@ export function JobPrepAnswerReview({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,34%)] xl:items-start">
         <div className="space-y-6">
+          {showRatingResults && parsedRating && (
+            <JobPrepAnswerRatingResults rating={parsedRating} />
+          )}
+
           <SectionCard title="Your recording">
             {!session || !hasRecording ? (
               <div className="space-y-4 rounded-2xl border border-dashed border-border/70 bg-muted/20 p-6">
@@ -208,10 +235,38 @@ export function JobPrepAnswerReview({
                   Companion
                 </p>
                 <h2 className="text-base font-semibold tracking-[-0.03em] text-foreground">
-                  AI feedback
+                  Answer rating
                 </h2>
                 <p className="text-xs font-medium text-muted-foreground/85">
-                  Transcript, score, and coaching from your recording.
+                  Job-specific scoring for this recorded answer.
+                </p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">
+                <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              </div>
+            </div>
+
+            <JobPrepAnswerRatingPanel
+              attemptId={attempt.id}
+              initialAttempt={attempt}
+              hasRecording={hasRecording}
+              hasTranscript={hasTranscript}
+              showResults={false}
+              onAttemptChange={setAttempt}
+            />
+          </section>
+
+          <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
+            <div className="relative mb-4 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary/80">
+                  Companion
+                </p>
+                <h2 className="text-base font-semibold tracking-[-0.03em] text-foreground">
+                  Session AI feedback
+                </h2>
+                <p className="text-xs font-medium text-muted-foreground/85">
+                  Transcript, summary, and general session analysis.
                 </p>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">

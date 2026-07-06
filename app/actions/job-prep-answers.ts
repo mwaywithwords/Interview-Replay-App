@@ -4,9 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import { createSession } from '@/app/actions/sessions';
 import { createCompany } from '@/app/actions/companies';
+import { getTranscript } from '@/app/actions/transcripts';
 import type {
   InterviewAnswerAttempt,
   InterviewAnswerAttemptWithDetails,
+  InterviewAnswerRatingStatus,
   InterviewQuestion,
   InterviewSession,
   RecordingType,
@@ -384,4 +386,160 @@ export async function getLatestAnswerAttemptForQuestion(
   }
 
   return { attempt: (data as InterviewAnswerAttempt) ?? null, error: null };
+}
+
+export async function runInterviewAnswerRating(
+  attemptId: string
+): Promise<{
+  success: boolean;
+  status?: InterviewAnswerRatingStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from('interview_answer_attempts')
+    .select('id, session_id, project_id, rating_status')
+    .eq('id', attemptId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (attemptError || !attempt) {
+    return { success: false, error: 'Answer attempt not found.' };
+  }
+
+  if (!attempt.session_id) {
+    return {
+      success: false,
+      error: 'Record an answer before requesting AI rating.',
+    };
+  }
+
+  if (attempt.rating_status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (attempt.rating_status === 'completed') {
+    return { success: true, status: 'completed', error: null };
+  }
+
+  const { transcript, error: transcriptError } = await getTranscript(attempt.session_id);
+  if (transcriptError) {
+    return { success: false, error: transcriptError };
+  }
+
+  if (!transcript?.content?.trim()) {
+    return {
+      success: false,
+      error:
+        'Answer transcript is required. Wait for automatic transcription or add a transcript on the session page.',
+    };
+  }
+
+  if (attempt.rating_status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('interview_answer_attempts')
+      .update({
+        rating_status: 'pending',
+        rating_error_message: null,
+        rating_result: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  } else if (!attempt.rating_status) {
+    const { error: pendingError } = await supabase
+      .from('interview_answer_attempts')
+      .update({
+        rating_status: 'pending',
+        rating_error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId)
+      .eq('user_id', user.id);
+
+    if (pendingError) {
+      return { success: false, error: pendingError.message };
+    }
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'ai_run_job_prep_answer_rating',
+      {
+        body: { attempt_id: attemptId },
+      }
+    );
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to rate interview answer',
+      };
+    }
+
+    revalidatePath(`/job-prep/${attempt.project_id}/answers/${attemptId}`);
+    revalidatePath(`/job-prep/${attempt.project_id}`);
+
+    return {
+      success: true,
+      status: (data?.status as InterviewAnswerRatingStatus) || 'completed',
+      error: null,
+    };
+  } catch {
+    return {
+      success: false,
+      error: 'Failed to connect to AI service. Please try again.',
+    };
+  }
+}
+
+export async function retryInterviewAnswerRating(
+  attemptId: string
+): Promise<{
+  success: boolean;
+  status?: InterviewAnswerRatingStatus;
+  error: string | null;
+}> {
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from('interview_answer_attempts')
+    .select('id, rating_status, project_id')
+    .eq('id', attemptId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (attemptError || !attempt) {
+    return { success: false, error: 'Answer attempt not found.' };
+  }
+
+  if (attempt.rating_status === 'processing') {
+    return { success: true, status: 'processing', error: null };
+  }
+
+  if (attempt.rating_status === 'completed' || attempt.rating_status === 'failed') {
+    const { error: resetError } = await supabase
+      .from('interview_answer_attempts')
+      .update({
+        rating_status: 'pending',
+        rating_error_message: null,
+        rating_result: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', attemptId)
+      .eq('user_id', user.id);
+
+    if (resetError) {
+      return { success: false, error: resetError.message };
+    }
+  }
+
+  return runInterviewAnswerRating(attemptId);
 }

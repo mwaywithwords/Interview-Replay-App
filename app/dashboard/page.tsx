@@ -77,19 +77,29 @@ export default async function Dashboard() {
   const mobileCoachCards = [
     {
       icon: Target,
-      title: 'Open with the result',
-      copy: 'Lead your next answer with the outcome, then explain the path.',
+      title: 'Start with Job Prep',
+      copy: 'Create a project for your target role before practicing generic questions.',
     },
     {
       icon: BarChart3,
-      title: 'Review one contrast',
-      copy: 'Bookmark one sharp answer and one answer that needs tightening.',
+      title: 'Review your fit analysis',
+      copy: 'Know your gaps before you walk into behavioral or technical rounds.',
     },
     {
       icon: CalendarCheck,
-      title: 'Protect the cadence',
-      copy: 'One focused rep today is enough to keep momentum visible.',
+      title: 'Rate one answer today',
+      copy: 'Structured feedback beats unstructured repetition.',
     },
+  ];
+
+  const prepPathSteps = [
+    { step: 1, label: 'Create a Job Prep project', href: '/job-prep/new' },
+    { step: 2, label: 'Upload résumé & paste job description', href: '/job-prep/new' },
+    { step: 3, label: 'Review AI match analysis', href: '/job-prep' },
+    { step: 4, label: 'Generate interview questions', href: '/job-prep' },
+    { step: 5, label: 'Practice answers', href: '/job-prep' },
+    { step: 6, label: 'Review AI feedback', href: '/job-prep' },
+    { step: 7, label: 'Refine and repeat', href: '/job-prep' },
   ];
 
   return (
@@ -127,15 +137,15 @@ export default async function Dashboard() {
                   Today
                 </p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-[-0.055em] text-foreground">
-                  Ready for the next rep?
+                  Ready for your next interview?
                 </h1>
                 <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
                   {latestSession
                     ? `Continue ${latestSession.title}`
-                    : 'Start with one focused interview session.'}
+                    : 'Start a Job Prep project for the role you’re targeting.'}
                 </p>
               </div>
-              <Link href="/sessions/new">
+              <Link href="/job-prep/new">
                 <PrimaryButton size="icon" className="h-11 w-11 rounded-full shadow-[var(--shadow-soft)]">
                   <Plus className="h-5 w-5" />
                 </PrimaryButton>
@@ -173,7 +183,7 @@ export default async function Dashboard() {
                   />
                 </div>
                 <p className="mt-2 text-xs font-medium leading-5 text-muted-foreground">
-                  {latestSession ? 'One session is queued for review.' : 'Record one interview today.'}
+                  {latestSession ? 'One practice answer is queued for review.' : 'Complete one practice answer today.'}
                 </p>
               </div>
             </div>
@@ -213,7 +223,7 @@ export default async function Dashboard() {
                 href={`/sessions/${latestSession.id}`}
                 className="mt-4 flex items-center justify-between rounded-full border border-border/35 bg-background/55 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/25 hover:bg-background/80"
               >
-                Continue last interview
+                Continue last practice session
                 <ArrowRight className="h-4 w-4 text-primary" />
               </Link>
             )}
@@ -236,9 +246,9 @@ export default async function Dashboard() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold tracking-[-0.035em] text-foreground">
-                  Recent interviews
+                  Recent practice
                 </h2>
-                <p className="text-xs font-medium text-muted-foreground">Fast resume, not a full archive.</p>
+                <p className="text-xs font-medium text-muted-foreground">Recorded answers from Job Prep and quick practice.</p>
               </div>
               <Link href="/sessions" className="text-xs font-semibold text-primary">
                 All
@@ -267,7 +277,7 @@ export default async function Dashboard() {
                 ))
               ) : (
                 <div className="w-full rounded-[1.25rem] border border-dashed border-border/50 bg-muted/20 p-5 text-sm font-medium text-muted-foreground">
-                  Your recent interviews will appear here after your first recording.
+                  Recorded answers from Job Prep and quick practice will appear here after your first recording.
                 </div>
               )}
             </div>
@@ -277,9 +287,9 @@ export default async function Dashboard() {
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold tracking-[-0.035em] text-foreground">
-                  Interview Coach
+                  Prep coach
                 </h2>
-                <p className="text-xs font-medium text-muted-foreground">Three small moves for the next rep.</p>
+                <p className="text-xs font-medium text-muted-foreground">Three focused moves for your next prep session.</p>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
                 <Sparkles className="h-4 w-4" />
@@ -306,16 +316,16 @@ export default async function Dashboard() {
 
           <div className="grid grid-cols-2 gap-3">
             <Link
-              href="/sessions/new"
+              href="/job-prep/new"
               className="rounded-[1.35rem] border border-primary/20 bg-primary px-4 py-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)]"
             >
-              Record practice
+              New Job Prep
             </Link>
             <Link
               href="/sessions"
               className="rounded-[1.35rem] border border-border/45 bg-card/65 px-4 py-4 text-sm font-semibold text-foreground shadow-sm backdrop-blur"
             >
-              Open library
+              All sessions
             </Link>
           </div>
         </div>
@@ -323,16 +333,52 @@ export default async function Dashboard() {
         <div className="hidden lg:block">
         <PageHeader
           title="Dashboard"
-          description="Your improvement command center. Track progress, keep a practice streak alive, and turn recent sessions into better next reps."
+          description="Your preparation command center. Start a Job Prep project, track progress across roles, and review feedback from recent practice."
           actions={
-            <Link href="/sessions/new">
-              <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
-                <Plus className="h-5 w-5" />
-                New Session
-              </PrimaryButton>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/sessions/new">
+                <SecondaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
+                  Quick Practice
+                </SecondaryButton>
+              </Link>
+              <Link href="/job-prep/new">
+                <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
+                  <Plus className="h-5 w-5" />
+                  New Job Prep Project
+                </PrimaryButton>
+              </Link>
+            </div>
           }
         />
+
+        <Card className="mb-6 border-border/70 bg-card/65 shadow-[var(--shadow-soft)] backdrop-blur">
+          <CardContent className="p-5">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+                Your preparation path
+              </h2>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                Follow these steps for each role you&apos;re targeting.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {prepPathSteps.map((item) => (
+                <Link
+                  key={item.step}
+                  href={item.href}
+                  className="group flex items-start gap-3 rounded-2xl border border-border/70 bg-background/50 px-4 py-3 transition-colors hover:border-primary/25 hover:bg-accent"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold text-primary">
+                    {item.step}
+                  </span>
+                  <span className="text-sm font-medium leading-6 text-foreground group-hover:text-primary">
+                    {item.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <StatsCards />
 
@@ -342,7 +388,7 @@ export default async function Dashboard() {
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <Badge variant="info" className="mb-4">
-                    Overall Interview Score
+                    Preparation score
                   </Badge>
                   <div className="flex items-end gap-3">
                     <span className="text-6xl font-semibold tracking-[-0.07em] text-foreground">
@@ -354,8 +400,8 @@ export default async function Dashboard() {
                   </div>
                   <p className="mt-4 max-w-xl text-sm font-medium leading-6 text-muted-foreground">
                     {totalSessions > 0
-                      ? 'A lightweight readiness signal based on your recent practice volume and completed sessions.'
-                      : 'Record your first session to establish a baseline score.'}
+                      ? 'A readiness signal based on fit analysis, practice volume, and answer ratings.'
+                      : 'Create your first Job Prep project to establish a baseline.'}
                   </p>
                 </div>
                 <div className="min-w-[220px] rounded-3xl border border-border/70 bg-background/55 p-4">
@@ -370,7 +416,7 @@ export default async function Dashboard() {
                     />
                   </div>
                   <p className="mt-4 text-sm font-medium leading-6 text-muted-foreground">
-                    Target: 3 focused practice sessions this week.
+                    Target: 3 focused practice answers this week.
                   </p>
                 </div>
               </div>
@@ -398,7 +444,7 @@ export default async function Dashboard() {
                 </div>
               </div>
               <p className="mt-5 text-sm font-medium leading-6 text-muted-foreground">
-                Consistency compounds. Keep your loop alive with one focused interview review today.
+                Consistency compounds. Keep your prep loop alive with one focused practice answer today.
               </p>
             </CardContent>
           </Card>
@@ -410,10 +456,10 @@ export default async function Dashboard() {
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-                    AI Coach recommendations
+                    Suggested next steps
                   </h2>
                   <p className="mt-1 text-sm font-medium text-muted-foreground">
-                    Suggested next moves based on your current practice loop.
+                    Recommended moves based on your current preparation loop.
                   </p>
                 </div>
                 <Sparkles className="h-5 w-5 text-primary" />
@@ -423,18 +469,18 @@ export default async function Dashboard() {
                 {[
                   {
                     icon: Target,
-                    title: 'Tighten your opener',
-                    copy: 'Start answers with the outcome before adding implementation details.',
+                    title: 'Start with Job Prep',
+                    copy: 'Create a project for your target role before practicing generic questions.',
                   },
                   {
                     icon: BarChart3,
-                    title: 'Review pacing',
-                    copy: 'Bookmark one strong answer and one rambling answer in your next replay.',
+                    title: 'Review your fit analysis',
+                    copy: 'Know your gaps before behavioral or technical rounds.',
                   },
                   {
                     icon: CalendarCheck,
-                    title: 'Set a weekly cadence',
-                    copy: 'Aim for three short sessions instead of one long practice block.',
+                    title: 'Rate one answer today',
+                    copy: 'Structured feedback beats unstructured repetition.',
                   },
                 ].map((item) => {
                   const Icon = item.icon;
@@ -461,10 +507,10 @@ export default async function Dashboard() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-                    Continue last session
+                    Continue practicing
                   </h2>
                   <p className="mt-1 text-sm font-medium text-muted-foreground">
-                    Pick up where you left off.
+                    Pick up your last recorded answer.
                   </p>
                 </div>
                 <CheckCircle2 className="h-5 w-5 text-success" />
@@ -490,7 +536,7 @@ export default async function Dashboard() {
               ) : (
                 <div className="rounded-3xl border border-dashed border-border/70 bg-background/45 p-4">
                   <p className="text-sm font-medium leading-6 text-muted-foreground">
-                    No sessions yet. Start one to create your first activity trail.
+                    No practice sessions yet. Start a Job Prep project or quick practice to begin.
                   </p>
                 </div>
               )}
@@ -504,10 +550,10 @@ export default async function Dashboard() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-                    Interview goals
+                    This week&apos;s goals
                   </h2>
                   <p className="mt-1 text-sm font-medium text-muted-foreground">
-                    Keep the next rep specific.
+                    Keep your preparation specific.
                   </p>
                 </div>
                 <Target className="h-5 w-5 text-primary" />
@@ -515,9 +561,9 @@ export default async function Dashboard() {
 
               <div className="space-y-3">
                 {[
-                  ['Complete 3 sessions this week', `${Math.min(recentSessions.length, 3)} / 3`],
-                  ['Review one bookmarked answer', 'Next'],
-                  ['Write one improvement note', 'Next'],
+                  ['Complete 3 practice answers this week', `${Math.min(recentSessions.length, 3)} / 3`],
+                  ['Review one answer rating', 'Next'],
+                  ['Update one Job Prep project', 'Next'],
                 ].map(([goal, status]) => (
                   <div
                     key={goal}
@@ -539,7 +585,7 @@ export default async function Dashboard() {
                     Recent activity
                   </h2>
                   <p className="mt-1 text-sm font-medium text-muted-foreground">
-                    A short pulse check. The full archive lives in Sessions.
+                    A short pulse check. The full archive lives in Practice Sessions.
                   </p>
                 </div>
                 <Link
@@ -573,7 +619,7 @@ export default async function Dashboard() {
                   ))
                 ) : (
                   <div className="rounded-2xl border border-dashed border-border/70 bg-background/45 px-4 py-6 text-sm font-medium text-muted-foreground">
-                    Your recent activity will appear after your first session.
+                    Your recent activity will appear after your first practice answer.
                   </div>
                 )}
               </div>
@@ -592,8 +638,8 @@ export default async function Dashboard() {
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-foreground">Record a session</div>
-                  <div className="text-xs font-medium text-muted-foreground">Start a new review loop</div>
+                  <div className="text-sm font-semibold text-foreground">Quick practice</div>
+                  <div className="text-xs font-medium text-muted-foreground">Record a standalone practice answer</div>
                 </div>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
@@ -601,7 +647,7 @@ export default async function Dashboard() {
           </Link>
 
           <Link
-            href="/sessions"
+            href="/job-prep/new"
             className="group rounded-3xl border border-border/70 bg-card/65 p-4 shadow-[var(--shadow-soft)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/25"
           >
             <div className="flex items-center gap-3">
@@ -609,8 +655,8 @@ export default async function Dashboard() {
                 <Library className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-foreground">Open session library</div>
-                <div className="text-xs font-medium text-muted-foreground">Search, filter, and revisit every interview</div>
+                <div className="text-sm font-semibold text-foreground">New Job Prep project</div>
+                <div className="text-xs font-medium text-muted-foreground">Prepare for a specific role end-to-end</div>
               </div>
             </div>
           </Link>

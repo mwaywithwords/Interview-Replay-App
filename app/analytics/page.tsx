@@ -11,7 +11,7 @@ import { Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Analytics',
+  title: 'Progress',
 };
 
 export default async function AnalyticsPage() {
@@ -55,13 +55,13 @@ export default async function AnalyticsPage() {
     >
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
-          title="Analytics"
-          description="A premium view of your interview practice — trends, streaks, heat maps, and session history derived from your recordings."
+          title="Progress"
+          description="Track preparation activity, practice streaks, and readiness trends across your Job Prep projects."
           actions={
-            <Link href="/sessions/new">
+            <Link href="/job-prep/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
                 <Plus className="h-5 w-5" />
-                New Session
+                New Job Prep Project
               </PrimaryButton>
             </Link>
           }

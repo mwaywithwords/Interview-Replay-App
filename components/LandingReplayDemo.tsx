@@ -112,7 +112,7 @@ export function LandingReplayDemo() {
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
                 <Play className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm font-semibold text-foreground">Mock interview recording</span>
+              <span className="text-sm font-semibold text-foreground">Practice answer recording</span>
               <Badge variant="secondary" className="ml-auto text-xs">
                 02:30
               </Badge>
@@ -123,7 +123,7 @@ export function LandingReplayDemo() {
               <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20" />
               <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                Interview practice
+                Job Prep practice
               </div>
 
               <button

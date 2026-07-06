@@ -58,7 +58,7 @@ export default async function SettingsPage() {
       <div className="mx-auto w-full max-w-[96rem] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 2xl:px-10">
         <PageHeader
           title="Settings"
-          description="Tune Replay’s account, AI, playback, transcript, privacy, and appearance preferences from one polished workspace."
+          description="Tune ReplayAI’s account, AI, playback, transcript, privacy, and appearance preferences from one polished workspace."
           actions={
             <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
               <SlidersHorizontal className="h-5 w-5" />

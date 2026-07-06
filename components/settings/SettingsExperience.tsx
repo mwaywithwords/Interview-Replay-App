@@ -381,7 +381,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
               Settings
             </p>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              Tune Replay for your workflow.
+              Tune ReplayAI for your workflow.
             </p>
           </div>
           <nav aria-label="Settings sections" className="space-y-1">
@@ -535,12 +535,12 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
         <SettingsCard
           id="ai"
           title="AI Preferences"
-          description="Configure how Replay should analyze new sessions."
+          description="Configure how ReplayAI should analyze new practice sessions."
           icon={Bot}
         >
           <SettingRow
             title="Default AI Analysis"
-            description="Choose how much depth Replay should use when analysis defaults are supported."
+            description="Choose how much depth ReplayAI should use when analysis defaults are supported."
             comingSoon
           >
             <SegmentedControl
@@ -561,14 +561,14 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
             description="Model selection will appear here when multiple analysis models are supported."
             comingSoon
           >
-            <DisabledSelect value="Replay default" label="Preferred AI model" />
+            <DisabledSelect value="ReplayAI default" label="Preferred AI model" />
           </SettingRow>
         </SettingsCard>
 
         <SettingsCard
           id="playback"
           title="Playback"
-          description="Set your preferred replay behavior for interviews."
+          description="Set your preferred replay behavior for practice answers."
           icon={Gauge}
         >
           <SettingRow
@@ -642,7 +642,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
         >
           <SettingRow
             title="AI analysis complete"
-            description="Notify me when Replay finishes analyzing an interview."
+            description="Notify me when ReplayAI finishes analyzing a practice answer."
             comingSoon
           >
             <ToggleControl checked label="AI analysis complete notifications" />
@@ -656,7 +656,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
           </SettingRow>
           <SettingRow
             title="Weekly summary"
-            description="Get a weekly digest of practice sessions, streaks, and progress."
+            description="Get a weekly digest of Job Prep projects, practice answers, streaks, and progress."
             comingSoon
           >
             <ToggleControl checked label="Weekly summary notifications" />
@@ -666,7 +666,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
         <SettingsCard
           id="appearance"
           title="Appearance"
-          description="Match Replay to your environment and preference."
+          description="Match ReplayAI to your environment and preference."
           icon={Palette}
         >
           <SettingRow
@@ -686,23 +686,23 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
           {[
             {
               title: 'Export all data',
-              description: 'Prepare a full account export containing sessions and review artifacts.',
+              description: 'Prepare a full account export containing practice answers and review artifacts.',
               icon: Download,
             },
             {
-              title: 'Download sessions',
-              description: 'Download interview media and associated review data in bulk.',
+              title: 'Download practice answers',
+              description: 'Download answer media and associated review data in bulk.',
               icon: Eye,
             },
             {
-              title: 'Delete all sessions',
-              description: 'Permanently remove every session in your Replay workspace.',
+              title: 'Delete all practice answers',
+              description: 'Permanently remove every practice answer in your ReplayAI workspace.',
               icon: Trash2,
               danger: true,
             },
             {
               title: 'Delete account',
-              description: 'Permanently remove your account and all Replay data.',
+              description: 'Permanently remove your account and all ReplayAI data.',
               icon: Trash2,
               danger: true,
             },
@@ -731,7 +731,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
         <SettingsCard
           id="subscription"
           title="Subscription"
-          description="Plan, storage, and AI usage for your Replay account."
+          description="Plan, storage, and AI usage for your ReplayAI account."
           icon={CreditCard}
         >
           <div className="p-5 sm:p-6">
@@ -745,7 +745,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
                     Billing is not implemented yet.
                   </h3>
                   <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-muted-foreground">
-                    Replay will show plan management, storage limits, and AI usage here when subscriptions launch.
+                    ReplayAI will show plan management, storage limits, and AI usage here when subscriptions launch.
                   </p>
                 </div>
                 <PrimaryButton disabled className="rounded-full">
@@ -763,7 +763,7 @@ export function SettingsExperience({ user, usage }: SettingsExperienceProps) {
                 <UsageMeter
                   label="Storage Used"
                   value={`${usage.storageUsedMb} MB`}
-                  helper={`${usage.totalSessions} session${usage.totalSessions === 1 ? '' : 's'}`}
+                  helper={`${usage.totalSessions} answer${usage.totalSessions === 1 ? '' : 's'}`}
                   percent={storagePercent}
                 />
                 <UsageMeter

@@ -14,7 +14,7 @@ export default function SignInPage() {
       <AuthShell
         eyebrow="Welcome back"
         title="Sign in to ReplayAI"
-        description="Continue your interview practice with recordings, bookmarks, and focused review."
+        description="Continue your Job Prep projects, practice sessions, and answer reviews."
       >
         <Suspense fallback={<SignInFormSkeleton />}>
           <SignInForm />

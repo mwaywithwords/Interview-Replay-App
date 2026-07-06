@@ -5,8 +5,8 @@
 <h1 align="center">ReplayAI</h1>
 
 <p align="center">
-  <strong>Review your performance like game film.</strong><br/>
-  Practice interviews, replay sessions, and sharpen your skills with AI-powered analysis.
+  <strong>Prepare for real interviews, from application to offer.</strong><br/>
+  Tailor your application, practice role-specific questions, and improve with structured AI feedback.
 </p>
 
 <p align="center">
@@ -22,22 +22,23 @@
 
 ## What is ReplayAI?
 
-ReplayAI is an all-in-one platform for professionals preparing for interviews and traders tracking performance with precision. Record mock interview sessions, replay them at any time, bookmark important moments, add notes, and get AI-powered insights to improve your performance.
+ReplayAI is an end-to-end interview preparation platform. Upload your résumé, paste a job description, generate tailored materials and personalized questions, record practice answers, and review structured AI feedback — all in one workspace.
 
-Whether you're preparing for a big tech interview or analyzing your trading decisions, ReplayAI helps you identify patterns, track improvement, and perform at your best.
+Whether you're preparing for a target role or refining your interview delivery, ReplayAI helps you measure progress and improve with every practice attempt.
 
 ## Features
 
 ### Core Features (Current)
 
-- **Session Recording** — Record audio or video sessions directly in the browser
-- **Session Replay** — Watch or listen to past sessions with full playback controls
+- **Job Prep** — Upload a résumé, paste a job description, and run fit analysis, tailored résumé, and question generation
+- **Practice Answers** — Record audio or video responses tied to Job Prep questions or quick practice
+- **Answer Review** — Replay practice answers with playback controls, transcripts, and structured AI feedback
 - **Bookmarks** — Mark important moments with timestamps for quick navigation
 - **Notes** — Add personal notes to sessions and individual bookmarks
 - **Transcripts** — Paste and search through session transcripts with highlighting
 - **AI Actions** — Queue AI jobs for transcription, summarization, scoring, and bookmark suggestions
-- **Share Links** — Generate secure, read-only share links for sessions
-- **Dashboard** — Track your practice sessions with stats and filtering
+- **Share Links** — Generate secure, read-only share links for practice answers
+- **Dashboard** — Track preparation progress with stats and filtering
 - **Dark Mode** — Full dark mode support throughout the app
 - **Session Types** — Support for both Interview and Trading session types
 - **Company & Symbol Tracking** — Organize sessions by target company or trading symbol
@@ -55,7 +56,7 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
 
 ### Dashboard
 ![Dashboard](docs/screenshots/dashboard-placeholder.png)
-*View all your sessions, filter by type, and track your practice stats.*
+*View Job Prep projects, practice answers, and preparation stats at a glance.*
 
 ### Session Replay
 ![Session Replay](docs/screenshots/replay-placeholder.png)

@@ -66,12 +66,12 @@ export default async function GoalsPage() {
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
           title="Goals"
-          description="A focused, minimal view of your weekly interview practice progress."
+          description="Weekly preparation goals — projects completed, answers practiced, and feedback reviewed."
           actions={
-            <Link href="/sessions/new">
+            <Link href="/job-prep/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
                 <Plus className="h-5 w-5" />
-                New Session
+                New Job Prep Project
               </PrimaryButton>
             </Link>
           }

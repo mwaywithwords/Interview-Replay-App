@@ -62,7 +62,7 @@ export function StatsCards() {
     {
       label: 'This week',
       value: stats?.sessionsThisWeek ?? 0,
-      helper: 'sessions recorded',
+      helper: 'answers practiced',
       icon: Calendar,
       tone: 'bg-primary/10 text-primary border-primary/20',
     },
@@ -74,9 +74,9 @@ export function StatsCards() {
       tone: 'bg-success/10 text-success border-success/20',
     },
     {
-      label: 'Top focus',
+      label: 'Active role',
       value: getSessionTypeLabel(stats?.topSessionType ?? null),
-      helper: 'session type',
+      helper: 'prep focus',
       icon: TrendingUp,
       tone: 'bg-warning/10 text-warning border-warning/20',
     },

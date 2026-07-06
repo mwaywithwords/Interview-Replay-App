@@ -41,8 +41,8 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
     return (
       <EmptyState
         icon={Briefcase}
-        title="No job prep projects yet"
-        description="Create your first project by adding a job description and résumé, then run ReplayAI fit analysis."
+        title="No Job Prep projects yet"
+        description="Create your first project to prepare for a specific role — fit analysis, tailored questions, and answer feedback in one workspace."
         action={
           <Link href="/job-prep/new">
             <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">

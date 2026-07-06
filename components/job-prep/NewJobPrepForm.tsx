@@ -98,7 +98,7 @@ export function NewJobPrepForm() {
 
       <PageHeader
         title="New Job Prep"
-        description="Paste a job description and your résumé to start a prep project. Analysis and interview questions will be added in a later step."
+        description="Paste a job description and your résumé to start a prep project. ReplayAI will analyze fit, generate questions, and guide your practice from here."
       />
 
       <form onSubmit={handleSubmit} className="space-y-6">

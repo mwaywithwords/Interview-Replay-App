@@ -33,9 +33,9 @@ export function InterviewHistory({ items }: InterviewHistoryProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/20 py-12 text-center">
-        <p className="text-sm font-semibold text-foreground">No interview history yet</p>
+        <p className="text-sm font-semibold text-foreground">No practice history yet</p>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Record your first session to start building analytics.
+          Complete a Job Prep project or quick practice session to start tracking progress.
         </p>
       </div>
     );

@@ -47,12 +47,12 @@ export default async function ProfilePage() {
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
           title="Profile"
-          description="Your account identity and practice footprint in one minimal workspace."
+          description="Your account identity and preparation footprint in one workspace."
           actions={
-            <Link href="/sessions/new">
+            <Link href="/job-prep/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
                 <Plus className="h-5 w-5" />
-                New Session
+                New Job Prep Project
               </PrimaryButton>
             </Link>
           }
@@ -106,7 +106,7 @@ export default async function ProfilePage() {
                       Practice summary
                     </p>
                     <h3 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-foreground">
-                      {sessionsResult.total} total session{sessionsResult.total === 1 ? '' : 's'}
+                      {sessionsResult.total} practice answer{sessionsResult.total === 1 ? '' : 's'}
                     </h3>
                   </div>
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-success/20 bg-success/10 text-success">
@@ -115,8 +115,8 @@ export default async function ProfilePage() {
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   {[
-                    ['Recent sessions', recentSessions.length],
-                    ['Ready reviews', recentSessions.filter((s) => s.status === 'ready').length],
+                    ['Recent practice', recentSessions.length],
+                    ['Ready to review', recentSessions.filter((s) => s.status === 'ready').length],
                     ['Recorded', recentSessions.filter((s) => s.status === 'recorded').length],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-2xl border border-border/40 bg-background/45 p-4">
@@ -159,9 +159,9 @@ export default async function ProfilePage() {
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-center">
-                      <p className="text-sm font-semibold text-foreground">No sessions yet</p>
+                      <p className="text-sm font-semibold text-foreground">No practice yet</p>
                       <p className="mt-1 text-xs font-medium text-muted-foreground">
-                        Your profile activity appears after your first recording.
+                        Start a Job Prep project or quick practice session to see activity here.
                       </p>
                     </div>
                   )}

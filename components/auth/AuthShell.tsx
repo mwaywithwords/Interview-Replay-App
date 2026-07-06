@@ -60,16 +60,16 @@ export function AuthShell({
                 Practice intelligence
               </div>
               <h2 className="text-4xl font-semibold tracking-[-0.06em] text-foreground">
-                Review every rep with sharper context.
+                Prepare with purpose. Improve with feedback.
               </h2>
               <p className="mt-4 text-sm font-medium leading-6 text-muted-foreground">
-                Record, replay, bookmark, and improve from a calm workspace built for serious interview practice.
+                Upload your résumé, target a role, practice personalized questions, and review AI coaching — in one workspace.
               </p>
             </div>
           </div>
 
           <div className="grid gap-3">
-            {['Secure sessions', 'Private recordings', 'AI-ready replays'].map((item) => (
+            {['Job Prep projects', 'Recorded practice', 'Structured answer ratings'].map((item) => (
               <div
                 key={item}
                 className="rounded-2xl border border-border/35 bg-background/45 px-4 py-3 text-sm font-semibold text-foreground shadow-sm"

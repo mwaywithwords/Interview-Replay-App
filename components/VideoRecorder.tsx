@@ -516,7 +516,7 @@ export function VideoRecorder({
           Video Recorder
         </CardTitle>
         <CardDescription>
-          Record video and audio for your interview session
+          Record video and audio for your practice answer
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

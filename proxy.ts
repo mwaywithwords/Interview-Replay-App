@@ -65,6 +65,10 @@ export async function proxy(request: NextRequest) {
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   const pathname = request.nextUrl.pathname;
+  const isLocalhost =
+    request.nextUrl.hostname === 'localhost' ||
+    request.nextUrl.hostname === '127.0.0.1' ||
+    request.nextUrl.hostname === '::1';
 
   // Log auth-related requests for monitoring
   if (EMAIL_TRIGGER_PATHS.some(path => pathname.startsWith(path))) {
@@ -79,6 +83,15 @@ export async function proxy(request: NextRequest) {
 
   // Redirect unauthenticated users from protected paths
   if (PROTECTED_PATHS.some(path => pathname.startsWith(path))) {
+    if (isLocalhost || process.env.NODE_ENV === 'development') {
+      console.info('[Auth Proxy] Protected route auth check', {
+        path: pathname,
+        hasUser: Boolean(user),
+        emailConfirmed: Boolean(user?.email_confirmed_at),
+        cookieNames: request.cookies.getAll().map((cookie) => cookie.name),
+      });
+    }
+
     if (!user) {
       const redirectUrl = new URL('/auth/signin', request.url);
       redirectUrl.searchParams.set('next', pathname);

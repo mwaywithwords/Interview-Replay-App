@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/logo-placeholder.png" alt="Replay.ai Logo" width="120" height="120" />
+  <img src="public/replayai-logo.png" alt="ReplayAI Logo" width="120" height="120" />
 </p>
 
-<h1 align="center">Replay.ai</h1>
+<h1 align="center">ReplayAI</h1>
 
 <p align="center">
   <strong>Review your performance like game film.</strong><br/>
@@ -20,11 +20,11 @@
 
 ---
 
-## What is Replay.ai?
+## What is ReplayAI?
 
-Replay.ai is an all-in-one platform for professionals preparing for interviews and traders tracking performance with precision. Record mock interview sessions, replay them at any time, bookmark important moments, add notes, and get AI-powered insights to improve your performance.
+ReplayAI is an all-in-one platform for professionals preparing for interviews and traders tracking performance with precision. Record mock interview sessions, replay them at any time, bookmark important moments, add notes, and get AI-powered insights to improve your performance.
 
-Whether you're preparing for a big tech interview or analyzing your trading decisions, Replay.ai helps you identify patterns, track improvement, and perform at your best.
+Whether you're preparing for a big tech interview or analyzing your trading decisions, ReplayAI helps you identify patterns, track improvement, and perform at your best.
 
 ## Features
 
@@ -144,10 +144,25 @@ Whether you're preparing for a big tech interview or analyzing your trading deci
       - `http://localhost:3000/auth/confirm` (email confirmation - local)
       - `http://localhost:3000/auth/callback` (OAuth callback - local)
       - `http://localhost:3000/auth/reset-password` (password reset - local)
+      - `http://localhost:3001/auth/callback` (OAuth callback - alternate local port)
       - `https://replayai.app/auth/confirm` (email confirmation - production)
       - `https://replayai.app/auth/callback` (OAuth callback - production)
       - `https://replayai.app/auth/reset-password` (password reset - production)
    3. Set your **Site URL** to your production domain (e.g., `https://replayai.app`)
+
+   **Configure Social Auth Providers:**
+
+   ReplayAI supports Google, GitHub, and LinkedIn sign-in through Supabase Auth. Facebook is not used.
+
+   1. In Google Cloud, create an OAuth client and add the Supabase provider callback URL from **Supabase Dashboard** → **Authentication** → **Providers** → **Google**.
+   2. In GitHub Developer settings, create an OAuth app and add the Supabase GitHub callback URL.
+   3. In LinkedIn Developer, create an OAuth/OIDC app and add the Supabase LinkedIn OIDC callback URL. ReplayAI uses Supabase's `linkedin_oidc` provider.
+   4. Add each provider's client ID and client secret to **Supabase Auth Providers** and enable the provider.
+   5. In Supabase **URL Configuration**, keep both local and production app redirects allowed:
+      - `http://localhost:3000/auth/callback`
+      - `http://localhost:3001/auth/callback`
+      - `https://replayai.app/auth/callback`
+   6. In each external provider dashboard, add the exact Supabase callback URL shown by Supabase, typically `https://<project-ref>.supabase.co/auth/v1/callback`.
 
 4. **Set up the database**
 

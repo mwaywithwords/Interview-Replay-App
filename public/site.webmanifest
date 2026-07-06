@@ -1,12 +1,28 @@
 {
-  "name": "Replay AI",
-  "short_name": "Replay AI",
+  "name": "ReplayAI",
+  "short_name": "ReplayAI",
   "description": "A premium AI workspace for recording, replaying, and improving professional performance.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8f8fa",
   "theme_color": "#5b6cff",
   "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",

@@ -303,7 +303,7 @@ async function createQueuedAIJobIfNoActiveJob(
 }
 
 /**
- * Server Action: Ensure the next Replay AI analysis pipeline job exists.
+ * Server Action: Ensure the next ReplayAI analysis pipeline job exists.
  *
  * Pipeline order for the first coach experience:
  * transcript -> summary -> score -> action_items
@@ -457,7 +457,7 @@ export async function ensureNextAnalysisPipelineJob(
 }
 
 /**
- * Server Action: Retry the first failed/cancelled Replay AI analysis step.
+ * Server Action: Retry the first failed/cancelled ReplayAI analysis step.
  *
  * The retry resumes from the failed pipeline step and leaves earlier completed
  * steps untouched. If there is no failed step, this behaves like

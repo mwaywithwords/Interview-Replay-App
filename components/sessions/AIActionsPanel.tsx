@@ -669,7 +669,7 @@ export function AIActionsPanel({
             <div className="flex items-center gap-2">
               <Sparkles className="text-primary h-5 w-5" />
               <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
-                Replay AI Interview Coach
+                ReplayAI Interview Coach
               </h4>
             </div>
             <p className="text-sm font-medium leading-6 text-muted-foreground">
@@ -705,7 +705,7 @@ export function AIActionsPanel({
               <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
                 {failedStep
                   ? `${getJobTypeLabel(failedStep.jobType)} needs attention before the coach can continue.`
-                  : 'Replay AI is working through your interview analysis.'}
+                  : 'ReplayAI is working through your interview analysis.'}
               </p>
             </div>
             {analysisInProgress && (

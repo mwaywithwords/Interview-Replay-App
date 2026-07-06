@@ -4,12 +4,17 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { PrimaryButton } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, XCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SocialAuthButtons, authMethodButtonClass } from '@/components/auth/SocialAuthButtons';
+
+function getSafeNextPath(next: string | null) {
+  return next?.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+}
 
 export function SignInForm() {
   const router = useRouter();
@@ -18,26 +23,33 @@ export function SignInForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isOAuthRedirecting, setIsOAuthRedirecting] = useState(false);
   const [confirmationStatus, setConfirmationStatus] = useState<'success' | 'error' | null>(null);
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const nextPath = getSafeNextPath(searchParams.get('next'));
 
   // Handle email confirmation status from URL params
   useEffect(() => {
     const confirmed = searchParams.get('confirmed');
     const errorMsg = searchParams.get('error');
+    const oauthError = searchParams.get('oauth_error');
 
     if (confirmed === '1') {
       setConfirmationStatus('success');
     } else if (confirmed === '0') {
       setConfirmationStatus('error');
       setConfirmationError(errorMsg || 'Confirmation link is invalid or expired. Please request a new one.');
+    } else if (oauthError) {
+      setConfirmationStatus('error');
+      setConfirmationError(oauthError);
     }
 
     // Clean up URL params without causing a refresh
-    if (confirmed !== null) {
+    if (confirmed !== null || oauthError !== null) {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('confirmed');
       newUrl.searchParams.delete('error');
+      newUrl.searchParams.delete('oauth_error');
       window.history.replaceState({}, '', newUrl.pathname);
     }
   }, [searchParams]);
@@ -71,9 +83,9 @@ export function SignInForm() {
         return;
       }
 
-      router.push('/dashboard');
+      router.push(nextPath);
       router.refresh();
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -101,9 +113,26 @@ export function SignInForm() {
         </Alert>
       )}
 
-      <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
-        <form onSubmit={handleSignIn} className="space-y-6">
-          <div className="space-y-2">
+      <SectionCard className="animate-in fade-in slide-in-from-bottom-2 rounded-[1.75rem] border-border/45 bg-background/60 shadow-[var(--shadow-elevated)] backdrop-blur-xl duration-500">
+        <div className="space-y-4">
+          <SocialAuthButtons
+            mode="signin"
+            next={nextPath}
+            disabled={loading}
+            onRedirectingChange={setIsOAuthRedirecting}
+          />
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/60" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              secure email access
+            </span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+        </div>
+
+        <form onSubmit={handleSignIn} className="mt-5 space-y-5">
+          <div className="space-y-2.5">
             <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Email</Label>
             <Input
               id="email"
@@ -112,11 +141,12 @@ export function SignInForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="border-border/60 bg-card/70"
+              disabled={isOAuthRedirecting}
+              className="h-12 rounded-[14px] border-border/60 bg-card/70 text-base shadow-sm disabled:opacity-60"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Password</Label>
               <Link
@@ -133,7 +163,8 @@ export function SignInForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="border-border/60 bg-card/70"
+              disabled={isOAuthRedirecting}
+              className="h-12 rounded-[14px] border-border/60 bg-card/70 text-base shadow-sm disabled:opacity-60"
             />
           </div>
 
@@ -143,16 +174,27 @@ export function SignInForm() {
             </div>
           )}
 
-          <PrimaryButton
+          <Button
             type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-full font-semibold shadow-[var(--shadow-soft)]"
+            disabled={loading || isOAuthRedirecting}
+            aria-label="Continue with Email"
+            className={authMethodButtonClass}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </PrimaryButton>
+            <span className="flex items-center justify-start">
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <Mail className="h-5 w-5 text-muted-foreground" />
+              )}
+            </span>
+            <span className="text-center">
+              {loading ? 'Continuing with Email...' : 'Continue with Email'}
+            </span>
+            <span aria-hidden="true" />
+          </Button>
         </form>
 
-        <div className="mt-8 text-center text-sm font-medium text-muted-foreground">
+        <div className="mt-7 text-center text-sm font-medium text-muted-foreground">
           Don&apos;t have an account?{' '}
           <Link
             href="/auth/signup"

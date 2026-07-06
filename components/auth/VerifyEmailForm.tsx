@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/client';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { branding } from '@/lib/branding';
-import { PlayCircle, Mail, RefreshCw, CheckCircle, LogOut } from 'lucide-react';
+import { Mail, RefreshCw, CheckCircle, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { Turnstile } from './Turnstile';
 import { resendConfirmationAction } from '@/app/actions/auth';
+import { BrandMark } from '@/components/BrandLogo';
 
 interface VerifyEmailFormProps {
   email: string;
@@ -58,7 +59,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
       setShowCaptcha(false);
       setTurnstileToken('');
       toast.success('Confirmation email sent!', { description: 'Check your inbox for the new link.' });
-    } catch (err) {
+    } catch {
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -90,7 +91,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
       } else {
         toast.info('Email not yet verified', { description: 'Please check your inbox and click the confirmation link.' });
       }
-    } catch (err) {
+    } catch {
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -101,11 +102,9 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
     <div className="w-full max-w-md space-y-8">
       <div className="text-center">
         <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-            <PlayCircle className="w-6 h-6 fill-current" />
-          </div>
+          <BrandMark size="lg" className="transition-transform group-hover:scale-105" />
           <span className="text-3xl font-bold tracking-tight text-foreground">
-            {branding.brandShort}<span className="text-primary">.ai</span>
+            {branding.brandName}
           </span>
         </Link>
       </div>

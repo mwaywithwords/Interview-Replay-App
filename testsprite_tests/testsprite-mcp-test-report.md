@@ -3,7 +3,7 @@
 ---
 
 ## 1️⃣ Document Metadata
-- **Project Name:** Interview Replay App (Replay.ai)
+- **Project Name:** Interview Replay App (ReplayAI)
 - **Date:** 2026-01-21
 - **Prepared by:** TestSprite AI Team
 - **Test Scope:** Full codebase frontend testing

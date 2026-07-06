@@ -1,17 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Copy,
+  Download,
   FileText,
   Lightbulb,
   ListChecks,
+  Loader2,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SecondaryButton } from '@/components/ui/button';
 import type { TailoredResumeResult } from '@/types';
+import {
+  buildTailoredResumeFilename,
+  createTailoredResumeDocxBlob,
+  createTailoredResumeTextBlob,
+  downloadBlob,
+} from '@/lib/resume/export-tailored-resume';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -81,15 +89,50 @@ function BulletCard({
 
 interface JobPrepTailoredResumeResultsProps {
   result: TailoredResumeResult;
+  companyName?: string | null;
+  roleTitle?: string | null;
 }
 
-export function JobPrepTailoredResumeResults({ result }: JobPrepTailoredResumeResultsProps) {
+export function JobPrepTailoredResumeResults({
+  result,
+  companyName,
+  roleTitle,
+}: JobPrepTailoredResumeResultsProps) {
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(result.tailored_resume_text);
       toast.success('Tailored résumé copied to clipboard');
     } catch {
       toast.error('Could not copy résumé text');
+    }
+  }
+
+  function handleDownloadTxt() {
+    try {
+      const blob = createTailoredResumeTextBlob(result.tailored_resume_text);
+      downloadBlob(blob, buildTailoredResumeFilename('txt', companyName, roleTitle));
+      toast.success('Tailored résumé downloaded as plain text');
+    } catch {
+      toast.error(
+        'Could not create the text download. Your generated résumé is still available above.'
+      );
+    }
+  }
+
+  async function handleDownloadDocx() {
+    setIsExportingDocx(true);
+    try {
+      const blob = await createTailoredResumeDocxBlob(result.tailored_resume_text);
+      downloadBlob(blob, buildTailoredResumeFilename('docx', companyName, roleTitle));
+      toast.success('Tailored résumé downloaded as Word document');
+    } catch {
+      toast.error(
+        'Could not create the Word download. Your generated résumé is still available above.'
+      );
+    } finally {
+      setIsExportingDocx(false);
     }
   }
 
@@ -102,16 +145,43 @@ export function JobPrepTailoredResumeResults({ result }: JobPrepTailoredResumeRe
               <FileText className="h-4 w-4 text-primary" />
               <SectionLabel>Tailored résumé</SectionLabel>
             </div>
-            <SecondaryButton
-              type="button"
-              size="sm"
-              variant="outline"
-              className="rounded-full"
-              onClick={handleCopy}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copy résumé
-            </SecondaryButton>
+            <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={handleCopy}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy résumé
+              </SecondaryButton>
+              <SecondaryButton
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                disabled={isExportingDocx}
+                onClick={handleDownloadDocx}
+              >
+                {isExportingDocx ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                Download Word
+              </SecondaryButton>
+              <SecondaryButton
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={handleDownloadTxt}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download Text
+              </SecondaryButton>
+            </div>
           </div>
           <div className="max-h-[520px] overflow-y-auto rounded-xl border border-border/35 bg-background/45 p-4">
             <pre className="whitespace-pre-wrap font-mono text-sm leading-6 text-foreground">
@@ -157,9 +227,6 @@ export function JobPrepTailoredResumeResults({ result }: JobPrepTailoredResumeRe
         <p className="text-sm font-medium text-muted-foreground">
           Generated from your source résumé and saved profile only. Review before submitting.
         </p>
-        <Badge variant="outline" className="ml-auto shrink-0 rounded-full">
-          No export yet
-        </Badge>
       </div>
     </div>
   );

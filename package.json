@@ -25,6 +25,7 @@
     "autoprefixer": "^10.4.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "docx": "^9.5.1",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.12.0",
     "next": "^16.1.4",

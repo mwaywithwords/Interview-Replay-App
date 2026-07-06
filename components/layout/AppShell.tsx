@@ -4,7 +4,6 @@ import {
   BarChart3,
   LayoutDashboard,
   Library,
-  PlayCircle,
   PlusCircle,
   Settings2,
   Sparkles,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import { branding } from '@/lib/branding';
 import { ThemeToggle } from './ThemeToggle';
+import { BrandMark } from '@/components/BrandLogo';
 
 interface AppShellProps {
   children: ReactNode;
@@ -87,9 +87,7 @@ export function AppShell({
               href="/dashboard"
               className="group flex items-center gap-2.5 rounded-2xl px-3 py-3 transition-colors hover:bg-accent"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition-transform group-hover:scale-105">
-                <PlayCircle className="h-5 w-5 fill-current" />
-              </div>
+              <BrandMark size="md" className="transition-transform group-hover:scale-105" />
               <div>
                 <div className="text-sm font-semibold tracking-[-0.03em] text-foreground">
                   {branding.brandName}
@@ -143,9 +141,7 @@ export function AppShell({
             <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
               <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
                 <Link href="/dashboard" className="flex items-center gap-2.5 lg:hidden">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                    <PlayCircle className="h-5 w-5 fill-current" />
-                  </div>
+                  <BrandMark size="sm" />
                   <span className="text-lg font-semibold tracking-[-0.04em] text-foreground">
                     {branding.brandName}
                   </span>
@@ -195,9 +191,7 @@ export function AppShell({
       {showNav && (
         <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/70 bg-background/80 px-6 backdrop-blur-xl">
           <Link href="/" className="group flex items-center gap-2.5 transition-all">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition-transform group-hover:scale-105">
-              <PlayCircle className="h-5 w-5 fill-current" />
-            </div>
+            <BrandMark size="sm" className="transition-transform group-hover:scale-105" />
             <span className="text-xl font-semibold tracking-[-0.04em] text-foreground">
               {branding.brandName}
             </span>

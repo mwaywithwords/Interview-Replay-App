@@ -28,6 +28,9 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-64.png', sizes: '64x64', type: 'image/png' },
+      { url: '/icon-128.png', sizes: '128x128', type: 'image/png' },
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
@@ -44,11 +47,20 @@ export const metadata: Metadata = {
     description: branding.description,
     siteName: branding.brandName,
     type: 'website',
+    images: [
+      {
+        url: '/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: `${branding.brandName} logo`,
+      },
+    ],
   },
   twitter: {
     card: 'summary',
     title: branding.brandName,
     description: branding.description,
+    images: ['/icon-512.png'],
   },
 };
 

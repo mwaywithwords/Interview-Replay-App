@@ -7,7 +7,8 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { AppShell } from '@/components/layout/AppShell';
 import { branding } from '@/lib/branding';
-import { AlertCircle, ArrowLeft, PlayCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { BrandMark } from '@/components/BrandLogo';
 
 function AuthCodeErrorContent() {
   const searchParams = useSearchParams();
@@ -19,11 +20,9 @@ function AuthCodeErrorContent() {
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
             <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                <PlayCircle className="w-6 h-6 fill-current" />
-              </div>
+              <BrandMark size="lg" className="transition-transform group-hover:scale-105" />
               <span className="text-3xl font-bold tracking-tight text-foreground">
-                {branding.brandShort}<span className="text-primary">.ai</span>
+                {branding.brandName}
               </span>
             </Link>
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">

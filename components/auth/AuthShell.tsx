@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
-import { PlayCircle, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { branding } from '@/lib/branding';
 import { cn } from '@/lib/utils';
+import { BrandMark } from '@/components/BrandLogo';
 
 interface AuthShellProps {
   eyebrow: string;
@@ -21,12 +22,9 @@ export function AuthBrandMark({ className }: { className?: string }) {
         className
       )}
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-soft)] transition-transform group-hover:scale-105">
-        <PlayCircle className="h-5 w-5 fill-current" />
-      </div>
+      <BrandMark size="sm" className="transition-transform group-hover:scale-105" />
       <span className="text-sm font-semibold tracking-[-0.03em] text-foreground">
-        {branding.brandShort}
-        <span className="text-primary">.ai</span>
+        {branding.brandName}
       </span>
     </Link>
   );
@@ -40,7 +38,7 @@ export function AuthShell({
   className,
 }: AuthShellProps) {
   return (
-    <div className="relative flex min-h-screen flex-1 items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground sm:px-6 lg:px-8">
+    <div className="relative flex min-h-screen flex-1 items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground sm:px-6 sm:py-10 lg:px-8">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-[-12rem] top-[-12rem] h-[28rem] w-[28rem] rounded-full bg-primary/12 blur-3xl" />
         <div className="absolute bottom-[-14rem] right-[-10rem] h-[32rem] w-[32rem] rounded-full bg-info/10 blur-3xl" />
@@ -49,11 +47,11 @@ export function AuthShell({
 
       <div
         className={cn(
-          'relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border/50 bg-card/65 shadow-[var(--shadow-elevated)] backdrop-blur-xl lg:grid-cols-[0.95fr_1.05fr]',
+          'animate-in fade-in slide-in-from-bottom-3 relative grid w-full max-w-[1040px] overflow-hidden rounded-[2rem] border border-border/50 bg-card/70 shadow-[var(--shadow-elevated)] backdrop-blur-xl duration-500 lg:grid-cols-[0.95fr_1.05fr]',
           className
         )}
       >
-        <div className="hidden min-h-[620px] flex-col justify-between overflow-hidden border-r border-border/40 bg-gradient-to-br from-primary/12 via-card/75 to-card/35 p-8 lg:flex">
+        <div className="hidden min-h-[660px] flex-col justify-between overflow-hidden border-r border-border/40 bg-gradient-to-br from-primary/12 via-card/75 to-card/35 p-8 lg:flex">
           <div>
             <AuthBrandMark />
             <div className="mt-16 max-w-sm">
@@ -82,12 +80,12 @@ export function AuthShell({
           </div>
         </div>
 
-        <div className="flex min-h-[620px] flex-col justify-center p-5 sm:p-8">
+        <div className="flex min-h-[620px] flex-col justify-center p-5 sm:p-8 lg:p-10">
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 text-center lg:hidden">
               <AuthBrandMark />
             </div>
-            <div className="mb-7">
+            <div className="mb-8">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
                 {eyebrow}
               </p>

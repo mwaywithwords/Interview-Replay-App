@@ -1,5 +1,5 @@
 # Product Requirements Document (PRD)
-## Replay.ai - Interview & Performance Review Platform
+## ReplayAI - Interview & Performance Review Platform
 
 **Version:** 1.0  
 **Last Updated:** January 21, 2026  
@@ -26,13 +26,13 @@
 
 ## 1. Executive Summary
 
-**Replay.ai** is a web-based platform that enables professionals to record, replay, and analyze their practice sessions—whether for job interviews or trading performance reviews. The application provides comprehensive tools for session recording (audio/video), timestamped bookmarking, note-taking, transcription, and AI-powered analysis to help users identify patterns, track improvement, and perform at their best.
+**ReplayAI** is a web-based platform that enables professionals to record, replay, and analyze their practice sessions—whether for job interviews or trading performance reviews. The application provides comprehensive tools for session recording (audio/video), timestamped bookmarking, note-taking, transcription, and AI-powered analysis to help users identify patterns, track improvement, and perform at their best.
 
 ### Core Value Proposition
 
 > "Review your performance like game film."
 
-Just as athletes review game footage to improve, Replay.ai gives professionals the tools to record practice sessions, replay them at any time, bookmark important moments, add notes, and receive AI-powered insights to continuously improve their performance.
+Just as athletes review game footage to improve, ReplayAI gives professionals the tools to record practice sessions, replay them at any time, bookmark important moments, add notes, and receive AI-powered insights to continuously improve their performance.
 
 ---
 
@@ -94,7 +94,7 @@ Become the go-to platform for professional performance improvement, expanding be
 
 ### Opportunity
 
-By providing a comprehensive recording, replay, and analysis platform, Replay.ai addresses all these challenges in a single integrated solution.
+By providing a comprehensive recording, replay, and analysis platform, ReplayAI addresses all these challenges in a single integrated solution.
 
 ---
 

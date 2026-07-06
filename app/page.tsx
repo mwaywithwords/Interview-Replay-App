@@ -13,7 +13,6 @@ import {
   ClipboardList,
   FileText,
   MessageSquareText,
-  PlayCircle,
   Quote,
   Sparkles,
   Target,
@@ -22,6 +21,7 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { branding } from '@/lib/branding';
+import { BrandMark } from '@/components/BrandLogo';
 
 const features = [
   {
@@ -70,7 +70,7 @@ const workflow = [
 const testimonials = [
   {
     quote:
-      'Replay AI turned our mock interview loop into something candidates actually wanted to repeat.',
+      'ReplayAI turned our mock interview loop into something candidates actually wanted to repeat.',
     name: 'Maya Chen',
     role: 'Founder, Hiring Lab',
   },
@@ -196,7 +196,7 @@ export default function Home() {
           <SectionIntro
             eyebrow="Features"
             title="Built for high-signal practice."
-            description="Replay AI keeps the workflow calm, visual, and specific so improvement does not get buried in a recording."
+            description="ReplayAI keeps the workflow calm, visual, and specific so improvement does not get buried in a recording."
           />
 
           <div className="grid gap-5 md:grid-cols-3">
@@ -268,7 +268,7 @@ export default function Home() {
                 Specific feedback beats generic practice.
               </h2>
               <p className="mt-5 text-base font-medium leading-8 text-muted-foreground">
-                Replay AI is designed around the moment you say, "I need to watch that answer again." Everything stays close to the recording so feedback remains grounded.
+                ReplayAI is designed around the moment you say, "I need to watch that answer again." Everything stays close to the recording so feedback remains grounded.
               </p>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -401,9 +401,7 @@ export default function Home() {
           <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                  <PlayCircle className="h-4 w-4 fill-current" />
-                </div>
+                <BrandMark size="sm" />
                 <span className="text-lg font-semibold tracking-[-0.04em] text-foreground">
                   {branding.brandName}
                 </span>
@@ -412,8 +410,11 @@ export default function Home() {
                 {branding.tagline}. Built for replaying practice, finding signal, and improving faster.
               </p>
             </div>
-            <div className="text-sm font-semibold text-muted-foreground">
-              © 2026 {branding.brandName}. All rights reserved.
+            <div className="flex flex-col gap-2 text-sm font-semibold text-muted-foreground sm:items-end">
+              <Link href="/privacy" className="transition-colors hover:text-foreground">
+                Privacy Policy
+              </Link>
+              <span>© 2026 {branding.brandName}. All rights reserved.</span>
             </div>
           </div>
         </footer>

@@ -13,7 +13,7 @@ export default function SignInPage() {
     <AppShell showNav={false}>
       <AuthShell
         eyebrow="Welcome back"
-        title="Sign in to Replay AI"
+        title="Sign in to ReplayAI"
         description="Continue your interview practice with recordings, bookmarks, and focused review."
       >
         <Suspense fallback={<SignInFormSkeleton />}>

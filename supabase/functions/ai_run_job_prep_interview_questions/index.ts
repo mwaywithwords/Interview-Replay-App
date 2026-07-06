@@ -15,39 +15,238 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_MODEL = 'gpt-4o-mini';
 const OPENAI_TIMEOUT_MS = 90000;
 
-const QUESTION_TYPE_COUNTS: Record<string, number> = {
-  behavioral: 5,
-  technical: 5,
-  resume_specific: 5,
-  gap_risk: 3,
-  why_role_company: 3,
+const MVP_QUESTION_TYPES = [
+  'behavioral',
+  'technical',
+  'resume_specific',
+  'company_role_fit',
+] as const;
+
+type MvpQuestionType = (typeof MVP_QUESTION_TYPES)[number];
+
+const QUESTION_TYPE_COUNTS: Record<MvpQuestionType, number> = {
+  behavioral: 2,
+  technical: 2,
+  resume_specific: 1,
+  company_role_fit: 1,
 };
 
-const QUESTION_TYPES = Object.keys(QUESTION_TYPE_COUNTS);
-const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+const TOTAL_INTERVIEW_QUESTIONS = MVP_QUESTION_TYPES.reduce(
+  (total, type) => total + QUESTION_TYPE_COUNTS[type],
+  0
+);
 
-type QuestionType = keyof typeof QUESTION_TYPE_COUNTS;
+const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 type Difficulty = (typeof DIFFICULTIES)[number];
 
 interface GeneratedQuestion {
   question_text: string;
-  question_type: QuestionType;
+  question_type: MvpQuestionType;
   difficulty: Difficulty;
   what_good_answer_should_include: string;
   related_resume_section: string;
   related_job_requirement: string;
 }
 
-function categoryFromQuestionType(questionType: QuestionType): string {
+const QUESTION_TYPE_ALIASES: Record<string, MvpQuestionType> = {
+  behavioral: 'behavioral',
+  behaviour: 'behavioral',
+  technical: 'technical',
+  tech: 'technical',
+  resume_specific: 'resume_specific',
+  resume: 'resume_specific',
+  resume_based: 'resume_specific',
+  resume_based_question: 'resume_specific',
+  company_role_fit: 'company_role_fit',
+  company_fit: 'company_role_fit',
+  role_company_fit: 'company_role_fit',
+  why_role_company: 'company_role_fit',
+  company_role: 'company_role_fit',
+  role_fit: 'company_role_fit',
+};
+
+const DIFFICULTY_ALIASES: Record<string, Difficulty> = {
+  easy: 'easy',
+  beginner: 'easy',
+  basic: 'easy',
+  medium: 'medium',
+  intermediate: 'medium',
+  moderate: 'medium',
+  hard: 'hard',
+  advanced: 'hard',
+  difficult: 'hard',
+};
+
+function readNonEmptyString(
+  source: Record<string, unknown>,
+  keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function normalizeQuestionType(rawType: unknown): MvpQuestionType | null {
+  if (typeof rawType !== 'string') {
+    return null;
+  }
+
+  const normalizedKey = rawType.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return QUESTION_TYPE_ALIASES[normalizedKey] ?? null;
+}
+
+function normalizeDifficulty(rawDifficulty: unknown): Difficulty | null {
+  if (typeof rawDifficulty !== 'string') {
+    return null;
+  }
+
+  const normalizedKey = rawDifficulty.trim().toLowerCase();
+  return DIFFICULTY_ALIASES[normalizedKey] ?? null;
+}
+
+function normalizeQuestion(
+  item: unknown,
+  index: number
+): { question: GeneratedQuestion } | { error: string } {
+  if (!item || typeof item !== 'object') {
+    return { error: `Question ${index + 1}: expected an object.` };
+  }
+
+  const raw = item as Record<string, unknown>;
+  const questionText = readNonEmptyString(raw, [
+    'question_text',
+    'question',
+    'text',
+    'prompt',
+  ]);
+  const questionType = normalizeQuestionType(raw.question_type ?? raw.type ?? raw.category);
+  const difficulty = normalizeDifficulty(raw.difficulty ?? raw.level);
+  const goodAnswer = readNonEmptyString(raw, [
+    'what_good_answer_should_include',
+    'what_a_good_answer_should_include',
+    'good_answer',
+    'answer_guidance',
+    'guidance',
+  ]);
+  const resumeSection = readNonEmptyString(raw, [
+    'related_resume_section',
+    'resume_section',
+    'related_resume',
+    'resume_reference',
+  ]);
+  const jobRequirement = readNonEmptyString(raw, [
+    'related_job_requirement',
+    'job_requirement',
+    'related_requirement',
+    'requirement',
+    'job_reference',
+  ]);
+
+  const missing: string[] = [];
+  if (!questionText) missing.push('question_text');
+  if (!questionType) missing.push('question_type');
+  if (!difficulty) missing.push('difficulty');
+  if (!goodAnswer) missing.push('what_good_answer_should_include');
+  if (!resumeSection) missing.push('related_resume_section');
+  if (!jobRequirement) missing.push('related_job_requirement');
+
+  if (missing.length > 0) {
+    return {
+      error: `Question ${index + 1}: missing or invalid ${missing.join(', ')}.`,
+    };
+  }
+
+  return {
+    question: {
+      question_text: questionText!,
+      question_type: questionType!,
+      difficulty: difficulty!,
+      what_good_answer_should_include: goodAnswer!,
+      related_resume_section: resumeSection!,
+      related_job_requirement: jobRequirement!,
+    },
+  };
+}
+
+function normalizeQuestions(
+  rawQuestions: unknown[],
+  parsedContent: unknown
+): { questions: GeneratedQuestion[] } | { error: string } {
+  const questions: GeneratedQuestion[] = [];
+  const errors: string[] = [];
+
+  for (let index = 0; index < rawQuestions.length; index += 1) {
+    const result = normalizeQuestion(rawQuestions[index], index);
+    if ('error' in result) {
+      errors.push(result.error);
+    } else {
+      questions.push(result.question);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error(
+      'Interview question normalization failed. Raw parsed response:',
+      JSON.stringify(parsedContent)
+    );
+    return {
+      error:
+        `OpenAI returned ${rawQuestions.length} questions but ${errors.length} could not be normalized.\n` +
+        `${errors.slice(0, 6).join('\n')}`,
+    };
+  }
+
+  return { questions };
+}
+
+function validateQuestionCounts(questions: GeneratedQuestion[]): string | null {
+  const counts: Record<MvpQuestionType, number> = {
+    behavioral: 0,
+    technical: 0,
+    resume_specific: 0,
+    company_role_fit: 0,
+  };
+
+  for (const question of questions) {
+    counts[question.question_type] += 1;
+  }
+
+  const mismatches: string[] = [];
+  for (const type of MVP_QUESTION_TYPES) {
+    if (counts[type] !== QUESTION_TYPE_COUNTS[type]) {
+      mismatches.push(
+        `${type}: expected ${QUESTION_TYPE_COUNTS[type]}, received ${counts[type]}`
+      );
+    }
+  }
+
+  if (mismatches.length > 0) {
+    return `Question type counts did not match the configured mix (${mismatches.join('; ')}).`;
+  }
+
+  return null;
+}
+
+function toDbQuestionType(questionType: MvpQuestionType): string {
+  if (questionType === 'company_role_fit') {
+    return 'why_role_company';
+  }
+  return questionType;
+}
+
+function categoryFromQuestionType(questionType: MvpQuestionType): string {
   switch (questionType) {
     case 'behavioral':
       return 'behavioral';
     case 'technical':
       return 'technical';
     case 'resume_specific':
-    case 'gap_risk':
       return 'situational';
-    case 'why_role_company':
+    case 'company_role_fit':
       return 'general';
     default:
       return 'general';
@@ -65,17 +264,17 @@ function buildPrompt(input: {
     'You are an expert interview coach. ' +
     'You must respond with a single valid JSON object and nothing else - no markdown, no code fences, no explanation text.';
 
-  const countsDescription = QUESTION_TYPES.map(
-    (type) => `- ${type}: exactly ${QUESTION_TYPE_COUNTS[type]} questions`
+  const countsDescription = MVP_QUESTION_TYPES.map(
+    (type) => `- ${type}: ${QUESTION_TYPE_COUNTS[type]} question${QUESTION_TYPE_COUNTS[type] === 1 ? '' : 's'}`
   ).join('\n');
 
   return {
     systemPrompt:
       `${basePreamble}\n\nRespond with JSON matching exactly this shape:\n` +
       `{"questions": [{"question_text": string, "question_type": string, "difficulty": string, "what_good_answer_should_include": string, "related_resume_section": string, "related_job_requirement": string}]}\n\n` +
-      `Generate exactly 21 interview questions with these counts:\n${countsDescription}\n\n` +
+      `Generate ${TOTAL_INTERVIEW_QUESTIONS} interview questions with these per-type counts:\n${countsDescription}\n\n` +
       `Field rules:\n` +
-      `- question_type: one of ${QUESTION_TYPES.join(', ')}\n` +
+      `- question_type: one of ${MVP_QUESTION_TYPES.join(', ')}\n` +
       `- difficulty: one of easy, medium, hard\n` +
       `- question_text: specific, realistic interview question tailored to this candidate and role\n` +
       `- what_good_answer_should_include: 2-4 sentences on structure, evidence, and themes a strong answer should cover\n` +
@@ -85,9 +284,8 @@ function buildPrompt(input: {
       `- behavioral: STAR-style past-behavior questions tied to role competencies\n` +
       `- technical: role-relevant skills, tools, system design, or domain knowledge\n` +
       `- resume_specific: deep dives on claims, projects, and bullets from the résumé\n` +
-      `- gap_risk: address weak matches, missing keywords, or risk flags from fit analysis\n` +
-      `- why_role_company: motivation, culture fit, and role/company alignment\n\n` +
-      `Do not invent résumé experience. Ground questions in the provided résumé, job description, and fit analysis.`,
+      `- company_role_fit: motivation, culture fit, and company/role alignment for this specific opportunity\n\n` +
+      `Use only the exact field names shown above. Do not invent résumé experience. Ground questions in the provided résumé, job description, and fit analysis.`,
     userPrompt:
       `TARGET ROLE: ${input.roleTitle || 'Not specified'}\n` +
       `COMPANY: ${input.companyName || 'Not specified'}\n\n---\n\n` +
@@ -95,45 +293,6 @@ function buildPrompt(input: {
       `RÉSUMÉ:\n\n${input.resumeText}\n\n---\n\n` +
       `FIT ANALYSIS:\n\n${input.fitAnalysisContext || 'Not available.'}`,
   };
-}
-
-function isValidQuestion(item: unknown): item is GeneratedQuestion {
-  if (!item || typeof item !== 'object') return false;
-  const q = item as Record<string, unknown>;
-
-  return (
-    typeof q.question_text === 'string' &&
-    q.question_text.trim().length > 0 &&
-    typeof q.question_type === 'string' &&
-    QUESTION_TYPES.includes(q.question_type) &&
-    typeof q.difficulty === 'string' &&
-    DIFFICULTIES.includes(q.difficulty as Difficulty) &&
-    typeof q.what_good_answer_should_include === 'string' &&
-    q.what_good_answer_should_include.trim().length > 0 &&
-    typeof q.related_resume_section === 'string' &&
-    q.related_resume_section.trim().length > 0 &&
-    typeof q.related_job_requirement === 'string' &&
-    q.related_job_requirement.trim().length > 0
-  );
-}
-
-function validateQuestionCounts(questions: GeneratedQuestion[]): string | null {
-  const counts: Record<string, number> = {};
-  for (const type of QUESTION_TYPES) {
-    counts[type] = 0;
-  }
-
-  for (const question of questions) {
-    counts[question.question_type] += 1;
-  }
-
-  for (const type of QUESTION_TYPES) {
-    if (counts[type] !== QUESTION_TYPE_COUNTS[type]) {
-      return `Expected ${QUESTION_TYPE_COUNTS[type]} ${type} questions but received ${counts[type]}.`;
-    }
-  }
-
-  return null;
 }
 
 async function callOpenAI(
@@ -195,34 +354,49 @@ async function callOpenAI(
     try {
       parsedContent = JSON.parse(messageContent);
     } catch {
+      console.error('OpenAI returned non-JSON content:', messageContent.slice(0, 2000));
       throw new Error('OpenAI returned content that was not valid JSON.');
     }
 
     if (!parsedContent || typeof parsedContent !== 'object') {
+      console.error('OpenAI parsed response was not an object:', parsedContent);
       throw new Error('OpenAI returned JSON without a questions array.');
     }
 
     const questions = (parsedContent as { questions?: unknown }).questions;
     if (!Array.isArray(questions)) {
+      console.error(
+        'OpenAI parsed response missing questions array:',
+        JSON.stringify(parsedContent)
+      );
       throw new Error('OpenAI returned JSON without a questions array.');
     }
 
-    if (questions.length !== 21) {
-      throw new Error(`OpenAI returned ${questions.length} questions; expected exactly 21.`);
-    }
-
-    if (!questions.every(isValidQuestion)) {
+    if (questions.length !== TOTAL_INTERVIEW_QUESTIONS) {
+      console.error(
+        'OpenAI returned unexpected question count. Raw parsed response:',
+        JSON.stringify(parsedContent)
+      );
       throw new Error(
-        'OpenAI returned questions that did not match the expected interview question shape.'
+        `OpenAI returned ${questions.length} questions; expected ${TOTAL_INTERVIEW_QUESTIONS} for the configured mix.`
       );
     }
 
-    const countError = validateQuestionCounts(questions);
+    const normalized = normalizeQuestions(questions, parsedContent);
+    if ('error' in normalized) {
+      throw new Error(normalized.error);
+    }
+
+    const countError = validateQuestionCounts(normalized.questions);
     if (countError) {
+      console.error(
+        'OpenAI question type counts invalid. Raw parsed response:',
+        JSON.stringify(parsedContent)
+      );
       throw new Error(countError);
     }
 
-    return questions;
+    return normalized.questions;
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error('OpenAI request timed out.');
@@ -249,7 +423,7 @@ async function markGenerationFailed(
 }
 
 function sortQuestions(questions: GeneratedQuestion[]): GeneratedQuestion[] {
-  const typeOrder = QUESTION_TYPES as QuestionType[];
+  const typeOrder = [...MVP_QUESTION_TYPES];
   return [...questions].sort((a, b) => {
     const typeDiff =
       typeOrder.indexOf(a.question_type) - typeOrder.indexOf(b.question_type);
@@ -460,7 +634,7 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', user.id);
 
     if (deleteError) {
-      const message = 'Failed to clear previous interview questions.';
+      const message = `Failed to clear previous interview questions: ${deleteError.message}`;
       await markGenerationFailed(serviceClient, generation_id, message);
       return new Response(JSON.stringify({ error: message }), {
         status: 500,
@@ -472,13 +646,13 @@ Deno.serve(async (req: Request) => {
       user_id: user.id,
       project_id: generation.project_id,
       analysis_id: generation.analysis_id,
-      question_text: question.question_text.trim(),
+      question_text: question.question_text,
       category: categoryFromQuestionType(question.question_type),
-      question_type: question.question_type,
+      question_type: toDbQuestionType(question.question_type),
       difficulty: question.difficulty,
-      what_good_answer_should_include: question.what_good_answer_should_include.trim(),
-      related_resume_section: question.related_resume_section.trim(),
-      related_job_requirement: question.related_job_requirement.trim(),
+      what_good_answer_should_include: question.what_good_answer_should_include,
+      related_resume_section: question.related_resume_section,
+      related_job_requirement: question.related_job_requirement,
       sort_order: index,
     }));
 
@@ -487,7 +661,7 @@ Deno.serve(async (req: Request) => {
       .insert(rows);
 
     if (insertError) {
-      const message = 'Failed to save interview questions.';
+      const message = `Failed to save interview questions: ${insertError.message}`;
       await markGenerationFailed(serviceClient, generation_id, message);
       return new Response(JSON.stringify({ error: message }), {
         status: 500,

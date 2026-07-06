@@ -417,7 +417,7 @@ export function SessionsList() {
               description={
                 hasActiveFilters
                   ? 'No sessions match your current search or filters. Try adjusting your criteria.'
-                  : 'Create a Job Prep project to practice targeted questions, or start a quick practice session.'
+                  : 'Create a Job Prep project to practice role-specific questions, or start a quick practice session.'
               }
               action={
                 !hasActiveFilters && (

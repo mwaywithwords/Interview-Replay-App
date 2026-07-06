@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { parseEdgeFunctionError } from '@/lib/supabase/parse-edge-function-error';
 import { createClient, requireUser } from '@/lib/supabase/server';
 import type {
   CreateJobPrepProjectInput,
@@ -744,15 +745,11 @@ export async function runInterviewQuestionGeneration(
     return { success: false, error: 'Interview question generation record not found.' };
   }
 
-  if (generation.status === 'processing') {
-    return { success: true, status: 'processing', error: null };
-  }
-
   if (generation.status === 'completed') {
     return { success: true, status: 'completed', error: null };
   }
 
-  if (generation.status === 'failed') {
+  if (generation.status === 'processing' || generation.status === 'failed') {
     const { error: resetError } = await supabase
       .from('interview_question_generations')
       .update({
@@ -768,7 +765,7 @@ export async function runInterviewQuestionGeneration(
     }
   }
 
-  if (generation.status !== 'pending' && generation.status !== 'failed') {
+  if (generation.status !== 'pending' && generation.status !== 'failed' && generation.status !== 'processing') {
     return {
       success: false,
       error: `Generation cannot be run. Current status: ${generation.status}`,
@@ -786,7 +783,11 @@ export async function runInterviewQuestionGeneration(
     if (error) {
       return {
         success: false,
-        error: error.message || 'Failed to generate interview questions',
+        error: await parseEdgeFunctionError(
+          error,
+          data,
+          'Failed to generate interview questions'
+        ),
       };
     }
 
@@ -798,10 +799,14 @@ export async function runInterviewQuestionGeneration(
       status: (data?.status as InterviewQuestionGenerationStatus) || 'completed',
       error: null,
     };
-  } catch {
+  } catch (invokeError) {
     return {
       success: false,
-      error: 'Failed to connect to AI service. Please try again.',
+      error: await parseEdgeFunctionError(
+        invokeError,
+        null,
+        'Failed to connect to AI service. Please try again.'
+      ),
     };
   }
 }
@@ -840,11 +845,7 @@ export async function retryInterviewQuestionGeneration(
     return { success: false, error: 'Interview question generation record not found.' };
   }
 
-  if (generation.status === 'processing') {
-    return { success: true, status: 'processing', error: null };
-  }
-
-  if (generation.status === 'completed' || generation.status === 'failed') {
+  if (generation.status === 'processing' || generation.status === 'completed' || generation.status === 'failed') {
     const { error: resetError } = await supabase
       .from('interview_question_generations')
       .update({

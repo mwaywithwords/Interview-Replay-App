@@ -7,6 +7,11 @@ import {
   runInterviewQuestionGeneration,
 } from '@/app/actions/job-prep';
 import { JobPrepInterviewQuestionsResults } from '@/components/job-prep/JobPrepInterviewQuestionsResults';
+import {
+  describeInterviewQuestionGeneration,
+  describeInterviewQuestionGenerationProgress,
+  describeInterviewQuestionTopics,
+} from '@/lib/job-prep/interview-questions';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -202,8 +207,10 @@ export function JobPrepInterviewQuestionsPanel({
               </h4>
             </div>
             <p className="text-sm font-medium leading-6 text-muted-foreground">
-              Generate 21 tailored questions from your résumé, job description, and fit
-              analysis — behavioral, technical, résumé-specific, gap/risk, and motivation.
+              {describeInterviewQuestionGeneration()}
+            </p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {describeInterviewQuestionTopics()}
             </p>
             {!fitAnalysisComplete && (
               <p className="text-xs font-medium text-muted-foreground">
@@ -217,7 +224,7 @@ export function JobPrepInterviewQuestionsPanel({
             className="w-full rounded-full"
           >
             <Sparkles className="h-4 w-4" />
-            Generate Interview Questions
+            Generate Personalized Questions
           </PrimaryButton>
         </div>
       )}
@@ -233,8 +240,7 @@ export function JobPrepInterviewQuestionsPanel({
                 </h4>
               </div>
               <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
-                ReplayAI is building behavioral, technical, and role-specific interview
-                questions.
+                {describeInterviewQuestionGenerationProgress()}
               </p>
             </div>
             <Badge variant="info" className="gap-1">
@@ -243,7 +249,6 @@ export function JobPrepInterviewQuestionsPanel({
             </Badge>
           </div>
           <div className="space-y-3">
-            <Skeleton className="h-28 rounded-2xl" />
             <Skeleton className="h-28 rounded-2xl" />
             <Skeleton className="h-28 rounded-2xl" />
           </div>

@@ -227,7 +227,7 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
                     Interview Questions
                   </h2>
                   <p className="text-xs font-medium text-muted-foreground/85">
-                    Tailored practice questions from your fit analysis.
+                    Practice questions tailored to your résumé and this role.
                   </p>
                 </div>
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">

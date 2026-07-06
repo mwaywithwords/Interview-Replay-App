@@ -42,7 +42,7 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
       <EmptyState
         icon={Briefcase}
         title="No Job Prep projects yet"
-        description="Create your first project to prepare for a specific role — fit analysis, tailored questions, and answer feedback in one workspace."
+        description="Create your first project to prepare for a specific role — fit analysis, personalized interview questions, and answer feedback in one workspace."
         action={
           <Link href="/job-prep/new">
             <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">

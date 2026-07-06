@@ -46,7 +46,7 @@ export default async function JobPrepPage() {
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
           title="Job Prep"
-          description="Prepare for specific roles with fit analysis, tailored résumés, personalized questions, and answer feedback."
+          description="Prepare for specific roles with fit analysis, tailored résumés, personalized interview questions, and answer feedback."
           actions={
             <Link href="/job-prep/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">

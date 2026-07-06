@@ -91,8 +91,7 @@ export function PracticeAnswerButton({
         <DialogHeader>
           <DialogTitle>Practice this answer</DialogTitle>
           <DialogDescription>
-            Record your answer using the existing ReplayAI session recorder. Your recording
-            will be linked to this Job Prep question for review and AI feedback.
+            Record your answer with ReplayAI&apos;s built-in recorder — linked to this question and project.
           </DialogDescription>
         </DialogHeader>
 

@@ -237,8 +237,8 @@ export function NewSessionForm() {
       </Link>
 
       <PageHeader
-        title="New Practice Session"
-        description="Configure your session environment and recording preferences."
+        title="Quick Practice Session"
+        description="Record a standalone practice session, or start from Job Prep for role-specific questions."
       />
 
       <SectionCard className="border-border shadow-xl shadow-primary/5 bg-card/50 backdrop-blur-sm">

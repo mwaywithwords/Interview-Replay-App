@@ -9,7 +9,7 @@ import { Plus, Search } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Sessions',
+  title: 'Practice Sessions',
 };
 
 export default async function SessionsPage() {
@@ -43,13 +43,13 @@ export default async function SessionsPage() {
     >
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
-          title="Sessions"
-          description="Your interview media library. Search, filter, organize, and jump back into reports from every recorded practice session."
+          title="Practice Sessions"
+          description="Your recorded interview answers — from Job Prep questions and standalone practice."
           actions={
             <Link href="/sessions/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
                 <Plus className="h-5 w-5" />
-                New Session
+                Start Quick Practice
               </PrimaryButton>
             </Link>
           }
@@ -58,11 +58,11 @@ export default async function SessionsPage() {
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="gap-1.5">
             <Search className="h-3 w-3" />
-            Searchable library
+            Practice history
           </Badge>
           <Badge variant="outline">Filters</Badge>
           <Badge variant="outline">Newest first</Badge>
-          <Badge variant="outline">Interview reports</Badge>
+          <Badge variant="outline">Answer reviews</Badge>
         </div>
 
         <SessionsList />

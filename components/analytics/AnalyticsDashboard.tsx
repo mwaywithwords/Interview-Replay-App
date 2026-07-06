@@ -52,7 +52,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
         <CircularKPI
           value={kpis.weeklyGoalProgress}
           label="Weekly goal"
-          helper="Target: 3 sessions per week"
+          helper="Target: 3 practice answers per week"
           icon={Target}
           tone="success"
         />
@@ -60,7 +60,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
           value={kpis.totalMinutes}
           max={Math.max(kpis.totalMinutes, 60)}
           label="Total practice"
-          helper={`${kpis.totalSessions} session${kpis.totalSessions === 1 ? '' : 's'} recorded`}
+          helper={`${kpis.totalSessions} answer${kpis.totalSessions === 1 ? '' : 's'} practiced`}
           icon={Timer}
           tone="info"
           suffix="m"
@@ -175,14 +175,14 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
           </div>
         </AnalyticsCard>
 
-        <AnalyticsCard title="Practice heat map" subtitle="16 weeks of session activity">
+        <AnalyticsCard title="Practice heat map" subtitle="16 weeks of practice activity">
           <HeatMap data={heatMap} />
         </AnalyticsCard>
       </div>
 
       {/* Monthly + progress */}
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
-        <AnalyticsCard title="Monthly sessions" subtitle="6-month practice volume">
+        <AnalyticsCard title="Monthly practice" subtitle="6-month answer volume">
           <BarChart data={monthlyVolume} height={140} />
         </AnalyticsCard>
 
@@ -190,7 +190,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
           <div className="space-y-5">
             <div>
               <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <span>Weekly sessions</span>
+                <span>Weekly answers</span>
                 <span>{kpis.weeklyGoalProgress}%</span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-muted/60">
@@ -200,7 +200,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
                 />
               </div>
               <p className="mt-2 text-xs font-medium text-muted-foreground">
-                {Math.round((kpis.weeklyGoalProgress / 100) * 3)} of 3 sessions this week
+                {Math.round((kpis.weeklyGoalProgress / 100) * 3)} of 3 answers this week
               </p>
             </div>
 
@@ -234,8 +234,8 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
 
       {/* Interview history */}
       <AnalyticsCard
-        title="Interview history"
-        subtitle="Recent sessions with readiness and status"
+        title="Practice history"
+        subtitle="Recent answers with readiness and status"
         action={
           <Link href="/sessions">
             <PrimaryButton size="sm" variant="outline" className="rounded-full">

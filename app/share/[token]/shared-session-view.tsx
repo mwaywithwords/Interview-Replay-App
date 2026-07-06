@@ -151,7 +151,7 @@ export function SharedSessionView({
                 href="/"
                 className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
               >
-                Powered by Interview Replay
+                Powered by ReplayAI
               </Link>
             </div>
           </div>
@@ -310,7 +310,7 @@ export function SharedSessionView({
               href="/"
               className="hover:text-primary transition-colors"
             >
-              Interview Replay
+              ReplayAI
             </Link>
           </div>
         </div>

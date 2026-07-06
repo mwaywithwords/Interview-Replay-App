@@ -12,8 +12,8 @@ export default function SignUpPage() {
     <AppShell showNav={false}>
       <AuthShell
         eyebrow="Create account"
-        title="Start practicing with intent"
-        description="Create your workspace for private recordings, replay notes, and interview improvement."
+        title="Create your prep workspace"
+        description="Start preparing for real interviews with fit analysis, tailored materials, and answer feedback."
       >
         <SignUpForm />
       </AuthShell>

@@ -1,7 +1,7 @@
 {
   "name": "ReplayAI",
   "short_name": "ReplayAI",
-  "description": "A premium AI workspace for recording, replaying, and improving professional performance.",
+  "description": "ReplayAI is an interview preparation platform that helps you tailor your application, practice role-specific questions, record answers, and improve with structured AI feedback.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8f8fa",

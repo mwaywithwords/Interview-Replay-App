@@ -46,7 +46,7 @@ export default async function JobPrepPage() {
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader
           title="Job Prep"
-          description="Save job descriptions and résumés together so you can analyze fit and practice interview questions for each role."
+          description="Prepare for specific roles with fit analysis, tailored résumés, personalized questions, and answer feedback."
           actions={
             <Link href="/job-prep/new">
               <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
@@ -63,7 +63,7 @@ export default async function JobPrepPage() {
             {projects.length} project{projects.length === 1 ? '' : 's'}
           </Badge>
           <Badge variant="outline">Résumé + job description</Badge>
-          <Badge variant="outline">ReplayAI fit analysis</Badge>
+          <Badge variant="outline">End-to-end prep</Badge>
         </div>
 
         {error ? (

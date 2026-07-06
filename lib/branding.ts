@@ -1,6 +1,6 @@
 export const branding = {
   brandName: "ReplayAI",
   brandShort: "ReplayAI",
-  tagline: "Review your performance like game film",
-  description: "A premium AI workspace for recording, replaying, and improving professional performance."
+  tagline: "Prepare for real interviews, from application to offer",
+  description: "ReplayAI is an interview preparation platform that helps you tailor your application, practice role-specific questions, record answers, and improve with structured AI feedback."
 };

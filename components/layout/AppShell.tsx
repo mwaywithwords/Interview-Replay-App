@@ -29,17 +29,17 @@ const appNavItems = [
     icon: LayoutDashboard,
   },
   {
-    label: 'Sessions',
-    href: '/sessions',
-    icon: Library,
-  },
-  {
     label: 'Job Prep',
     href: '/job-prep',
     icon: Briefcase,
   },
   {
-    label: 'Analytics',
+    label: 'Practice Sessions',
+    href: '/sessions',
+    icon: Library,
+  },
+  {
+    label: 'Progress',
     href: '/analytics',
     icon: BarChart3,
   },
@@ -59,7 +59,7 @@ const appNavItems = [
     icon: Settings2,
   },
   {
-    label: 'New Session',
+    label: 'Quick Practice',
     href: '/sessions/new',
     icon: PlusCircle,
   },
@@ -99,7 +99,7 @@ export function AppShell({
                   {branding.brandName}
                 </div>
                 <div className="text-xs font-medium text-muted-foreground">
-                  Practice workspace
+                  Interview prep workspace
                 </div>
               </div>
             </Link>
@@ -126,18 +126,18 @@ export function AppShell({
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="mt-4 text-sm font-semibold tracking-[-0.02em] text-foreground">
-                Review faster
+                Prepare smarter
               </div>
               <p className="mt-1 text-xs font-medium leading-5 text-muted-foreground">
-                Record, replay, bookmark, and improve from one focused workspace.
+                Start a Job Prep project or record a quick practice session — all feedback stays tied to your goal.
               </p>
               <div className="mt-4 flex items-center justify-between">
                 <ThemeToggle />
                 <Link
-                  href="/sessions/new"
+                  href="/job-prep/new"
                   className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  New
+                  New Project
                 </Link>
               </div>
             </div>
@@ -155,7 +155,7 @@ export function AppShell({
 
                 <div className="hidden items-center gap-2 lg:flex">
                   <span className="rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm">
-                    App workspace
+                    Prep workspace
                   </span>
                 </div>
 

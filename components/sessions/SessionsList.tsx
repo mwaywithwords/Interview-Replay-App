@@ -449,20 +449,27 @@ export function SessionsList() {
           {sessions.length === 0 ? (
             <EmptyState
               icon={hasActiveFilters ? Search : FileText}
-              title={hasActiveFilters ? 'No sessions found' : 'No sessions yet'}
+              title={hasActiveFilters ? 'No practice sessions found' : 'No practice sessions yet'}
               description={
                 hasActiveFilters
                   ? 'No sessions match your current search or filters. Try adjusting your criteria.'
-                  : 'Create your first session to start practicing and improving your skills.'
+                  : 'Create a Job Prep project to practice targeted questions, or start a quick practice session.'
               }
               action={
                 !hasActiveFilters && (
-                  <Link href="/sessions/new">
-                    <PrimaryButton className="rounded-full px-8 font-semibold shadow-[var(--shadow-soft)]">
-                      <Plus className="h-5 w-5" />
-                      Create Your First Session
-                    </PrimaryButton>
-                  </Link>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Link href="/job-prep/new">
+                      <PrimaryButton className="rounded-full px-8 font-semibold shadow-[var(--shadow-soft)]">
+                        <Plus className="h-5 w-5" />
+                        New Job Prep Project
+                      </PrimaryButton>
+                    </Link>
+                    <Link href="/sessions/new">
+                      <SecondaryButton className="rounded-full px-8 font-semibold">
+                        Start Quick Practice
+                      </SecondaryButton>
+                    </Link>
+                  </div>
                 )
               }
             />

@@ -800,7 +800,7 @@ export function SessionDetail({
                 Job Prep practice
               </p>
               <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
-                This recording is linked to an interview question from your Job Prep project.
+                This recording is part of your Job Prep project for this role.
                 Use the prompt below as your practice context.
               </p>
             </div>

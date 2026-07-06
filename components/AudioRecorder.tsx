@@ -445,7 +445,7 @@ export function AudioRecorder({
           Audio Recorder
         </CardTitle>
         <CardDescription>
-          Record audio for your interview session
+          Record your practice answer for AI feedback and review
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

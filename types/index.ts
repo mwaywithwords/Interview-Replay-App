@@ -381,3 +381,100 @@ export interface AIOutput {
   content: Record<string, unknown>;
   created_at: string;
 }
+
+// ============================================
+// Job Prep Types
+// ============================================
+
+export type JobPrepProjectStatus = 'draft' | 'analyzing' | 'ready' | 'archived';
+export type ResumeSource = 'paste' | 'upload';
+export type ResumeJobAnalysisStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type InterviewQuestionCategory = 'behavioral' | 'technical' | 'situational' | 'general';
+
+export interface JobPrepProject {
+  id: string;
+  user_id: string;
+  title: string;
+  status: JobPrepProjectStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Resume {
+  id: string;
+  user_id: string;
+  project_id: string;
+  title: string | null;
+  content: string;
+  source: ResumeSource;
+  file_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobDescription {
+  id: string;
+  user_id: string;
+  project_id: string;
+  title: string | null;
+  company_name: string | null;
+  role_title: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResumeJobAnalysis {
+  id: string;
+  user_id: string;
+  project_id: string;
+  resume_id: string;
+  job_description_id: string;
+  status: ResumeJobAnalysisStatus;
+  summary: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  user_id: string;
+  project_id: string;
+  analysis_id: string;
+  question_text: string;
+  category: InterviewQuestionCategory;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterviewAnswerAttempt {
+  id: string;
+  user_id: string;
+  project_id: string;
+  question_id: string;
+  answer_text: string;
+  duration_seconds: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobPrepProjectWithDetails extends JobPrepProject {
+  job_description: JobDescription | null;
+  resume: Resume | null;
+  analysis: ResumeJobAnalysis | null;
+}
+
+export interface CreateJobPrepProjectInput {
+  title: string;
+  jobDescription: {
+    content: string;
+    companyName?: string;
+    roleTitle?: string;
+  };
+  resume: {
+    content: string;
+    source?: ResumeSource;
+    fileName?: string;
+  };
+}

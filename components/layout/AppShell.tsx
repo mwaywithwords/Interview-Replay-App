@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ReactNode } from 'react';
 import {
   BarChart3,
+  Briefcase,
   LayoutDashboard,
   Library,
   PlusCircle,
@@ -31,6 +32,11 @@ const appNavItems = [
     label: 'Sessions',
     href: '/sessions',
     icon: Library,
+  },
+  {
+    label: 'Job Prep',
+    href: '/job-prep',
+    icon: Briefcase,
   },
   {
     label: 'Analytics',

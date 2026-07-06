@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
-import { LayoutDashboard, Library, PlayCircle, PlusCircle, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Library, BarChart3, PlusCircle, PlayCircle, Sparkles } from 'lucide-react';
 import { branding } from '@/lib/branding';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -21,6 +21,11 @@ const appNavItems = [
     label: 'Sessions',
     href: '/sessions',
     icon: Library,
+  },
+  {
+    label: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
   },
   {
     label: 'New Session',

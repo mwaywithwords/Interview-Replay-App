@@ -1,4 +1,5 @@
 import { SignUpForm } from '@/components/auth/SignUpForm';
+import { AuthShell } from '@/components/auth/AuthShell';
 import { AppShell } from '@/components/layout/AppShell';
 import type { Metadata } from 'next';
 
@@ -9,9 +10,13 @@ export const metadata: Metadata = {
 export default function SignUpPage() {
   return (
     <AppShell showNav={false}>
-      <div className="flex-1 flex items-center justify-center bg-background px-4 py-12">
+      <AuthShell
+        eyebrow="Create account"
+        title="Start practicing with intent"
+        description="Create your workspace for private recordings, replay notes, and interview improvement."
+      >
         <SignUpForm />
-      </div>
+      </AuthShell>
     </AppShell>
   );
 }

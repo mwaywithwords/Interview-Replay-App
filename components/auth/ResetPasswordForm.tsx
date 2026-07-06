@@ -8,8 +8,7 @@ import { PrimaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { branding } from '@/lib/branding';
-import { PlayCircle, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ResetPasswordForm() {
@@ -106,21 +105,10 @@ export function ResetPasswordForm() {
   // Loading state while checking session
   if (isValidSession === null) {
     return (
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-              <PlayCircle className="w-6 h-6 fill-current" />
-            </div>
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {branding.brandShort}<span className="text-primary">.ai</span>
-            </span>
-          </Link>
-        </div>
-
-        <SectionCard className="border-border shadow-2xl shadow-primary/5">
+      <div className="w-full space-y-5">
+        <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
           <div className="text-center py-8">
-            <div className="w-12 h-12 rounded-full bg-muted animate-pulse mx-auto mb-4" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-2xl bg-muted" />
             <p className="text-muted-foreground font-medium">Verifying reset link...</p>
           </div>
         </SectionCard>
@@ -131,31 +119,20 @@ export function ResetPasswordForm() {
   // Invalid or expired link
   if (!isValidSession) {
     return (
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-              <PlayCircle className="w-6 h-6 fill-current" />
-            </div>
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {branding.brandShort}<span className="text-primary">.ai</span>
-            </span>
-          </Link>
-        </div>
-
-        <SectionCard className="border-border shadow-2xl shadow-primary/5">
+      <div className="w-full space-y-5">
+        <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
           <div className="text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-black tracking-tight text-foreground">Invalid or expired link</h2>
+              <h2 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">Invalid or expired link</h2>
               <p className="text-muted-foreground font-medium">
                 This password reset link is invalid or has expired.
               </p>
             </div>
             <Link href="/auth/forgot-password">
-              <PrimaryButton className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20">
+              <PrimaryButton className="h-12 w-full rounded-full font-semibold shadow-[var(--shadow-soft)]">
                 Request a new link
               </PrimaryButton>
             </Link>
@@ -163,8 +140,8 @@ export function ResetPasswordForm() {
         </SectionCard>
 
         <div className="text-center">
-          <Link href="/auth/signin" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
-            ← Back to sign in
+          <Link href="/auth/signin" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+            Back to sign in
           </Link>
         </div>
       </div>
@@ -174,25 +151,14 @@ export function ResetPasswordForm() {
   // Success state
   if (success) {
     return (
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-              <PlayCircle className="w-6 h-6 fill-current" />
-            </div>
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {branding.brandShort}<span className="text-primary">.ai</span>
-            </span>
-          </Link>
-        </div>
-
-        <SectionCard className="border-border shadow-2xl shadow-primary/5">
+      <div className="w-full space-y-5">
+        <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
           <div className="text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
               <CheckCircle className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-black tracking-tight text-foreground">Password updated!</h2>
+              <h2 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">Password updated!</h2>
               <p className="text-muted-foreground font-medium">
                 Your password has been successfully updated.
               </p>
@@ -208,26 +174,11 @@ export function ResetPasswordForm() {
 
   // Reset password form
   return (
-    <div className="w-full max-w-md space-y-8">
-      <div className="text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-            <PlayCircle className="w-6 h-6 fill-current" />
-          </div>
-          <span className="text-3xl font-bold tracking-tight text-foreground">
-            {branding.brandShort}<span className="text-primary">.ai</span>
-          </span>
-        </Link>
-        <h1 className="text-3xl font-black tracking-tight text-foreground">Reset your password</h1>
-        <p className="text-muted-foreground mt-2 font-medium">
-          Enter your new password below
-        </p>
-      </div>
-
-      <SectionCard className="border-border shadow-2xl shadow-primary/5">
+    <div className="w-full space-y-5">
+      <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               New password
             </Label>
             <div className="relative">
@@ -240,14 +191,14 @@ export function ResetPasswordForm() {
                 placeholder="••••••••"
                 required
                 minLength={8}
-                className="bg-muted/50 border-border pl-10"
+                className="border-border/60 bg-card/70 pl-10"
               />
             </div>
             <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Confirm password
             </Label>
             <div className="relative">
@@ -260,13 +211,13 @@ export function ResetPasswordForm() {
                 placeholder="••••••••"
                 required
                 minLength={8}
-                className="bg-muted/50 border-border pl-10"
+                className="border-border/60 bg-card/70 pl-10"
               />
             </div>
           </div>
 
           {error && (
-            <div className="rounded-xl bg-destructive/10 p-4 text-sm font-bold text-destructive border border-destructive/20 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="animate-in fade-in slide-in-from-top-2 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-semibold text-destructive duration-300">
               {error}
             </div>
           )}
@@ -274,7 +225,7 @@ export function ResetPasswordForm() {
           <PrimaryButton
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+            className="h-12 w-full rounded-full font-semibold shadow-[var(--shadow-soft)]"
           >
             {loading ? 'Updating...' : 'Update password'}
           </PrimaryButton>
@@ -282,8 +233,8 @@ export function ResetPasswordForm() {
       </SectionCard>
 
       <div className="text-center">
-        <Link href="/auth/signin" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
-          ← Back to sign in
+        <Link href="/auth/signin" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          Back to sign in
         </Link>
       </div>
     </div>

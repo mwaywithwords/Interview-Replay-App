@@ -1,6 +1,16 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
-import { LayoutDashboard, Library, BarChart3, PlusCircle, PlayCircle, Sparkles } from 'lucide-react';
+import {
+  BarChart3,
+  LayoutDashboard,
+  Library,
+  PlayCircle,
+  PlusCircle,
+  Settings2,
+  Sparkles,
+  Target,
+  UserRound,
+} from 'lucide-react';
 import { branding } from '@/lib/branding';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -26,6 +36,21 @@ const appNavItems = [
     label: 'Analytics',
     href: '/analytics',
     icon: BarChart3,
+  },
+  {
+    label: 'Goals',
+    href: '/goals',
+    icon: Target,
+  },
+  {
+    label: 'Profile',
+    href: '/profile',
+    icon: UserRound,
+  },
+  {
+    label: 'Settings',
+    href: '/settings',
+    icon: Settings2,
   },
   {
     label: 'New Session',

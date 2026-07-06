@@ -6,8 +6,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { branding } from '@/lib/branding';
-import { PlayCircle, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { Turnstile } from './Turnstile';
 import { signUpAction } from '@/app/actions/auth';
 import { getEmailError } from '@/lib/validation/email';
@@ -82,26 +81,26 @@ export function SignUpForm() {
 
   if (success) {
     return (
-      <div className="w-full max-w-md">
-        <SectionCard className="text-center border-border shadow-2xl shadow-primary/5 p-8">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-            <Mail className="h-10 w-10 text-primary" />
+      <div className="w-full">
+        <SectionCard className="rounded-3xl border-border/45 bg-background/55 text-center shadow-[var(--shadow-card)] backdrop-blur">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
+            <Mail className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-3xl font-black tracking-tight text-foreground mb-4">
+          <h2 className="mb-4 text-3xl font-semibold tracking-[-0.05em] text-foreground">
             Check your email
           </h2>
-          <p className="text-muted-foreground mb-8 font-medium leading-relaxed">
+          <p className="mb-8 font-medium leading-relaxed text-muted-foreground">
             We&apos;ve sent a confirmation link to<br />
-            <span className="text-primary font-bold">{email}</span>
+            <span className="font-semibold text-primary">{email}</span>
           </p>
           <div className="flex flex-col gap-4">
             <Link href="/auth/signin">
-              <PrimaryButton className="w-full h-12 rounded-xl font-bold">
+              <PrimaryButton className="h-12 w-full rounded-full font-semibold">
                 Continue to Sign In
               </PrimaryButton>
             </Link>
             <Link href="/">
-              <SecondaryButton variant="ghost" className="w-full font-bold">
+              <SecondaryButton variant="ghost" className="w-full rounded-full font-semibold">
                 Back to Home
               </SecondaryButton>
             </Link>
@@ -112,24 +111,11 @@ export function SignUpForm() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-8">
-      <div className="text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-            <PlayCircle className="w-6 h-6 fill-current" />
-          </div>
-          <span className="text-3xl font-bold tracking-tight text-foreground">
-            {branding.brandShort}<span className="text-primary">.ai</span>
-          </span>
-        </Link>
-        <h1 className="text-3xl font-black tracking-tight text-foreground">Create an account</h1>
-        <p className="text-muted-foreground mt-2 font-medium">Start reviewing your performance like game film</p>
-      </div>
-
-      <SectionCard className="border-border shadow-2xl shadow-primary/5">
+    <div className="w-full space-y-5">
+      <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
         <form onSubmit={handleSignUp} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email</Label>
+            <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Email</Label>
             <Input
               id="email"
               type="email"
@@ -138,7 +124,7 @@ export function SignUpForm() {
               onBlur={handleEmailBlur}
               placeholder="you@example.com"
               required
-              className={`bg-muted/50 border-border ${emailError ? 'border-destructive' : ''}`}
+              className={`border-border/60 bg-card/70 ${emailError ? 'border-destructive' : ''}`}
             />
             {emailError && (
               <p className="text-xs font-medium text-destructive">{emailError}</p>
@@ -146,7 +132,7 @@ export function SignUpForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Password</Label>
+            <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Password</Label>
             <Input
               id="password"
               type="password"
@@ -154,12 +140,12 @@ export function SignUpForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="bg-muted/50 border-border"
+              className="border-border/60 bg-card/70"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Confirm Password</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -167,7 +153,7 @@ export function SignUpForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="bg-muted/50 border-border"
+              className="border-border/60 bg-card/70"
             />
           </div>
 
@@ -179,7 +165,7 @@ export function SignUpForm() {
           />
 
           {error && (
-            <div className="rounded-xl bg-destructive/10 p-4 text-sm font-bold text-destructive border border-destructive/20 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="animate-in fade-in slide-in-from-top-2 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-semibold text-destructive duration-300">
               {error}
             </div>
           )}
@@ -187,7 +173,7 @@ export function SignUpForm() {
           <PrimaryButton
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+            className="h-12 w-full rounded-full font-semibold shadow-[var(--shadow-soft)]"
           >
             {loading ? 'Creating account...' : 'Sign Up'}
           </PrimaryButton>
@@ -197,16 +183,16 @@ export function SignUpForm() {
           Already have an account?{' '}
           <Link
             href="/auth/signin"
-            className="text-primary font-bold hover:underline"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
           >
             Sign in
           </Link>
         </div>
       </SectionCard>
-      
+
       <div className="text-center">
-        <Link href="/" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
-          ← Return to landing page
+        <Link href="/" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          Return to landing page
         </Link>
       </div>
     </div>

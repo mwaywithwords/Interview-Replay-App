@@ -8,8 +8,7 @@ import { PrimaryButton } from '@/components/ui/button';
 import { SectionCard } from '@/components/layout/SectionCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { branding } from '@/lib/branding';
-import { PlayCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function SignInForm() {
@@ -82,23 +81,10 @@ export function SignInForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-8">
-      <div className="text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group transition-all mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-            <PlayCircle className="w-6 h-6 fill-current" />
-          </div>
-          <span className="text-3xl font-bold tracking-tight text-foreground">
-            {branding.brandShort}<span className="text-primary">.ai</span>
-          </span>
-        </Link>
-        <h1 className="text-3xl font-black tracking-tight text-foreground">Welcome back</h1>
-        <p className="text-muted-foreground mt-2 font-medium">Sign in to your account to continue</p>
-      </div>
-
+    <div className="w-full space-y-5">
       {/* Email confirmation status alerts */}
       {confirmationStatus === 'success' && (
-        <Alert className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400 animate-in fade-in slide-in-from-top-2 duration-300">
+        <Alert className="animate-in fade-in slide-in-from-top-2 border-success/20 bg-success/10 text-success duration-300">
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription className="font-medium">
             Email confirmed successfully. You can now sign in.
@@ -115,10 +101,10 @@ export function SignInForm() {
         </Alert>
       )}
 
-      <SectionCard className="border-border shadow-2xl shadow-primary/5">
+      <SectionCard className="rounded-3xl border-border/45 bg-background/55 shadow-[var(--shadow-card)] backdrop-blur">
         <form onSubmit={handleSignIn} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email</Label>
+            <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Email</Label>
             <Input
               id="email"
               type="email"
@@ -126,16 +112,16 @@ export function SignInForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="bg-muted/50 border-border"
+              className="border-border/60 bg-card/70"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Password</Label>
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Password</Label>
               <Link
                 href="/auth/forgot-password"
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-semibold text-primary underline-offset-4 hover:underline"
               >
                 Forgot password?
               </Link>
@@ -147,12 +133,12 @@ export function SignInForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="bg-muted/50 border-border"
+              className="border-border/60 bg-card/70"
             />
           </div>
 
           {error && (
-            <div className="rounded-xl bg-destructive/10 p-4 text-sm font-bold text-destructive border border-destructive/20 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="animate-in fade-in slide-in-from-top-2 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-semibold text-destructive duration-300">
               {error}
             </div>
           )}
@@ -160,7 +146,7 @@ export function SignInForm() {
           <PrimaryButton
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20"
+            className="h-12 w-full rounded-full font-semibold shadow-[var(--shadow-soft)]"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </PrimaryButton>
@@ -170,16 +156,16 @@ export function SignInForm() {
           Don&apos;t have an account?{' '}
           <Link
             href="/auth/signup"
-            className="text-primary font-bold hover:underline"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
           >
             Sign up
           </Link>
         </div>
       </SectionCard>
-      
+
       <div className="text-center">
-        <Link href="/" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
-          ← Return to landing page
+        <Link href="/" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          Return to landing page
         </Link>
       </div>
     </div>

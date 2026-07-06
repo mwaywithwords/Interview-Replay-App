@@ -31,9 +31,9 @@ const features = [
   },
   {
     icon: MessageSquareText,
-    title: 'Practice questions that fit the job',
+    title: 'Personalized interview questions',
     description:
-      'Generate behavioral, technical, résumé-specific, and gap-focused questions grounded in your materials.',
+      'Get role-specific questions based on your résumé and the job description.',
   },
   {
     icon: Brain,
@@ -66,8 +66,8 @@ const workflow = [
   },
   {
     icon: MessageSquareText,
-    title: 'Generate interview questions',
-    description: 'Get personalized questions across behavioral, technical, résumé, gap, and motivation categories.',
+    title: 'Create personalized interview questions',
+    description: 'Build a focused set of practice questions from your fit analysis.',
   },
   {
     icon: Mic,
@@ -183,7 +183,7 @@ export default function Home() {
           <div className="mt-12 grid w-full max-w-3xl grid-cols-1 gap-3 text-left sm:grid-cols-3">
             {[
               ['1 project', 'from résumé to practice plan'],
-              ['21 questions', 'tailored to the role'],
+              ['Personalized', 'interview questions'],
               ['8 dimensions', 'scored on every answer'],
             ].map(([metric, label]) => (
               <div
@@ -201,7 +201,7 @@ export default function Home() {
           <SectionIntro
             eyebrow="Job Prep in action"
             title="One workspace for every role you’re pursuing"
-            description="Move from fit analysis to tailored résumé drafts, question sets, recorded answers, and answer ratings — without switching tools."
+            description="Move from fit analysis to tailored résumé drafts, personalized questions, recorded answers, and answer ratings — without switching tools."
           />
           <LandingReplayDemo />
         </section>
@@ -288,7 +288,7 @@ export default function Home() {
             <div className="grid gap-5 sm:grid-cols-2">
               {[
                 { icon: Target, label: 'Fit analysis', value: 'Résumé ↔ role match' },
-                { icon: MessageSquareText, label: 'Question sets', value: 'Role-specific practice' },
+                { icon: MessageSquareText, label: 'Practice questions', value: 'Tailored to the role' },
                 { icon: BarChart3, label: 'Answer ratings', value: '8-category scoring' },
                 { icon: BadgeCheck, label: 'Progress tracking', value: 'Measurable improvement' },
               ].map((item) => {

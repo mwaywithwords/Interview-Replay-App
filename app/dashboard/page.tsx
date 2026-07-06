@@ -120,7 +120,7 @@ export default async function Dashboard() {
     { step: 1, label: 'Create a Job Prep project', href: '/job-prep/new' },
     { step: 2, label: 'Upload résumé & paste job description', href: '/job-prep/new' },
     { step: 3, label: 'Review AI match analysis', href: '/job-prep' },
-    { step: 4, label: 'Generate interview questions', href: '/job-prep' },
+    { step: 4, label: 'Create personalized interview questions', href: '/job-prep' },
     { step: 5, label: 'Practice answers', href: '/job-prep' },
     { step: 6, label: 'Review AI feedback', href: '/job-prep' },
     { step: 7, label: 'Refine and repeat', href: '/job-prep' },

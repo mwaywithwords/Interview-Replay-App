@@ -824,7 +824,7 @@ export function SessionDetail({
 
       <div className="flex flex-col gap-1 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(280px,31%)] xl:items-start xl:gap-x-2 xl:gap-y-1">
         {/* Left column row 1 / mobile order 1: video */}
-        <section className="order-1 min-w-0 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-b from-zinc-950/90 via-zinc-950 to-zinc-950/95 p-0.5 shadow-[var(--shadow-elevated)] ring-1 ring-white/[0.06] backdrop-blur xl:order-none xl:col-start-1 xl:row-start-1">
+        <section className="order-1 min-w-0 overflow-hidden rounded-2xl border border-border/45 bg-gradient-to-b from-card/85 via-background/70 to-surface/80 p-0.5 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl dark:border-border/40 dark:from-zinc-950/90 dark:via-zinc-950 dark:to-zinc-950/95 dark:shadow-[var(--shadow-elevated)] dark:ring-white/[0.06] xl:order-none xl:col-start-1 xl:row-start-1">
           <div className="p-0.5 sm:p-1">
             {isAudioSession && !hasAudioRecording && (
               <AudioRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />

@@ -296,12 +296,12 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
 
   return (
     <Card className={cn(
-      "overflow-hidden border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur",
+      "overflow-hidden border-blue-100/80 bg-[#f8fbff]/80 shadow-[var(--shadow-card)] backdrop-blur-xl dark:border-border/70 dark:bg-card/70",
       compact ? "rounded-xl border-0 bg-transparent shadow-none" : "rounded-[1.75rem]",
       className
     )}>
       {!compact && (
-        <CardHeader className="border-b border-border/70 bg-background/35 px-4 py-3">
+        <CardHeader className="border-b border-blue-100/70 bg-[#eef4fa]/45 px-4 py-3 dark:border-border/70 dark:bg-background/35">
           <CardTitle className="flex items-center gap-2 text-sm text-foreground">
             <Video className="h-4 w-4 text-primary" />
             Video Playback
@@ -344,7 +344,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
         {videoUrl && !error && (
           <>
             {/* 16:9 aspect ratio container with min-height for larger video */}
-            <div className="relative w-full overflow-hidden rounded-2xl bg-zinc-950 shadow-[var(--shadow-elevated)] ring-1 ring-white/10" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
+            <div className="relative w-full overflow-hidden rounded-2xl border border-blue-100/80 bg-[linear-gradient(135deg,#fbfdff_0%,#eef4ff_48%,#eaf2fb_100%)] shadow-[0_1px_1px_rgba(255,255,255,0.85)_inset,0_12px_34px_rgba(59,99,243,0.10)] ring-1 ring-blue-200/60 dark:border-transparent dark:bg-none dark:bg-gradient-to-br dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-950 dark:shadow-[var(--shadow-elevated)] dark:ring-white/10" style={{ aspectRatio: '16/9', minHeight: compact ? '180px' : '320px' }}>
               <video
                 ref={videoRef}
                 src={videoUrl}
@@ -353,7 +353,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                 preload="metadata"
                 className="absolute inset-0 h-full w-full object-contain"
               />
-              <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_80px_rgba(0,0,0,0.45)]" aria-hidden />
+              <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7),inset_0_0_42px_rgba(59,99,243,0.06)] dark:shadow-[inset_0_0_80px_rgba(0,0,0,0.45)]" aria-hidden />
               
               {/* Loading overlay during URL refresh */}
               {isLoading && (
@@ -374,7 +374,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                   size="sm"
                   variant="ghost"
                   onClick={skipBackward}
-                  className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-muted-foreground backdrop-blur-sm hover:border-border/70 hover:bg-background/80 hover:text-foreground"
+                  className="h-8 rounded-full border border-blue-100/80 bg-[#fbfdff]/80 px-3 text-slate-600 shadow-sm backdrop-blur-sm hover:border-primary/25 hover:bg-white/90 hover:text-slate-900 dark:border-border/40 dark:bg-background/50 dark:text-muted-foreground dark:hover:border-border/70 dark:hover:bg-background/80 dark:hover:text-foreground"
                   title="Skip backward 10s"
                 >
                   <SkipBack className="h-4 w-4 mr-1" />
@@ -384,7 +384,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                   size="sm"
                   variant="ghost"
                   onClick={skipForward}
-                  className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-muted-foreground backdrop-blur-sm hover:border-border/70 hover:bg-background/80 hover:text-foreground"
+                  className="h-8 rounded-full border border-blue-100/80 bg-[#fbfdff]/80 px-3 text-slate-600 shadow-sm backdrop-blur-sm hover:border-primary/25 hover:bg-white/90 hover:text-slate-900 dark:border-border/40 dark:bg-background/50 dark:text-muted-foreground dark:hover:border-border/70 dark:hover:bg-background/80 dark:hover:text-foreground"
                   title="Skip forward 10s"
                 >
                   10s
@@ -393,9 +393,9 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
               </div>
 
               {/* Speed Control */}
-              <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-border/35 bg-background/40 px-3 py-1.5 backdrop-blur-sm">
-                <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Speed</span>
+              <div className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-blue-100/80 bg-[#fbfdff]/80 px-3 py-1.5 shadow-sm backdrop-blur-sm dark:border-border/35 dark:bg-background/40">
+                <Gauge className="h-3.5 w-3.5 text-slate-500 dark:text-muted-foreground" />
+                <span className="text-xs font-medium text-slate-600 dark:text-muted-foreground">Speed</span>
                 <div className="flex items-center gap-0.5">
                   {speedOptions.map((speed) => (
                     <Button
@@ -407,7 +407,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                         "h-7 min-w-[2.25rem] rounded-full px-2 text-xs font-semibold tabular-nums",
                         playbackSpeed === speed 
                           ? "bg-primary text-primary-foreground shadow-sm" 
-                          : "text-muted-foreground hover:bg-background/70 hover:text-foreground"
+                          : "text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-muted-foreground dark:hover:bg-background/70 dark:hover:text-foreground"
                       )}
                     >
                       {speed}x

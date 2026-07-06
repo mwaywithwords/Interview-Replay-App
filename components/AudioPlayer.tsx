@@ -268,8 +268,8 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
   }
 
   return (
-    <Card className={cn("overflow-hidden rounded-[1.75rem] border-border/70 bg-card/70 shadow-[var(--shadow-card)] backdrop-blur", className)}>
-      <CardHeader className="border-b border-border/70 bg-background/35">
+    <Card className={cn("overflow-hidden rounded-[1.75rem] border-blue-100/80 bg-[#f8fbff]/80 shadow-[var(--shadow-card)] backdrop-blur-xl dark:border-border/70 dark:bg-card/70", className)}>
+      <CardHeader className="border-b border-blue-100/70 bg-[#eef4fa]/45 dark:border-border/70 dark:bg-background/35">
         <CardTitle className="flex items-center gap-2 text-lg text-foreground">
           <Volume2 className="h-5 w-5 text-muted-foreground" />
           Audio Playback
@@ -307,12 +307,12 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
 
         {/* Audio Player */}
         {audioUrl && !isLoading && !error && (
-          <div className="rounded-3xl border border-border/70 bg-background/45 p-5 shadow-inner">
+          <div className="rounded-3xl border border-blue-100/80 bg-[linear-gradient(135deg,#fbfdff_0%,#eef4ff_52%,#eaf2fb_100%)] p-5 shadow-[0_1px_1px_rgba(255,255,255,0.85)_inset,0_12px_34px_rgba(59,99,243,0.10)] dark:border-border/70 dark:bg-none dark:bg-background/45 dark:shadow-inner">
             {/* Hidden audio element */}
             <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
             {/* Time display */}
-            <div className="flex items-center justify-between text-sm text-muted-foreground font-medium">
+            <div className="flex items-center justify-between text-sm font-medium text-slate-600 dark:text-muted-foreground">
               <span className="font-mono">{formatTime(currentTime)}</span>
               <span className="font-mono">{formatTime(duration)}</span>
             </div>
@@ -324,7 +324,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
               max={duration || 0}
               value={currentTime}
               onChange={handleSeek}
-              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-blue-100/80 dark:bg-muted
                 [&::-webkit-slider-thumb]:appearance-none
                 [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:h-4
@@ -348,7 +348,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                 size="icon"
                 variant="ghost"
                 onClick={skipBackward}
-                className="rounded-full text-muted-foreground hover:text-foreground"
+                className="rounded-full text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-muted-foreground dark:hover:text-foreground"
                 aria-label="Skip backward 10 seconds"
                 title="Skip backward 10s"
               >
@@ -400,7 +400,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                 size="icon"
                 variant="ghost"
                 onClick={skipForward}
-                className="rounded-full text-muted-foreground hover:text-foreground"
+                className="rounded-full text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-muted-foreground dark:hover:text-foreground"
                 aria-label="Skip forward 10 seconds"
                 title="Skip forward 10s"
               >
@@ -412,7 +412,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                 size="icon"
                 variant="ghost"
                 onClick={toggleMute}
-                className="rounded-full text-muted-foreground hover:text-foreground"
+                className="rounded-full text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-muted-foreground dark:hover:text-foreground"
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? (
@@ -425,8 +425,8 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
 
             {/* Speed Control */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
-              <Gauge className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Speed:</span>
+              <Gauge className="h-4 w-4 text-slate-500 dark:text-muted-foreground" />
+              <span className="text-sm text-slate-600 dark:text-muted-foreground">Speed:</span>
               <div className="flex items-center gap-1">
                 {speedOptions.map((speed) => (
                   <Button
@@ -438,7 +438,7 @@ export const AudioPlayer = forwardRef<MediaPlayerRef, AudioPlayerProps>(
                       "h-7 rounded-full px-2 text-xs font-medium",
                       playbackSpeed === speed 
                         ? "bg-primary text-primary-foreground" 
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-muted-foreground dark:hover:text-foreground"
                     )}
                   >
                     {speed}x

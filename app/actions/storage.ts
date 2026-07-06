@@ -174,7 +174,7 @@ export async function deleteVideoReplayAction(sessionId: string) {
  * - Only generates signed URL if video_storage_path exists
  * 
  * @param sessionId - The session ID to get video for
- * @returns Signed URL with 60 second expiration, or error
+ * @returns Signed URL with 30 minute expiration, or error
  */
 export async function createSignedVideoUrl(sessionId: string): Promise<{
   url: string | null;
@@ -206,8 +206,9 @@ export async function createSignedVideoUrl(sessionId: string): Promise<{
     return { url: null, expiresAt: null, error: 'No video recording found for this session' };
   }
 
-  // Generate signed URL with 60 second expiration
-  const expiresIn = 60; // 60 seconds
+  // Generate a long-lived playback URL so normal session polling does not
+  // require replacing the media element's src during playback.
+  const expiresIn = 1800; // 30 minutes
   const { data, error: signedUrlError } = await supabase.storage
     .from('replays')
     .createSignedUrl(session.video_storage_path, expiresIn);

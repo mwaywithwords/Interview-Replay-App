@@ -1,5 +1,6 @@
 'use client';
 
+import { PracticeAnswerButton } from '@/components/job-prep/PracticeAnswerButton';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -61,6 +62,10 @@ function QuestionCard({
           <p className="text-sm font-medium leading-6 text-muted-foreground">
             {question.what_good_answer_should_include}
           </p>
+        </div>
+
+        <div className="flex justify-end">
+          <PracticeAnswerButton question={question} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

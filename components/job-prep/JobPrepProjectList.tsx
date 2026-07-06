@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { PrimaryButton } from '@/components/ui/button';
-import { Briefcase, Building2, Clock, Plus } from 'lucide-react';
+import { parseResumeJobAnalysisSummary } from '@/lib/job-prep/analysis';
+import { Briefcase, Building2, Clock, Plus, Sparkles } from 'lucide-react';
 import type { JobPrepProjectWithDetails } from '@/types';
 
 interface JobPrepProjectListProps {
@@ -41,7 +42,7 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
       <EmptyState
         icon={Briefcase}
         title="No job prep projects yet"
-        description="Create your first project by adding a job description and résumé. AI analysis and interview questions will come next."
+        description="Create your first project by adding a job description and résumé, then run ReplayAI fit analysis."
         action={
           <Link href="/job-prep/new">
             <PrimaryButton size="lg" className="rounded-full shadow-[var(--shadow-soft)]">
@@ -59,13 +60,14 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
       {projects.map((project) => {
         const company = project.job_description?.company_name;
         const role = project.job_description?.role_title;
+        const matchScore = parseResumeJobAnalysisSummary(
+          project.analysis?.summary ?? null
+        )?.overall_match_score;
 
         return (
-          <Card
-            key={project.id}
-            className="border-border/50 bg-card/65 shadow-[var(--shadow-card)] backdrop-blur"
-          >
-            <CardContent className="p-5">
+          <Link key={project.id} href={`/job-prep/${project.id}`} className="group block">
+            <Card className="border-border/50 bg-card/65 shadow-[var(--shadow-card)] backdrop-blur transition-all group-hover:border-primary/25 group-hover:shadow-[var(--shadow-soft)]">
+              <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-lg font-semibold tracking-[-0.03em] text-foreground">
@@ -85,9 +87,17 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
                 </Badge>
               </div>
 
-              <div className="mt-4 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                Updated {formatDate(project.updated_at)}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  Updated {formatDate(project.updated_at)}
+                </div>
+                {matchScore !== undefined && (
+                  <Badge variant="info" className="gap-1.5 rounded-full">
+                    <Sparkles className="h-3 w-3" />
+                    {matchScore}% match
+                  </Badge>
+                )}
               </div>
 
               <p className="mt-4 line-clamp-2 text-sm leading-6 text-muted-foreground">
@@ -95,6 +105,7 @@ export function JobPrepProjectList({ projects }: JobPrepProjectListProps) {
               </p>
             </CardContent>
           </Card>
+          </Link>
         );
       })}
     </div>

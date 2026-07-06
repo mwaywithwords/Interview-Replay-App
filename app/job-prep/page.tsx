@@ -63,7 +63,7 @@ export default async function JobPrepPage() {
             {projects.length} project{projects.length === 1 ? '' : 's'}
           </Badge>
           <Badge variant="outline">Résumé + job description</Badge>
-          <Badge variant="outline">Analysis coming soon</Badge>
+          <Badge variant="outline">ReplayAI fit analysis</Badge>
         </div>
 
         {error ? (

@@ -431,9 +431,22 @@ export interface ResumeJobAnalysis {
   resume_id: string;
   job_description_id: string;
   status: ResumeJobAnalysisStatus;
-  summary: Record<string, unknown> | null;
+  summary: ResumeJobAnalysisSummary | null;
+  error_message: string | null;
+  provider: string | null;
+  model: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ResumeJobAnalysisSummary {
+  overall_match_score: number;
+  missing_keywords: string[];
+  matched_skills: string[];
+  weak_resume_sections: string[];
+  recommended_resume_changes: string[];
+  risk_flags: string[];
+  summary: string;
 }
 
 export interface InterviewQuestion {

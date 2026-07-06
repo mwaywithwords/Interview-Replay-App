@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/supabase/server';
 import { getInterviewAnswerAttempt } from '@/app/actions/job-prep-answers';
 import { getSessionAIJobs, getSessionAIOutputs } from '@/app/actions/ai-jobs';
+import { getTranscript } from '@/app/actions/transcripts';
 import { AppShell } from '@/components/layout/AppShell';
 import { JobPrepAnswerReview } from '@/components/job-prep/JobPrepAnswerReview';
 import { SecondaryButton } from '@/components/ui/button';
@@ -35,9 +36,13 @@ export default async function JobPrepAnswerReviewPage({
   }
 
   const sessionId = attempt.session_id;
-  const [aiJobsResult, aiOutputsResult] = sessionId
-    ? await Promise.all([getSessionAIJobs(sessionId), getSessionAIOutputs(sessionId)])
-    : [{ jobs: [] }, { outputs: [] }];
+  const [aiJobsResult, aiOutputsResult, transcriptResult] = sessionId
+    ? await Promise.all([
+        getSessionAIJobs(sessionId),
+        getSessionAIOutputs(sessionId),
+        getTranscript(sessionId),
+      ])
+    : [{ jobs: [] }, { outputs: [] }, { transcript: null, error: null }];
 
   return (
     <AppShell
@@ -69,6 +74,7 @@ export default async function JobPrepAnswerReviewPage({
         attempt={attempt}
         initialAIJobs={aiJobsResult.jobs}
         initialAIOutputs={aiOutputsResult.outputs}
+        initialHasTranscript={Boolean(transcriptResult.transcript?.content?.trim())}
       />
     </AppShell>
   );

@@ -532,6 +532,32 @@ export interface InterviewQuestionGeneration {
   updated_at: string;
 }
 
+export type InterviewAnswerRatingStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed';
+
+export interface InterviewAnswerCategoryScores {
+  relevance: number;
+  structure: number;
+  clarity: number;
+  confidence: number;
+  completeness: number;
+  job_alignment: number;
+  examples_evidence: number;
+  conciseness: number;
+}
+
+export interface InterviewAnswerRatingResult {
+  overall_score: number;
+  category_scores: InterviewAnswerCategoryScores;
+  what_went_well: string[];
+  what_was_missing: string[];
+  improved_sample_answer: string;
+  next_practice_tip: string;
+}
+
 export interface InterviewAnswerAttempt {
   id: string;
   user_id: string;
@@ -540,6 +566,11 @@ export interface InterviewAnswerAttempt {
   session_id: string | null;
   answer_text: string;
   duration_seconds: number | null;
+  rating_status: InterviewAnswerRatingStatus | null;
+  rating_result: InterviewAnswerRatingResult | null;
+  rating_error_message: string | null;
+  rating_provider: string | null;
+  rating_model: string | null;
   created_at: string;
   updated_at: string;
 }

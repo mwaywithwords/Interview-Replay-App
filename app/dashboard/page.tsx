@@ -17,6 +17,7 @@ import {
   Plus,
   Sparkles,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import type { InterviewSessionWithGroupings, SessionMetadata } from '@/types';
@@ -42,16 +43,54 @@ function formatActivityDate(date: string): string {
   });
 }
 
+function getStartOfWeek(date: Date): Date {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
 export default async function Dashboard() {
   const user = await requireUser();
-  const recentResult = await getSessions({ limit: 3, offset: 0 });
-  const recentSessions = recentResult.sessions;
+  const recentResult = await getSessions({ limit: 8, offset: 0 });
+  const recentSessions = recentResult.sessions.slice(0, 3);
+  const mobileRecentSessions = recentResult.sessions.slice(0, 5);
   const latestSession = recentSessions[0];
   const totalSessions = recentResult.total;
   const readySessions = recentSessions.filter((session) => session.status === 'ready').length;
   const interviewScore =
     totalSessions === 0 ? 0 : Math.min(92, 58 + Math.min(totalSessions, 8) * 4 + readySessions * 2);
   const goalProgress = Math.min(100, Math.round((Math.min(recentSessions.length, 3) / 3) * 100));
+  const today = new Date();
+  const startOfThisWeek = getStartOfWeek(today);
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+  const recentForTrend = recentResult.sessions;
+  const thisWeekCount = recentForTrend.filter((session) => new Date(session.created_at) >= startOfThisWeek).length;
+  const lastWeekCount = recentForTrend.filter((session) => {
+    const createdAt = new Date(session.created_at);
+    return createdAt >= startOfLastWeek && createdAt < startOfThisWeek;
+  }).length;
+  const weeklyImprovement =
+    lastWeekCount === 0 ? (thisWeekCount > 0 ? 100 : 0) : Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100);
+  const dailyGoalProgress = latestSession ? 100 : 0;
+  const mobileCoachCards = [
+    {
+      icon: Target,
+      title: 'Open with the result',
+      copy: 'Lead your next answer with the outcome, then explain the path.',
+    },
+    {
+      icon: BarChart3,
+      title: 'Review one contrast',
+      copy: 'Bookmark one sharp answer and one answer that needs tightening.',
+    },
+    {
+      icon: CalendarCheck,
+      title: 'Protect the cadence',
+      copy: 'One focused rep today is enough to keep momentum visible.',
+    },
+  ];
 
   return (
     <AppShell
@@ -79,7 +118,209 @@ export default async function Dashboard() {
         </div>
       }
     >
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-4 sm:px-6 lg:px-8 lg:py-8">
+        <div className="lg:hidden">
+          <div className="mb-4 overflow-hidden rounded-[1.75rem] border border-border/45 bg-gradient-to-br from-primary/15 via-card/80 to-card/55 p-4 shadow-[var(--shadow-card)] backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+                  Today
+                </p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-[-0.055em] text-foreground">
+                  Ready for the next rep?
+                </h1>
+                <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
+                  {latestSession
+                    ? `Continue ${latestSession.title}`
+                    : 'Start with one focused interview session.'}
+                </p>
+              </div>
+              <Link href="/sessions/new">
+                <PrimaryButton size="icon" className="h-11 w-11 rounded-full shadow-[var(--shadow-soft)]">
+                  <Plus className="h-5 w-5" />
+                </PrimaryButton>
+              </Link>
+            </div>
+
+            <div className="mt-5 grid grid-cols-[0.95fr_1.05fr] gap-3">
+              <div className="relative grid aspect-square place-items-center rounded-[1.5rem] border border-border/35 bg-background/45 shadow-inner">
+                <div
+                  className="absolute inset-3 rounded-full"
+                  style={{
+                    background: `conic-gradient(var(--primary) ${interviewScore * 3.6}deg, var(--muted) 0deg)`,
+                  }}
+                />
+                <div className="absolute inset-6 rounded-full bg-card shadow-inner" />
+                <div className="relative text-center">
+                  <div className="text-4xl font-semibold tabular-nums tracking-[-0.07em] text-foreground">
+                    {interviewScore || '—'}
+                  </div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    score
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex min-h-full flex-col justify-center rounded-[1.25rem] border border-border/35 bg-background/45 p-3">
+                <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  <span>Daily goal</span>
+                  <span>{dailyGoalProgress}%</span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted/70">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-info"
+                    style={{ width: `${dailyGoalProgress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs font-medium leading-5 text-muted-foreground">
+                  {latestSession ? 'One session is queued for review.' : 'Record one interview today.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 rounded-[1.15rem] border border-warning/20 bg-warning/10 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
+                  <Flame className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xl font-semibold tracking-[-0.05em] text-foreground">
+                    {Math.min(recentSessions.length, 7)}
+                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    streak
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-[1.15rem] border border-success/20 bg-success/10 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xl font-semibold tracking-[-0.05em] text-foreground">
+                    {weeklyImprovement > 0 ? '+' : ''}
+                    {weeklyImprovement}%
+                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    weekly
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {latestSession && (
+              <Link
+                href={`/sessions/${latestSession.id}`}
+                className="mt-4 flex items-center justify-between rounded-full border border-border/35 bg-background/55 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/25 hover:bg-background/80"
+              >
+                Continue last interview
+                <ArrowRight className="h-4 w-4 text-primary" />
+              </Link>
+            )}
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {[
+              ['Sessions', totalSessions],
+              ['Ready', readySessions],
+              ['This week', thisWeekCount],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-border/40 bg-card/65 p-3 text-center shadow-sm backdrop-blur">
+                <p className="text-lg font-semibold tabular-nums tracking-[-0.04em] text-foreground">{value}</p>
+                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <section className="mb-4 rounded-[1.5rem] border border-border/45 bg-card/65 p-4 shadow-[var(--shadow-soft)] backdrop-blur">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold tracking-[-0.035em] text-foreground">
+                  Recent interviews
+                </h2>
+                <p className="text-xs font-medium text-muted-foreground">Fast resume, not a full archive.</p>
+              </div>
+              <Link href="/sessions" className="text-xs font-semibold text-primary">
+                All
+              </Link>
+            </div>
+
+            <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {mobileRecentSessions.length > 0 ? (
+                mobileRecentSessions.map((session) => (
+                  <Link
+                    key={session.id}
+                    href={`/sessions/${session.id}`}
+                    className="min-w-[78%] snap-start rounded-[1.25rem] border border-border/40 bg-background/50 p-4 transition-colors hover:border-primary/25 hover:bg-background/75"
+                  >
+                    <Badge variant="secondary" className="rounded-full text-[10px]">
+                      {getSessionTypeLabel(session)}
+                    </Badge>
+                    <h3 className="mt-4 line-clamp-2 text-base font-semibold tracking-[-0.03em] text-foreground">
+                      {session.title}
+                    </h3>
+                    <div className="mt-4 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                      <span>{formatActivityDate(session.created_at)}</span>
+                      <span className="capitalize">{session.status}</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="w-full rounded-[1.25rem] border border-dashed border-border/50 bg-muted/20 p-5 text-sm font-medium text-muted-foreground">
+                  Your recent interviews will appear here after your first recording.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="mb-4 rounded-[1.5rem] border border-border/45 bg-card/65 p-4 shadow-[var(--shadow-soft)] backdrop-blur">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold tracking-[-0.035em] text-foreground">
+                  Interview Coach
+                </h2>
+                <p className="text-xs font-medium text-muted-foreground">Three small moves for the next rep.</p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {mobileCoachCards.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex gap-3 rounded-[1.15rem] border border-border/35 bg-background/45 p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                      <p className="mt-1 text-xs font-medium leading-5 text-muted-foreground">{item.copy}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/sessions/new"
+              className="rounded-[1.35rem] border border-primary/20 bg-primary px-4 py-4 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-soft)]"
+            >
+              Record practice
+            </Link>
+            <Link
+              href="/sessions"
+              className="rounded-[1.35rem] border border-border/45 bg-card/65 px-4 py-4 text-sm font-semibold text-foreground shadow-sm backdrop-blur"
+            >
+              Open library
+            </Link>
+          </div>
+        </div>
+
+        <div className="hidden lg:block">
         <PageHeader
           title="Dashboard"
           description="Your improvement command center. Track progress, keep a practice streak alive, and turn recent sessions into better next reps."
@@ -373,6 +614,7 @@ export default async function Dashboard() {
               </div>
             </div>
           </Link>
+        </div>
         </div>
       </div>
     </AppShell>

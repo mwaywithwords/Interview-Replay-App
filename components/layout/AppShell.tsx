@@ -165,7 +165,7 @@ export function AppShell({
                 </div>
               </div>
 
-              <nav className="flex gap-2 overflow-x-auto border-t border-border/50 px-4 py-2 sm:px-6 lg:hidden">
+              <nav className="fixed inset-x-3 bottom-3 z-50 flex gap-1 overflow-x-auto rounded-[1.35rem] border border-border/60 bg-background/85 p-1.5 shadow-[var(--shadow-elevated)] backdrop-blur-xl lg:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {appNavItems.map((item) => {
                   const Icon = item.icon;
 
@@ -173,9 +173,9 @@ export function AppShell({
                     <Link
                       key={item.label}
                       href={item.href}
-                      className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm transition-colors hover:border-primary/25 hover:bg-accent hover:text-foreground"
+                      className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-[1rem] px-3 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
-                      <Icon className="h-3.5 w-3.5" />
+                      <Icon className="h-4 w-4" />
                       {item.label}
                     </Link>
                   );
@@ -183,7 +183,7 @@ export function AppShell({
               </nav>
             </header>
 
-            <main className="flex flex-1 flex-col">{children}</main>
+            <main className="flex flex-1 flex-col pb-24 lg:pb-0">{children}</main>
           </div>
         </div>
       </div>

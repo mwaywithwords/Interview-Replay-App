@@ -22,6 +22,7 @@ const EMAIL_TRIGGER_PATHS = [
 const PROTECTED_PATHS = [
   '/dashboard',
   '/sessions',
+  '/job-prep',
 ];
 
 export async function proxy(request: NextRequest) {

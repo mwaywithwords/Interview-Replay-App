@@ -271,6 +271,11 @@ export async function createSession(
   const metadata: SessionMetadata = {
     session_type: input.session_type,
     prompt: input.prompt,
+    ...(input.job_prep && {
+      job_prep_project_id: input.job_prep.project_id,
+      interview_question_id: input.job_prep.question_id,
+      return_path: `/job-prep/${input.job_prep.project_id}`,
+    }),
   };
 
   // Create the session

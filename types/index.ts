@@ -53,7 +53,17 @@ export interface InterviewSession {
 export interface SessionMetadata {
   session_type?: SessionType;
   prompt?: string;
+  job_prep_project_id?: string;
+  interview_question_id?: string;
+  interview_answer_attempt_id?: string;
+  return_path?: string;
+  answer_review_path?: string;
   [key: string]: unknown;
+}
+
+export interface JobPrepSessionLink {
+  project_id: string;
+  question_id: string;
 }
 
 export interface CreateSessionInput {
@@ -63,6 +73,7 @@ export interface CreateSessionInput {
   prompt?: string;
   company_id?: string; // Required if session_type is 'interview'
   symbol_id?: string; // Required if session_type is 'trading'
+  job_prep?: JobPrepSessionLink;
 }
 
 export interface UpdateSessionInput {
@@ -526,10 +537,16 @@ export interface InterviewAnswerAttempt {
   user_id: string;
   project_id: string;
   question_id: string;
+  session_id: string | null;
   answer_text: string;
   duration_seconds: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface InterviewAnswerAttemptWithDetails extends InterviewAnswerAttempt {
+  question: InterviewQuestion | null;
+  session: InterviewSession | null;
 }
 
 export interface JobPrepProjectWithDetails extends JobPrepProject {

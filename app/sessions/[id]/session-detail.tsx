@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateSession, deleteSession } from '@/app/actions/sessions';
+import { syncInterviewAnswerAttemptFromSession } from '@/app/actions/job-prep-answers';
 import {
   generateSessionShareToken,
   revokeSessionShare,
@@ -379,6 +380,21 @@ export function SessionDetail({
     isAudioSession && session.audio_storage_path !== null;
   const hasVideoRecording =
     isVideoSession && session.video_storage_path !== null;
+  const jobPrepReturnPath =
+    typeof metadata.return_path === 'string' ? metadata.return_path : null;
+  const jobPrepReviewPath =
+    typeof metadata.answer_review_path === 'string' ? metadata.answer_review_path : null;
+  const isJobPrepPractice = Boolean(
+    metadata.job_prep_project_id && metadata.interview_question_id
+  );
+  const hasRecording = hasAudioRecording || hasVideoRecording;
+
+  const handleRecordingUploadComplete = useCallback(async () => {
+    if (isJobPrepPractice) {
+      await syncInterviewAnswerAttemptFromSession(session.id);
+    }
+    router.refresh();
+  }, [isJobPrepPractice, router, session.id]);
 
   // Form state
   const [title, setTitle] = useState(session.title);
@@ -578,9 +594,9 @@ export function SessionDetail({
         <div className="flex flex-col gap-2">
           <div className="flex items-start gap-3">
             <Link
-              href="/sessions"
+              href={jobPrepReturnPath ?? '/sessions'}
               className="group mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-border/50 bg-background/50 p-1.5 text-muted-foreground shadow-sm transition-all hover:border-border hover:bg-accent/80 hover:text-foreground"
-              aria-label="Back to sessions"
+              aria-label={jobPrepReturnPath ? 'Back to Job Prep' : 'Back to sessions'}
             >
               <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             </Link>
@@ -776,6 +792,34 @@ export function SessionDetail({
         </Alert>
       )}
 
+      {isJobPrepPractice && (
+        <div className="mb-3 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3 shadow-[var(--shadow-soft)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary/80">
+                Job Prep practice
+              </p>
+              <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
+                This recording is linked to an interview question from your Job Prep project.
+                Use the prompt below as your practice context.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {jobPrepReturnPath && (
+                <SecondaryButton asChild size="sm" variant="outline" className="rounded-full">
+                  <Link href={jobPrepReturnPath}>Back to Job Prep</Link>
+                </SecondaryButton>
+              )}
+              {hasRecording && jobPrepReviewPath && (
+                <PrimaryButton asChild size="sm" className="rounded-full">
+                  <Link href={jobPrepReviewPath}>Review answer</Link>
+                </PrimaryButton>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isEditing && (
         <SectionCard className="mb-6" title="Edit Session Information">
           <div className="grid gap-6 md:grid-cols-2">
@@ -827,11 +871,19 @@ export function SessionDetail({
         <section className="order-1 min-w-0 overflow-hidden rounded-2xl border border-border/45 bg-gradient-to-b from-card/85 via-background/70 to-surface/80 p-0.5 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl dark:border-border/40 dark:from-zinc-950/90 dark:via-zinc-950 dark:to-zinc-950/95 dark:shadow-[var(--shadow-elevated)] dark:ring-white/[0.06] xl:order-none xl:col-start-1 xl:row-start-1">
           <div className="p-0.5 sm:p-1">
             {isAudioSession && !hasAudioRecording && (
-              <AudioRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />
+              <AudioRecorder
+                sessionId={session.id}
+                userId={session.user_id}
+                onUploadComplete={() => void handleRecordingUploadComplete()}
+              />
             )}
             {isAudioSession && hasAudioRecording && <AudioPlayer ref={mediaPlayerRef} sessionId={session.id} hasAudio={true} />}
             {isVideoSession && !hasVideoRecording && (
-              <VideoRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />
+              <VideoRecorder
+                sessionId={session.id}
+                userId={session.user_id}
+                onUploadComplete={() => void handleRecordingUploadComplete()}
+              />
             )}
             {isVideoSession && hasVideoRecording && (
               <VideoPlayer

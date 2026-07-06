@@ -52,17 +52,28 @@ export interface MediaPlayerRef {
 interface VideoPlayerProps {
   sessionId: string;
   hasVideo: boolean; // Whether the session has recording_type = 'video'
+  mediaAssetKey?: string | null;
   className?: string;
   compact?: boolean;
 }
 
 /**
+ * Format seconds into MM:SS display format.
+ */
+function formatTime(seconds: number): string {
+  if (isNaN(seconds) || !isFinite(seconds)) return '00:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
  * VideoPlayer component for playing video from private Supabase Storage buckets.
- * Uses signed URLs with automatic refresh before expiration.
+ * Uses a stable signed URL for each media asset.
  * 
  * Features:
- * - Fetches signed URL with 60-second expiration
- * - Automatically refreshes URL 10 seconds before expiration during playback
+ * - Fetches signed URL only when the session/media asset changes
+ * - Lets users seek before pressing play once metadata is loaded
  * - Handles expired URLs gracefully with automatic retry
  * - Shows friendly empty state when no video exists
  * 
@@ -71,17 +82,22 @@ interface VideoPlayerProps {
  * - seekToMs(ms): Seeks to the specified position in milliseconds
  */
 export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
-  function VideoPlayer({ sessionId, hasVideo, className, compact = false }, ref) {
+  function VideoPlayer({ sessionId, hasVideo, mediaAssetKey, className, compact = false }, ref) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef<boolean>(false);
   const currentTimeRef = useRef<number>(0);
+  const volumeRef = useRef<number>(1);
+  const mutedRef = useRef<boolean>(false);
+  const playbackSpeedRef = useRef<number>(1);
 
   // Available playback speeds
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -98,6 +114,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
       if (videoRef.current) {
         const seconds = ms / 1000;
         videoRef.current.currentTime = Math.max(0, Math.min(seconds, videoRef.current.duration || seconds));
+        setCurrentTime(videoRef.current.currentTime);
       }
     },
   }), []);
@@ -112,6 +129,9 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
     if (preservePlaybackState && videoRef.current) {
       wasPlayingRef.current = !videoRef.current.paused;
       currentTimeRef.current = videoRef.current.currentTime;
+      volumeRef.current = videoRef.current.volume;
+      mutedRef.current = videoRef.current.muted;
+      playbackSpeedRef.current = videoRef.current.playbackRate;
     }
 
     setIsLoading(true);
@@ -127,7 +147,7 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
         return;
       }
 
-      setVideoUrl(result.url);
+      setVideoUrl((currentUrl) => currentUrl === result.url ? currentUrl : result.url);
       setExpiresAt(result.expiresAt);
     } catch (err) {
       console.error('Failed to fetch signed URL:', err);
@@ -137,60 +157,30 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
     }
   }, [sessionId, hasVideo]);
 
-  /**
-   * Schedule URL refresh before expiration
-   * Refresh 10 seconds before expiration to ensure seamless playback
-   */
-  const scheduleRefresh = useCallback(() => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
-
-    if (!expiresAt) return;
-
-    // Calculate time until expiration (refresh 10 seconds early)
-    const timeUntilExpiration = expiresAt - Date.now() - 10000;
-
-    if (timeUntilExpiration <= 0) {
-      // URL already expired or about to expire, refresh immediately
-      fetchSignedUrl(true);
-      return;
-    }
-
-    refreshTimeoutRef.current = setTimeout(() => {
-      // Only refresh if video is playing or paused (user is actively watching)
-      if (videoRef.current && !videoRef.current.ended) {
-        fetchSignedUrl(true);
-      }
-    }, timeUntilExpiration);
-  }, [expiresAt, fetchSignedUrl]);
-
-  // Fetch signed URL on mount if hasVideo is true
+  // Fetch signed URL on mount and only when the underlying media asset changes.
   useEffect(() => {
     if (hasVideo) {
       fetchSignedUrl();
+    } else {
+      setVideoUrl(null);
+      setExpiresAt(null);
+      setCurrentTime(0);
+      setDuration(0);
     }
-  }, [hasVideo, fetchSignedUrl]);
-
-  // Schedule refresh when expiresAt changes
-  useEffect(() => {
-    scheduleRefresh();
-
-    return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
-    };
-  }, [scheduleRefresh]);
+  }, [hasVideo, sessionId, mediaAssetKey, fetchSignedUrl]);
 
   // Restore playback state after URL refresh
   useEffect(() => {
-    if (videoUrl && videoRef.current && currentTimeRef.current > 0) {
+    if (videoUrl && videoRef.current && (currentTimeRef.current > 0 || wasPlayingRef.current)) {
       const video = videoRef.current;
       
       const handleCanPlay = () => {
         // Restore position
         video.currentTime = currentTimeRef.current;
+        setCurrentTime(currentTimeRef.current);
+        video.volume = volumeRef.current;
+        video.muted = mutedRef.current;
+        video.playbackRate = playbackSpeedRef.current;
         
         // Resume playback if it was playing before
         if (wasPlayingRef.current) {
@@ -213,6 +203,69 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
         video.removeEventListener('canplay', handleCanPlay);
       };
     }
+  }, [videoUrl]);
+
+  // Video event handlers - keep UI state local to the media component so
+  // parent polling renders do not affect playback.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      currentTimeRef.current = video.currentTime;
+      setCurrentTime(video.currentTime);
+    };
+
+    const handleDurationChange = () => {
+      setDuration(video.duration);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(video.duration || 0);
+    };
+
+    const handleRateChange = () => {
+      playbackSpeedRef.current = video.playbackRate;
+      setPlaybackSpeed(video.playbackRate);
+    };
+
+    const handleVolumeChange = () => {
+      volumeRef.current = video.volume;
+      mutedRef.current = video.muted;
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('seeking', handleTimeUpdate);
+    video.addEventListener('seeked', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleDurationChange);
+    video.addEventListener('durationchange', handleDurationChange);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('ratechange', handleRateChange);
+    video.addEventListener('volumechange', handleVolumeChange);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('seeking', handleTimeUpdate);
+      video.removeEventListener('seeked', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleDurationChange);
+      video.removeEventListener('durationchange', handleDurationChange);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('ratechange', handleRateChange);
+      video.removeEventListener('volumechange', handleVolumeChange);
+    };
   }, [videoUrl]);
 
   // Handle video errors (including expired URLs)
@@ -240,7 +293,17 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
   const handleSpeedChange = (speed: number) => {
     if (videoRef.current) {
       videoRef.current.playbackRate = speed;
+      playbackSpeedRef.current = speed;
       setPlaybackSpeed(speed);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+      currentTimeRef.current = time;
+      setCurrentTime(time);
     }
   };
 
@@ -248,6 +311,8 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
     if (videoRef.current) {
       const newTime = Math.max(0, videoRef.current.currentTime - 10);
       videoRef.current.currentTime = newTime;
+      currentTimeRef.current = newTime;
+      setCurrentTime(newTime);
     }
   };
 
@@ -258,6 +323,8 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
         videoRef.current.currentTime + 10
       );
       videoRef.current.currentTime = newTime;
+      currentTimeRef.current = newTime;
+      setCurrentTime(newTime);
     }
   };
 
@@ -350,7 +417,9 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
                 src={videoUrl}
                 controls
                 playsInline
-                preload="metadata"
+                preload="auto"
+                data-testid="replay-video"
+                data-playing={isPlaying ? 'true' : 'false'}
                 className="absolute inset-0 h-full w-full object-contain"
               />
               <div className="pointer-events-none absolute inset-0 rounded-2xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7),inset_0_0_42px_rgba(59,99,243,0.06)] dark:shadow-[inset_0_0_80px_rgba(0,0,0,0.45)]" aria-hidden />
@@ -368,6 +437,37 @@ export const VideoPlayer = forwardRef<MediaPlayerRef, VideoPlayerProps>(
 
             {/* Custom Controls */}
             <div className={cn("flex flex-col", compact ? "gap-1 px-0 pt-1" : "gap-3 px-1 pt-4")}>
+              {/* Progress bar / seek slider */}
+              <div className="flex items-center gap-2 rounded-full border border-blue-100/80 bg-[#fbfdff]/80 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-sm dark:border-border/35 dark:bg-background/40 dark:text-muted-foreground">
+                <span className="w-10 font-mono tabular-nums">{formatTime(currentTime)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  step="0.01"
+                  value={Math.min(currentTime, duration || currentTime)}
+                  onChange={handleSeek}
+                  disabled={!duration}
+                  data-testid="video-seek-slider"
+                  className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-blue-100/80 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-muted
+                    [&::-webkit-slider-thumb]:appearance-none
+                    [&::-webkit-slider-thumb]:h-4
+                    [&::-webkit-slider-thumb]:w-4
+                    [&::-webkit-slider-thumb]:cursor-pointer
+                    [&::-webkit-slider-thumb]:rounded-full
+                    [&::-webkit-slider-thumb]:bg-primary
+                    [&::-webkit-slider-thumb]:shadow-lg
+                    [&::-moz-range-thumb]:h-4
+                    [&::-moz-range-thumb]:w-4
+                    [&::-moz-range-thumb]:cursor-pointer
+                    [&::-moz-range-thumb]:rounded-full
+                    [&::-moz-range-thumb]:border-0
+                    [&::-moz-range-thumb]:bg-primary"
+                  aria-label="Video progress"
+                />
+                <span className="w-10 text-right font-mono tabular-nums">{formatTime(duration)}</span>
+              </div>
+
               {/* Skip Controls */}
               <div className="flex items-center justify-center gap-2">
                 <Button

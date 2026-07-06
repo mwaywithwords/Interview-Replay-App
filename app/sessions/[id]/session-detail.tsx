@@ -834,7 +834,13 @@ export function SessionDetail({
               <VideoRecorder sessionId={session.id} userId={session.user_id} onUploadComplete={() => router.refresh()} />
             )}
             {isVideoSession && hasVideoRecording && (
-              <VideoPlayer ref={mediaPlayerRef} sessionId={session.id} hasVideo={true} compact />
+              <VideoPlayer
+                ref={mediaPlayerRef}
+                sessionId={session.id}
+                hasVideo={true}
+                mediaAssetKey={session.video_storage_path}
+                compact
+              />
             )}
             {!isAudioSession && !isVideoSession && (
               <EmptyState icon={AlertCircle} title="Configuration Missing" description="This session doesn't have a recording type configured." />

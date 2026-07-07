@@ -4,7 +4,7 @@ import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
-import { branding } from '@/lib/branding';
+import { branding, getSiteUrl } from '@/lib/branding';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,13 +16,20 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const siteUrl = getSiteUrl();
+const defaultTitle = `${branding.brandName} — ${branding.ogSubtitle}`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   applicationName: branding.brandName,
   title: {
     template: `%s | ${branding.brandName}`,
-    default: branding.brandName,
+    default: defaultTitle,
   },
   description: branding.description,
+  alternates: {
+    canonical: '/',
+  },
   manifest: '/site.webmanifest',
   icons: {
     icon: [
@@ -43,24 +50,19 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
   },
   openGraph: {
-    title: branding.brandName,
-    description: branding.description,
-    siteName: branding.brandName,
     type: 'website',
-    images: [
-      {
-        url: '/icon-512.png',
-        width: 512,
-        height: 512,
-        alt: `${branding.brandName} logo`,
-      },
-    ],
+    locale: 'en_US',
+    url: '/',
+    siteName: branding.brandName,
+    title: defaultTitle,
+    description: branding.socialDescription,
+    // og:image is injected automatically from app/opengraph-image.tsx
   },
   twitter: {
-    card: 'summary',
-    title: branding.brandName,
-    description: branding.description,
-    images: ['/icon-512.png'],
+    card: 'summary_large_image',
+    title: defaultTitle,
+    description: branding.socialDescription,
+    // twitter:image is injected automatically from app/twitter-image.tsx
   },
 };
 

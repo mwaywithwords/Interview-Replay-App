@@ -471,6 +471,9 @@ export default function Home() {
               <Link href="/privacy" className="transition-colors hover:text-foreground">
                 Privacy Policy
               </Link>
+              <Link href="/terms" className="transition-colors hover:text-foreground">
+                Terms of Service
+              </Link>
               <span>© 2026 {branding.brandName}. All rights reserved.</span>
             </div>
           </div>

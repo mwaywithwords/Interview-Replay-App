@@ -1,376 +1,326 @@
 <p align="center">
-  <img src="public/replayai-logo.png" alt="ReplayAI Logo" width="120" height="120" />
+  <img src="public/replayai-logo.png" alt="ReplayAI" width="96" height="96" />
 </p>
 
 <h1 align="center">ReplayAI</h1>
 
 <p align="center">
-  <strong>Prepare for real interviews, from application to offer.</strong><br/>
-  Tailor your application, practice role-specific questions, and improve with structured AI feedback.
+  <strong>AI-powered interview preparation — from application to interview-ready.</strong>
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#tech-stack">Tech Stack</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#architecture">Architecture</a> •
+  <a href="https://www.replayai.app"><strong>🌐 Live Demo → replayai.app</strong></a>
+</p>
+
+<p align="center">
+  <a href="#product-overview">Overview</a> ·
+  <a href="#why-replayai">Why ReplayAI</a> ·
+  <a href="#core-features">Features</a> ·
+  <a href="#how-it-works">How It Works</a> ·
+  <a href="#tech-stack">Tech Stack</a> ·
+  <a href="#local-development">Development</a> ·
   <a href="#roadmap">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/status-active%20development-orange?style=flat-square" alt="Active Development" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
 </p>
 
 ---
 
-## What is ReplayAI?
+## Product Overview
 
-ReplayAI is an end-to-end interview preparation platform. Upload your résumé, paste a job description, generate tailored materials and personalized questions, record practice answers, and review structured AI feedback — all in one workspace.
+Job seekers juggle résumé tweaks, scattered practice tools, and generic AI prompts — none of which know the specific role they're targeting. **ReplayAI** brings the full interview prep workflow into one connected workspace.
 
-Whether you're preparing for a target role or refining your interview delivery, ReplayAI helps you measure progress and improve with every practice attempt.
+Upload your résumé, add a job description, and work through fit analysis, tailored application materials, personalized practice questions, recorded answers, and structured AI coaching. Every step builds on the last, so feedback is grounded in *your* experience and *this* opportunity — not a blank chat window.
 
-## Features
+> 🚧 **Active Development** — ReplayAI is live at [replayai.app](https://www.replayai.app) with core Job Prep and practice workflows shipping regularly. APIs and pricing may change.
 
-### Core Features (Current)
+---
 
-- **Job Prep** — Upload a résumé, paste a job description, and run fit analysis, tailored résumé, and question generation
-- **Practice Answers** — Record audio or video responses tied to Job Prep questions or quick practice
-- **Answer Review** — Replay practice answers with playback controls, transcripts, and structured AI feedback
-- **Bookmarks** — Mark important moments with timestamps for quick navigation
-- **Notes** — Add personal notes to sessions and individual bookmarks
-- **Transcripts** — Paste and search through session transcripts with highlighting
-- **AI Actions** — Queue AI jobs for transcription, summarization, scoring, and bookmark suggestions
-- **Share Links** — Generate secure, read-only share links for practice answers
-- **Dashboard** — Track preparation progress with stats and filtering
-- **Dark Mode** — Full dark mode support throughout the app
-- **Session Types** — Support for both Interview and Trading session types
-- **Company & Symbol Tracking** — Organize sessions by target company or trading symbol
+## Why ReplayAI?
 
-### Production Features
+**The hiring problem:** Candidates prepare in fragments. They rewrite résumés in one tool, brainstorm answers in a chatbot, and record practice sessions somewhere else. Nothing connects their materials to their performance, and nothing tracks whether they're actually improving.
 
-- **Toast Notifications** — Real-time feedback for all user actions
-- **Error Boundaries** — Graceful error handling that doesn't crash the app
-- **Optimistic Updates** — Instant UI feedback for bookmark operations
-- **Skeleton Loading** — Smooth loading states throughout the app
+**What makes ReplayAI different:**
+
+| Standalone tools | ReplayAI |
+|---|---|
+| Generic résumé builders | Fit analysis tied to a specific job posting |
+| One-size-fits-all question banks | Questions generated from your résumé and JD |
+| Self-review with no structure | 8-dimension answer ratings with coaching tips |
+| Recordings lost in camera roll | Synced replay, transcripts, bookmarks, and notes |
+
+ReplayAI isn't a chatbot with an interview skin. It's an end-to-end preparation platform where every feature — from keyword gap analysis to answer scoring — is connected to the role you're pursuing.
+
+---
+
+## Core Features
+
+Everything listed below is **implemented and available today**.
+
+### Understand your fit
+- **Résumé ↔ job description analysis** — Match score, keyword gaps, weak sections, and prioritized recommendations
+- **Tailored résumé generation** — Role-specific drafts grounded in your existing experience (no fabricated credentials)
+
+### Practice with purpose
+- **Personalized interview questions** — Behavioral, technical, résumé-specific, and role-fit questions
+- **Video & audio recording** — Browser-based capture tied to Job Prep questions or quick practice sessions
+- **Session replay** — Playback with signed media URLs, timeline scrubbing, and bookmark navigation
+
+### Improve with coaching
+- **AI-powered feedback** — Session summaries, scoring, action items, and per-answer ratings across 8 dimensions
+- **Transcript editing** — OpenAI auto-transcription plus manual paste, search, and highlight
+- **Notes & bookmarks** — Timestamped bookmarks with millisecond precision and session-level notes
+
+### Stay organized
+- **Dashboard analytics** — Session counts, practice minutes, and preparation trends
+- **Share links** — Secure, read-only public views for practice answers
+- **Secure authentication** — Email/password with confirmation and password reset; OAuth via Google, GitHub, and LinkedIn
+- **Responsive UI** — Mobile-friendly layout with dark mode support
+
+---
+
+## How It Works
+
+```
+Upload Résumé  →  Add Job Description  →  Analyze Fit  →  Generate Tailored Résumé
+       →  Generate Questions  →  Practice Interview  →  Receive AI Feedback  →  Improve
+```
+
+| Step | What you do | What you get |
+|:---:|---|---|
+| 1 | Upload your résumé (PDF, DOCX, or text) | Parsed experience ready for analysis |
+| 2 | Paste the target job description | Role requirements stored in your workspace |
+| 3 | Run fit analysis | Match score, gaps, and what to emphasize |
+| 4 | Generate a tailored résumé | Role-specific draft highlighting your strongest evidence |
+| 5 | Generate interview questions | Focused practice set from your materials |
+| 6 | Record video or audio answers | Responses tied to each question |
+| 7 | Receive AI coaching | Structured ratings and actionable next steps |
+| 8 | Review & iterate | Replay sessions, edit transcripts, bookmark moments, practice again |
+
+Each job opportunity gets its own **Job Prep workspace** — no switching tools, no starting over.
+
+---
 
 ## Screenshots
 
-> Screenshots coming soon. Below are placeholder images for key screens.
+> Replace the placeholders below with real captures when available.
 
-### Dashboard
-![Dashboard](docs/screenshots/dashboard-placeholder.png)
-*View Job Prep projects, practice answers, and preparation stats at a glance.*
+| Dashboard | Job Prep Workspace |
+|:---:|:---:|
+| *Screenshot placeholder* | *Screenshot placeholder* |
+| Session overview, stats, and quick actions | Fit analysis → tailored résumé → questions |
 
-### Session Replay
-![Session Replay](docs/screenshots/replay-placeholder.png)
-*Full playback controls with synchronized bookmarks, transcripts, and notes.*
+| Session Replay | AI Coaching |
+|:---:|:---:|
+| *Screenshot placeholder* | *Screenshot placeholder* |
+| Synced media, transcript, and bookmarks | 8-dimension answer ratings and tips |
 
-### AI Actions
-![AI Actions](docs/screenshots/ai-actions-placeholder.png)
-*Queue AI jobs to analyze your sessions and get actionable feedback.*
-
-### Dark Mode
-![Dark Mode](docs/screenshots/dark-mode-placeholder.png)
-*Beautiful dark mode throughout the entire application.*
+---
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | [Next.js 16](https://nextjs.org/) with App Router |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
-| **Components** | [shadcn/ui](https://ui.shadcn.com/) |
-| **Backend** | [Supabase](https://supabase.com/) (Auth, Database, Storage, Edge Functions) |
-| **State Management** | [TanStack React Query](https://tanstack.com/query) |
-| **Icons** | [Lucide React](https://lucide.dev/) |
-| **Linting** | [ESLint](https://eslint.org/) |
-| **Formatting** | [Prettier](https://prettier.io/) |
+### Frontend
+- **Next.js 16** (App Router) · **React 19** · **TypeScript**
+- **Tailwind CSS v4** · **shadcn/ui** · **TanStack React Query**
 
-## Getting Started
+### Backend
+- **Next.js Server Actions** for data mutations
+- **Supabase Edge Functions** (Deno) for AI workloads
+
+### Database
+- **PostgreSQL** via Supabase with Row Level Security (RLS)
+
+### Storage
+- **Supabase Storage** (`replays` bucket) for audio and video recordings
+
+### AI
+- **OpenAI** (`gpt-4o-mini`, `gpt-4o-transcribe`) invoked from Supabase Edge Functions
+
+### Authentication
+- **Supabase Auth** — email/password, Google, GitHub, LinkedIn OIDC
+- **Cloudflare Turnstile** CAPTCHA on signup and password reset
+
+### Deployment
+- **Vercel** — Next.js frontend
+- **Supabase** — database, auth, storage, and edge functions
+
+---
+
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     Next.js App (Vercel)                     │
+│  ┌──────────────┐  ┌───────────────┐  ┌────────────────────┐ │
+│  │  App Router  │→ │ Server Actions │→ │ Client Components  │ │
+│  │  (pages)     │  │  (data layer)  │  │ (recorders, player)│ │
+│  └──────────────┘  └───────────────┘  └────────────────────┘ │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+           ┌─────────────────┼─────────────────┐
+           ▼                 ▼                 ▼
+     Supabase Auth    Supabase Postgres   Supabase Storage
+     (OAuth, email)   (RLS-protected)     (recordings)
+                             │
+                             ▼
+                Supabase Edge Functions
+                ┌─────────────────────────────────┐
+                │ ai_run_job_prep_analysis        │
+                │ ai_run_job_prep_tailored_resume │
+                │ ai_run_job_prep_interview_quest.│
+                │ ai_run_job_prep_answer_rating   │
+                │ ai_run_job (transcript, summary,│
+                │            score, action_items) │
+                └─────────────────────────────────┘
+                             │
+                             ▼
+                          OpenAI
+```
+
+| Directory | Purpose |
+|---|---|
+| `app/` | Pages, layouts, auth route handlers |
+| `app/actions/` | Server Actions — sessions, job prep, transcripts, shares, stats |
+| `app/job-prep/` | Job Prep workflow (analysis → résumé → questions → answers) |
+| `app/sessions/` | Practice session list, recording, and replay |
+| `components/` | UI — recorders, players, job prep panels, auth forms |
+| `lib/supabase/` | Browser/server Supabase clients and storage helpers |
+| `supabase/functions/` | Deno edge functions for all AI workloads |
+| `supabase/` | SQL schema and migrations |
+| `proxy.ts` | Auth proxy — session refresh, route protection, security headers |
+
+**Data flow:** UI → Server Action → Supabase (RLS check) → Postgres / Storage → response → UI update. AI jobs are queued and processed asynchronously by edge functions.
+
+---
+
+## Local Development
 
 ### Prerequisites
 
-- Node.js 18.17 or later
+- Node.js 18.17+
 - npm, yarn, or pnpm
-- A [Supabase](https://supabase.com/) account
+- A [Supabase](https://supabase.com/) project
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (for edge function deployment)
 
 ### Installation
 
-1. **Clone the repository**
+```bash
+git clone https://github.com/mwaywithwords/Interview-Replay-App.git
+cd Interview-Replay-App
+npm install
+```
 
-   ```bash
-   git clone https://github.com/your-username/replay-ai.git
-   cd replay-ai
-   ```
+### Environment setup
 
-2. **Install dependencies**
+Create `.env.local` in the project root (see [Environment Variables](#environment-variables) below).
 
-   ```bash
-   npm install
-   ```
+Apply database migrations via the Supabase SQL Editor — start with `supabase/schema.sql`, then run remaining migrations in order.
 
-3. **Set up environment variables**
+### Deploy edge functions
 
-   Create a `.env.local` file in the root directory:
+AI features require Supabase Edge Functions with an OpenAI API key:
 
-   ```bash
-   # Supabase Configuration
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   
-   # Optional: App URL for share links
-   NEXT_PUBLIC_APP_URL=http://localhost:3000
-   
-   # Site URL for authentication redirects (password reset, etc.)
-   # For local development: http://localhost:3000
-   # For production: https://your-domain.com
-   NEXT_PUBLIC_SITE_URL=http://localhost:3000
-   
-   # Cloudflare Turnstile CAPTCHA (required for production)
-   # Get these from https://dash.cloudflare.com/turnstile
-   NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-site-key
-   TURNSTILE_SECRET_KEY=your-secret-key
-   
-   # For local testing, use Cloudflare's test keys:
-   # NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA (always passes)
-   # TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA (always passes)
-   ```
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
 
-   Get your Supabase credentials from the [Supabase Dashboard](https://app.supabase.com/) under **Project Settings** → **API**.
+supabase functions deploy ai_run_job
+supabase functions deploy ai_run_job_prep_analysis
+supabase functions deploy ai_run_job_prep_tailored_resume
+supabase functions deploy ai_run_job_prep_interview_questions
+supabase functions deploy ai_run_job_prep_answer_rating
+```
 
-   **Configure Supabase Redirect URLs:**
-   
-   For email confirmation and password reset to work, you must add your site URLs to the Supabase allowed redirect list:
-   
-   1. Go to [Supabase Dashboard](https://app.supabase.com/) → **Authentication** → **URL Configuration**
-   2. Add the following to **Redirect URLs**:
-      - `http://localhost:3000/auth/confirm` (email confirmation - local)
-      - `http://localhost:3000/auth/callback` (OAuth callback - local)
-      - `http://localhost:3000/auth/reset-password` (password reset - local)
-      - `http://localhost:3001/auth/callback` (OAuth callback - alternate local port)
-      - `https://replayai.app/auth/confirm` (email confirmation - production)
-      - `https://replayai.app/auth/callback` (OAuth callback - production)
-      - `https://replayai.app/auth/reset-password` (password reset - production)
-   3. Set your **Site URL** to your production domain (e.g., `https://replayai.app`)
+Set `OPENAI_API_KEY` in your Supabase project's Edge Function secrets.
 
-   **Configure Social Auth Providers:**
+### Run locally
 
-   ReplayAI supports Google, GitHub, and LinkedIn sign-in through Supabase Auth. Facebook is not used.
+```bash
+npm run dev
+```
 
-   1. In Google Cloud, create an OAuth client and add the Supabase provider callback URL from **Supabase Dashboard** → **Authentication** → **Providers** → **Google**.
-   2. In GitHub Developer settings, create an OAuth app and add the Supabase GitHub callback URL.
-   3. In LinkedIn Developer, create an OAuth/OIDC app and add the Supabase LinkedIn OIDC callback URL. ReplayAI uses Supabase's `linkedin_oidc` provider.
-   4. Add each provider's client ID and client secret to **Supabase Auth Providers** and enable the provider.
-   5. In Supabase **URL Configuration**, keep both local and production app redirects allowed:
-      - `http://localhost:3000/auth/callback`
-      - `http://localhost:3001/auth/callback`
-      - `https://replayai.app/auth/callback`
-   6. In each external provider dashboard, add the exact Supabase callback URL shown by Supabase, typically `https://<project-ref>.supabase.co/auth/v1/callback`.
+Open [http://localhost:3000](http://localhost:3000).
 
-4. **Set up the database**
-
-   Run the migrations in the `supabase/` folder in order:
-   
-   ```
-   schema.sql
-   migration_add_recording_type.sql
-   migration_add_bookmark_ms.sql
-   migration_add_grouping_entities.sql
-   migration_add_notes.sql
-   migration_add_transcripts.sql
-   migration_add_share_tokens.sql
-   migration_ai_jobs_plumbing.sql
-   migration_fix_single_recording_constraint.sql
-   migration_add_job_prep.sql
-   migration_add_job_prep_analysis_fields.sql
-   migration_add_job_prep_tailored_resume.sql
-   ```
-
-   **Job Prep Phase 2 deployment checklist**
-
-   After applying the Job Prep migrations above:
-
-   - [ ] Run `supabase/migration_add_job_prep.sql` in the Supabase SQL Editor
-   - [ ] Run `supabase/migration_add_job_prep_analysis_fields.sql` in the Supabase SQL Editor
-   - [ ] Run `supabase/migration_add_job_prep_tailored_resume.sql` in the Supabase SQL Editor
-   - [ ] Deploy fit analysis edge function: `supabase functions deploy ai_run_job_prep_analysis`
-   - [ ] Deploy tailored résumé edge function: `supabase functions deploy ai_run_job_prep_tailored_resume`
-   - [ ] Run `npm run lint`
-   - [ ] Run `npm run build`
-
-5. **Deploy Edge Functions (optional)**
-
-   If using AI features, deploy the Edge Functions:
-
-   ```bash
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_REF
-   supabase functions deploy ai_run_job
-   supabase functions deploy ai_run_job_prep_analysis
-   supabase functions deploy ai_run_job_prep_tailored_resume
-   ```
-
-6. **Run the development server**
-
-   ```bash
-   npm run dev
-   ```
-
-7. **Open the app**
-
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Available Scripts
+### Available scripts
 
 | Command | Description |
-|---------|-------------|
+|---|---|
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |
 
-## Architecture
+---
 
-### Project Structure
+## Environment Variables
 
-```
-replay-ai/
-├── app/                        # Next.js App Router pages
-│   ├── actions/                # Server Actions for data mutations
-│   │   └── auth.ts             # Protected auth actions (signup, reset, resend)
-│   ├── auth/                   # Authentication pages and handlers
-│   ├── dashboard/              # Main dashboard page
-│   ├── sessions/               # Session pages (list, detail, new)
-│   ├── share/                  # Public share view pages
-│   ├── error.tsx               # Route-level error boundary
-│   ├── global-error.tsx        # Global error boundary
-│   └── layout.tsx              # Root layout with providers
-├── components/
-│   ├── auth/                   # Authentication components
-│   │   └── Turnstile.tsx       # Cloudflare Turnstile CAPTCHA
-│   ├── dashboard/              # Dashboard-specific components
-│   ├── layout/                 # Layout components (AppShell, PageHeader)
-│   ├── providers/              # React context providers
-│   ├── sessions/               # Session-related components
-│   ├── share/                  # Shared view components
-│   └── ui/                     # shadcn/ui components
-├── lib/
-│   ├── hooks/                  # Custom React hooks
-│   ├── supabase/               # Supabase client configuration
-│   ├── validation/             # Validation utilities
-│   │   └── email.ts            # Email format & disposable domain validation
-│   ├── rate-limit.ts           # Rate limiting for auth endpoints
-│   └── utils.ts                # Utility functions
-├── proxy.ts                    # Next.js 16 proxy (auth, security headers)
-├── supabase/
-│   ├── functions/              # Edge Functions
-│   └── *.sql                   # Database migrations
-└── types/                      # TypeScript type definitions
-```
+Never commit secrets. Use `.env.local` for local development and your hosting provider's dashboard for production.
 
-### Supabase Schema Overview
+### Next.js (`.env.local`)
 
-| Table | Purpose |
-|-------|---------|
-| `sessions` | Core session data (title, status, recording paths, metadata) |
-| `bookmarks` | Timestamped bookmarks within sessions |
-| `bookmark_notes` | Notes attached to individual bookmarks |
-| `session_notes` | General notes for a session |
-| `transcripts` | Session transcript text |
-| `session_shares` | Share tokens for public session access |
-| `ai_jobs` | AI job queue (transcription, summary, scoring, etc.) |
-| `ai_outputs` | AI job results |
-| `companies` | Target companies for interview sessions |
-| `symbols` | Trading symbols for trading sessions |
-| `session_companies` | Many-to-many: sessions ↔ companies |
-| `session_symbols` | Many-to-many: sessions ↔ symbols |
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous (public) key |
+| `NEXT_PUBLIC_APP_URL` | Application URL (e.g. `http://localhost:3000`) |
+| `NEXT_PUBLIC_SITE_URL` | Site URL for auth redirects |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key |
 
-### Authentication Flow
+### Supabase Edge Function secrets
 
-1. User signs up via Supabase Auth
-2. Supabase sends an email confirmation link to the user's email
-3. Until confirmed, user is redirected to `/auth/verify` page
-4. User clicks confirmation link → redirected to `/auth/confirm` → session created
-5. Middleware refreshes session on every request and checks email confirmation
-6. Server components use `requireUser()` to protect routes (requires confirmed email)
-7. Client components use `createClient()` for auth state
-8. Row Level Security (RLS) policies enforce data access
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI API key for AI workloads |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
 
-### Password Reset Flow
+---
 
-1. User clicks "Forgot password?" on the sign-in page
-2. User enters email on `/auth/forgot-password` page
-3. Supabase sends a password reset email with a magic link
-4. User clicks the link and is redirected to `/auth/reset-password`
-5. User enters a new password and confirms it
-6. Password is updated via `supabase.auth.updateUser()`
-7. User is redirected to the dashboard
+## Deployment
 
-### Security Features
+ReplayAI deploys on **Vercel** (frontend) with **Supabase** handling auth, database, storage, and edge functions.
 
-The auth system includes multiple layers of protection:
+1. Push the repository to GitHub and import the project in [Vercel](https://vercel.com/)
+2. Set all Next.js environment variables in the Vercel project settings
+3. Apply database migrations in the Supabase SQL Editor
+4. Deploy edge functions via the Supabase CLI (see [Local Development](#local-development))
+5. Configure Supabase **Authentication → URL Configuration** with production redirect URLs:
+   - `https://www.replayai.app/auth/callback`
+   - `https://www.replayai.app/auth/confirm`
+   - `https://www.replayai.app/auth/reset-password`
+6. Enable OAuth providers (Google, GitHub, LinkedIn) in Supabase and add credentials from each provider's developer console
 
-| Feature | Description |
-|---------|-------------|
-| **Rate Limiting** | In-memory rate limits per IP and email address |
-| **CAPTCHA** | Cloudflare Turnstile on signup, reset, and resend forms |
-| **Email Validation** | RFC-compliant format + 100+ disposable domain blocking |
-| **Enumeration Prevention** | Consistent responses prevent detecting existing accounts |
-| **Security Headers** | X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
-| **Structured Logging** | All auth events logged with masked PII for monitoring |
+**Production:** [https://www.replayai.app](https://www.replayai.app)
 
-### Data Flow
-
-```
-User Action → Server Action → Supabase → Database
-                    ↓
-              RLS Policy Check
-                    ↓
-              Response → UI Update
-```
+---
 
 ## Roadmap
 
-### Coming Soon
+The following features are **planned** and not yet implemented:
 
-- [ ] **Real AI Transcription** — Integrate Whisper/AssemblyAI for automatic transcription
-- [ ] **AI Scoring** — Performance scoring with detailed rubric breakdowns
-- [ ] **AI Summaries** — Automatic session summaries with key takeaways
-- [ ] **Bookmark Suggestions** — AI-detected important moments
-- [ ] **Performance Analytics** — Track improvement over time with charts
-- [ ] **Team Collaboration** — Share sessions with team members for feedback
+- [ ] **Mock interview avatars** — Practice with simulated interviewers
+- [ ] **AI coaching improvements** — Deeper, more contextual feedback loops
+- [ ] **Team accounts** — Shared prep workspaces for cohorts and coaches
+- [ ] **Recruiter dashboard** — Hiring-side visibility into candidate preparation
+- [ ] **Mobile application** — Native iOS and Android experience
 
-### Future Considerations
-
-- [ ] Mobile app (React Native)
-- [ ] Calendar integration for scheduling practice
-- [ ] Custom rubrics for scoring
-- [ ] Export to PDF/video
-- [ ] Webhooks for external integrations
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Use TypeScript for all new code
-- Follow the existing code style (Prettier handles formatting)
-- Write meaningful commit messages
-- Add tests for new features when applicable
-- Update documentation as needed
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This repository does not currently include a LICENSE file. All rights reserved.
 
 ---
 
 <p align="center">
-  Built with ❤️ for interviewers and traders who want to level up their game.
+  Built with ❤️ for job seekers who want to walk into every interview prepared.<br/>
+  <a href="https://www.replayai.app">replayai.app</a>
 </p>

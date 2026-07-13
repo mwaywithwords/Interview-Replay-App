@@ -7,6 +7,7 @@
 
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { isTurnstileConfigured } from '@/lib/auth/turnstile';
 import { validateEmail, normalizeEmail } from '@/lib/validation/email';
 import { 
   checkAuthRateLimit, 
@@ -157,10 +158,14 @@ export async function signUpAction(
   // 3. Verify CAPTCHA
   const captchaValid = await verifyTurnstile(turnstileToken, ip);
   if (!captchaValid) {
-    logAuthEvent('signup', normalizedEmail, ip, false, { reason: 'captcha_failed' });
+    logAuthEvent('signup', normalizedEmail, ip, false, {
+      reason: isTurnstileConfigured() ? 'captcha_failed' : 'captcha_not_configured',
+    });
     return {
       success: false,
-      error: 'CAPTCHA verification failed. Please try again.',
+      error: isTurnstileConfigured()
+        ? 'CAPTCHA verification failed. Please try again.'
+        : 'Account creation is temporarily unavailable. Please use Google sign-in or contact support.',
     };
   }
 

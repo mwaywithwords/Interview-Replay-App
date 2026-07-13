@@ -27,6 +27,7 @@ interface TurnstileOptions {
 }
 
 interface TurnstileProps {
+  siteKey?: string;
   onVerify: (token: string) => void;
   onError?: () => void;
   onExpire?: () => void;
@@ -35,15 +36,92 @@ interface TurnstileProps {
   className?: string;
 }
 
+const TURNSTILE_SCRIPT_SRC =
+  'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+
+let turnstileScriptPromise: Promise<void> | null = null;
+
+function loadTurnstileScript(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  if (window.turnstile) {
+    return Promise.resolve();
+  }
+
+  if (turnstileScriptPromise) {
+    return turnstileScriptPromise;
+  }
+
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    const handleReady = () => {
+      if (window.turnstile) {
+        resolve();
+      }
+    };
+
+    const existingScript = document.querySelector(
+      `script[src="${TURNSTILE_SCRIPT_SRC}"]`
+    );
+
+    if (existingScript) {
+      if (window.turnstile) {
+        resolve();
+        return;
+      }
+
+      const previousOnLoad = window.onTurnstileLoad;
+      window.onTurnstileLoad = () => {
+        previousOnLoad?.();
+        handleReady();
+      };
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = TURNSTILE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => {
+      turnstileScriptPromise = null;
+      reject(new Error('Failed to load Turnstile script'));
+    };
+
+    const previousOnLoad = window.onTurnstileLoad;
+    window.onTurnstileLoad = () => {
+      previousOnLoad?.();
+      handleReady();
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return turnstileScriptPromise;
+}
+
+function removeWidget(widgetId: string | null) {
+  if (!widgetId || !window.turnstile) {
+    return;
+  }
+
+  try {
+    window.turnstile.remove(widgetId);
+  } catch {
+    // Widget may already be removed.
+  }
+}
+
 /**
  * Cloudflare Turnstile CAPTCHA component
- * 
+ *
  * To use this component, you need to:
  * 1. Create a Turnstile widget at https://dash.cloudflare.com/turnstile
  * 2. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY to your .env.local
  * 3. Add TURNSTILE_SECRET_KEY to your server environment
  */
 export function Turnstile({
+  siteKey: siteKeyProp,
   onVerify,
   onError,
   onExpire,
@@ -53,84 +131,93 @@ export function Turnstile({
 }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const scriptLoadedRef = useRef(false);
+  const renderedSiteKeyRef = useRef<string | null>(null);
 
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const onVerifyRef = useRef(onVerify);
+  const onErrorRef = useRef(onError);
+  const onExpireRef = useRef(onExpire);
 
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile || !siteKey) return;
-    
-    // Remove existing widget if any
-    if (widgetIdRef.current) {
-      try {
-        window.turnstile.remove(widgetIdRef.current);
-      } catch (e) {
-        // Ignore errors when removing
-      }
-    }
+  onVerifyRef.current = onVerify;
+  onErrorRef.current = onError;
+  onExpireRef.current = onExpire;
 
-    widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: siteKey,
-      callback: onVerify,
-      'error-callback': onError,
-      'expired-callback': onExpire,
-      theme,
-      size,
-      appearance: 'always',
-    });
-  }, [siteKey, onVerify, onError, onExpire, theme, size]);
+  const siteKey = siteKeyProp || process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
-    // If no site key, don't render (dev mode)
     if (!siteKey) {
       console.warn('[Turnstile] No site key configured - CAPTCHA disabled');
-      // In dev mode, auto-verify with a dummy token
       if (process.env.NODE_ENV === 'development') {
-        onVerify('dev-mode-token');
+        onVerifyRef.current('dev-mode-token');
       }
       return;
     }
 
-    // Check if script is already loaded
-    if (window.turnstile) {
-      renderWidget();
-      return;
-    }
+    let cancelled = false;
 
-    // Check if script is being loaded
-    if (scriptLoadedRef.current) return;
-    scriptLoadedRef.current = true;
+    const renderWidget = () => {
+      if (cancelled || !containerRef.current || !window.turnstile) {
+        return;
+      }
 
-    // Load the Turnstile script
-    const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
-    script.async = true;
-    script.defer = true;
+      if (widgetIdRef.current && renderedSiteKeyRef.current === siteKey) {
+        return;
+      }
 
-    window.onTurnstileLoad = () => {
-      renderWidget();
+      if (widgetIdRef.current) {
+        removeWidget(widgetIdRef.current);
+        widgetIdRef.current = null;
+        renderedSiteKeyRef.current = null;
+      }
+
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => {
+          onVerifyRef.current(token);
+        },
+        'error-callback': () => {
+          onErrorRef.current?.();
+        },
+        'expired-callback': () => {
+          onExpireRef.current?.();
+        },
+        theme,
+        size,
+        appearance: 'always',
+      });
+      renderedSiteKeyRef.current = siteKey;
     };
 
-    document.head.appendChild(script);
+    void loadTurnstileScript()
+      .then(() => {
+        if (!cancelled) {
+          renderWidget();
+        }
+      })
+      .catch(() => {
+        onErrorRef.current?.();
+      });
 
     return () => {
-      // Cleanup widget on unmount
-      if (widgetIdRef.current && window.turnstile) {
-        try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch (e) {
-          // Ignore errors
-        }
+      cancelled = true;
+      const widgetId = widgetIdRef.current;
+      if (widgetId) {
+        removeWidget(widgetId);
+        widgetIdRef.current = null;
+        renderedSiteKeyRef.current = null;
       }
     };
-  }, [siteKey, renderWidget, onVerify]);
+  }, [siteKey]);
 
-  // Don't render anything if no site key (dev mode)
   if (!siteKey) {
+    const message =
+      process.env.NODE_ENV === 'development'
+        ? 'CAPTCHA disabled (dev mode)'
+        : 'Security verification is unavailable. Please use Google sign-in or contact support.';
+
     return (
       <div className={className}>
         <div className="text-xs text-muted-foreground text-center p-2 border border-dashed border-border rounded-lg">
-          CAPTCHA disabled (dev mode)
+          {message}
         </div>
       </div>
     );

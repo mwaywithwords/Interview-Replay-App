@@ -12,7 +12,11 @@ import { signUpAction } from '@/app/actions/auth';
 import { getEmailError } from '@/lib/validation/email';
 import { SocialAuthButtons, authMethodButtonClass } from '@/components/auth/SocialAuthButtons';
 
-export function SignUpForm() {
+interface SignUpFormProps {
+  turnstileSiteKey?: string;
+}
+
+export function SignUpForm({ turnstileSiteKey }: SignUpFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -179,6 +183,7 @@ export function SignUpForm() {
           </div>
 
           <Turnstile
+            siteKey={turnstileSiteKey}
             onVerify={setTurnstileToken}
             onError={() => setError('CAPTCHA failed to load. Please refresh the page.')}
             onExpire={() => setTurnstileToken('')}

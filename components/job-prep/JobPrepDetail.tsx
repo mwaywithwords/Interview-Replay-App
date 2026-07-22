@@ -220,34 +220,6 @@ export function JobPrepDetail({ project: initialProject }: JobPrepDetailProps) {
             </section>
           )}
 
-          {fitAnalysisComplete && !showInterviewQuestionsResults && (
-            <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
-              <div className="relative mb-4 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary/80">
-                    Companion
-                  </p>
-                  <h2 className="text-base font-semibold tracking-[-0.03em] text-foreground">
-                    Interview Questions
-                  </h2>
-                  <p className="text-xs font-medium text-muted-foreground/85">
-                    Practice questions tailored to your résumé and this role.
-                  </p>
-                </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-[0_0_20px_-6px_var(--primary)]">
-                  <MessageCircleQuestion className="h-4 w-4 shrink-0 text-primary" />
-                </div>
-              </div>
-              <JobPrepInterviewQuestionsPanel
-                projectId={project.id}
-                initialProject={project}
-                showResults={false}
-                fitAnalysisComplete={fitAnalysisComplete}
-                onProjectChange={setProject}
-              />
-            </section>
-          )}
-
           {showInterviewQuestionsResults && (
             <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.14] via-card/80 to-card/60 p-4 shadow-[var(--shadow-card)] ring-1 ring-primary/10 backdrop-blur-xl sm:p-5">
               <JobPrepInterviewQuestionsPanel

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -19,9 +19,35 @@ import {
   createTailoredResumeDocxBlob,
   createTailoredResumeTextBlob,
   downloadBlob,
+  ResumeExportError,
 } from '@/lib/resume/export-tailored-resume';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+type ResumeExportEvent =
+  | 'resume_export_requested'
+  | 'resume_export_generation_record_found'
+  | 'resume_export_document_created'
+  | 'resume_export_response_size'
+  | 'resume_export_response_returned'
+  | 'resume_export_failed';
+
+function logResumeExport(
+  event: ResumeExportEvent,
+  details: Record<string, string | number | boolean> = {}
+) {
+  const payload = {
+    event,
+    format: 'docx',
+    ...details,
+  };
+
+  if (event === 'resume_export_failed') {
+    console.error('[resume_export]', payload);
+  } else {
+    console.info('[resume_export]', payload);
+  }
+}
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -98,7 +124,44 @@ export function JobPrepTailoredResumeResults({
   companyName,
   roleTitle,
 }: JobPrepTailoredResumeResultsProps) {
-  const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [docxBlob, setDocxBlob] = useState<Blob | null>(null);
+  const [isPreparingDocx, setIsPreparingDocx] = useState(true);
+  const preparationIdRef = useRef(0);
+
+  const prepareDocx = useCallback(async () => {
+    const preparationId = ++preparationIdRef.current;
+    setIsPreparingDocx(true);
+    setDocxBlob(null);
+    logResumeExport('resume_export_generation_record_found', { found: true });
+
+    try {
+      const blob = await createTailoredResumeDocxBlob(
+        result.tailored_resume_text
+      );
+      if (preparationId === preparationIdRef.current) {
+        setDocxBlob(blob);
+      }
+      logResumeExport('resume_export_document_created');
+      logResumeExport('resume_export_response_size', { bytes: blob.size });
+      return blob;
+    } catch (error) {
+      logResumeExport('resume_export_failed', {
+        stage: 'document_creation',
+        code: error instanceof ResumeExportError ? error.code : 'UNKNOWN_ERROR',
+      });
+      throw error;
+    } finally {
+      if (preparationId === preparationIdRef.current) {
+        setIsPreparingDocx(false);
+      }
+    }
+  }, [result.tailored_resume_text]);
+
+  useEffect(() => {
+    void prepareDocx().catch(() => {
+      // The next click retries preparation and displays the user-facing error.
+    });
+  }, [prepareDocx]);
 
   async function handleCopy() {
     try {
@@ -121,18 +184,45 @@ export function JobPrepTailoredResumeResults({
     }
   }
 
-  async function handleDownloadDocx() {
-    setIsExportingDocx(true);
+  function handleDownloadDocx() {
+    logResumeExport('resume_export_requested');
+
+    if (!docxBlob) {
+      void prepareDocx()
+        .then(() => {
+          toast.info(
+            'Word document is ready. Click Download Word again to save it.'
+          );
+        })
+        .catch((error) => {
+          toast.error(
+            error instanceof ResumeExportError
+              ? error.message
+              : 'Could not create the Word document. Please try again.'
+          );
+        });
+      return;
+    }
+
     try {
-      const blob = await createTailoredResumeDocxBlob(result.tailored_resume_text);
-      downloadBlob(blob, buildTailoredResumeFilename('docx', companyName, roleTitle));
-      toast.success('Tailored résumé downloaded as Word document');
-    } catch {
-      toast.error(
-        'Could not create the Word download. Your generated résumé is still available above.'
+      downloadBlob(
+        docxBlob,
+        buildTailoredResumeFilename('docx', companyName, roleTitle)
       );
-    } finally {
-      setIsExportingDocx(false);
+      logResumeExport('resume_export_response_returned', {
+        bytes: docxBlob.size,
+      });
+      toast.success('Word document download started');
+    } catch (error) {
+      logResumeExport('resume_export_failed', {
+        stage: 'download',
+        code: error instanceof ResumeExportError ? error.code : 'UNKNOWN_ERROR',
+      });
+      toast.error(
+        error instanceof ResumeExportError
+          ? error.message
+          : 'Could not start the Word download. Check browser download permissions and try again.'
+      );
     }
   }
 
@@ -161,10 +251,10 @@ export function JobPrepTailoredResumeResults({
                 size="sm"
                 variant="outline"
                 className="rounded-full"
-                disabled={isExportingDocx}
+                disabled={isPreparingDocx}
                 onClick={handleDownloadDocx}
               >
-                {isExportingDocx ? (
+                {isPreparingDocx ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Download className="h-3.5 w-3.5" />

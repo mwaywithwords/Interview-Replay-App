@@ -455,6 +455,31 @@ async function ensureTailoredResumeGeneration(
   return { generationId: created.id, error: null };
 }
 
+/**
+ * Re-reads the persisted generation status. The edge function writes
+ * status/result to the database before it returns, so a failed or timed-out
+ * invoke does not necessarily mean the job failed. Treat the database as the
+ * source of truth when the transport layer reports an error.
+ */
+async function reconcileTailoredResumeStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  generationId: string,
+  userId: string
+): Promise<TailoredResumeGenerationStatus | null> {
+  const { data, error } = await supabase
+    .from('tailored_resume_generations')
+    .select('status')
+    .eq('id', generationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.status as TailoredResumeGenerationStatus;
+}
+
 export async function runTailoredResumeGeneration(
   projectId: string
 ): Promise<{
@@ -541,6 +566,30 @@ export async function runTailoredResumeGeneration(
     );
 
     if (error) {
+      const reconciledStatus = await reconcileTailoredResumeStatus(
+        supabase,
+        generation.id,
+        user.id
+      );
+
+      if (reconciledStatus === 'completed' || reconciledStatus === 'processing') {
+        console.info('[tailored-resume] invoke error reconciled from database', {
+          generationId: generation.id,
+          projectId,
+          reconciledStatus,
+          invokeError: error.message,
+        });
+        revalidatePath(`/job-prep/${projectId}`);
+        revalidatePath('/job-prep');
+        return { success: true, status: reconciledStatus, error: null };
+      }
+
+      console.error('[tailored-resume] invoke error, no persisted result', {
+        generationId: generation.id,
+        projectId,
+        reconciledStatus,
+        invokeError: error.message,
+      });
       return {
         success: false,
         error: error.message || 'Failed to generate tailored résumé',
@@ -555,7 +604,33 @@ export async function runTailoredResumeGeneration(
       status: (data?.status as TailoredResumeGenerationStatus) || 'completed',
       error: null,
     };
-  } catch {
+  } catch (invokeError) {
+    const reconciledStatus = await reconcileTailoredResumeStatus(
+      supabase,
+      generation.id,
+      user.id
+    );
+
+    if (reconciledStatus === 'completed' || reconciledStatus === 'processing') {
+      console.info('[tailored-resume] invoke threw, reconciled from database', {
+        generationId: generation.id,
+        projectId,
+        reconciledStatus,
+        invokeError:
+          invokeError instanceof Error ? invokeError.message : String(invokeError),
+      });
+      revalidatePath(`/job-prep/${projectId}`);
+      revalidatePath('/job-prep');
+      return { success: true, status: reconciledStatus, error: null };
+    }
+
+    console.error('[tailored-resume] invoke threw, no persisted result', {
+      generationId: generation.id,
+      projectId,
+      reconciledStatus,
+      invokeError:
+        invokeError instanceof Error ? invokeError.message : String(invokeError),
+    });
     return {
       success: false,
       error: 'Failed to connect to AI service. Please try again.',

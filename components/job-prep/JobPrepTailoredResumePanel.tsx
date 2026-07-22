@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getJobPrepProject,
   retryTailoredResumeGeneration,
@@ -43,6 +43,7 @@ export function JobPrepTailoredResumePanel({
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const inFlightRef = useRef(false);
 
   const generation = project.tailored_resume;
   const parsedResult = useMemo(
@@ -50,19 +51,22 @@ export function JobPrepTailoredResumePanel({
     [generation?.result]
   );
 
-  const refreshProject = useCallback(async () => {
+  const refreshProject = useCallback(async (): Promise<JobPrepProjectWithDetails | null> => {
     const { project: refreshedProject, error: fetchError } =
       await getJobPrepProject(projectId);
 
     if (fetchError) {
       setError(fetchError);
-      return;
+      return null;
     }
 
     if (refreshedProject) {
       setProject(refreshedProject);
       onProjectChange?.(refreshedProject);
+      return refreshedProject;
     }
+
+    return null;
   }, [projectId, onProjectChange]);
 
   const setOptimisticProcessingState = useCallback(() => {
@@ -113,7 +117,37 @@ export function JobPrepTailoredResumePanel({
     return () => clearInterval(interval);
   }, [generation?.status, refreshProject]);
 
+  async function handleGenerationFailure(errorMessage: string, toastTitle: string) {
+    // The database is the source of truth. A failed server action (e.g. a
+    // timed-out invoke) can still correspond to a job that is running or has
+    // already completed, so re-read status before surfacing a failure.
+    const refreshed = await refreshProject();
+    const refreshedStatus = refreshed?.tailored_resume?.status;
+
+    if (refreshedStatus === 'completed') {
+      setError(null);
+      toast.success('Tailored résumé is ready');
+      return;
+    }
+
+    if (refreshedStatus === 'processing') {
+      // Polling (keyed on the processing status) will continue and surface the
+      // result when it lands. Do not show a false failure.
+      setError(null);
+      return;
+    }
+
+    setError(errorMessage);
+    toast.error(toastTitle, {
+      description: errorMessage,
+    });
+  }
+
   async function handleGenerate() {
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
     setIsStarting(true);
     setError(null);
     toast.success('Generating tailored résumé');
@@ -124,11 +158,10 @@ export function JobPrepTailoredResumePanel({
       const result = await runTailoredResumeGeneration(projectId);
 
       if (result.error || !result.success) {
-        setError(result.error || 'Failed to generate tailored résumé');
-        toast.error('Generation failed', {
-          description: result.error || 'Unknown error',
-        });
-        await refreshProject();
+        await handleGenerationFailure(
+          result.error || 'Failed to generate tailored résumé',
+          'Generation failed'
+        );
         return;
       }
 
@@ -137,15 +170,21 @@ export function JobPrepTailoredResumePanel({
         toast.success('Tailored résumé is ready');
       }
     } catch {
-      setError('An unexpected error occurred. Please try again.');
-      toast.error('Failed to generate tailored résumé');
-      await refreshProject();
+      await handleGenerationFailure(
+        'An unexpected error occurred. Please try again.',
+        'Failed to generate tailored résumé'
+      );
     } finally {
+      inFlightRef.current = false;
       setIsStarting(false);
     }
   }
 
   async function handleRetry() {
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
     setIsRetrying(true);
     setError(null);
     toast.success('Retrying tailored résumé generation');
@@ -156,11 +195,10 @@ export function JobPrepTailoredResumePanel({
       const result = await retryTailoredResumeGeneration(projectId);
 
       if (result.error || !result.success) {
-        setError(result.error || 'Failed to retry generation');
-        toast.error('Retry failed', {
-          description: result.error || 'Unknown error',
-        });
-        await refreshProject();
+        await handleGenerationFailure(
+          result.error || 'Failed to retry generation',
+          'Retry failed'
+        );
         return;
       }
 
@@ -169,10 +207,12 @@ export function JobPrepTailoredResumePanel({
         toast.success('Tailored résumé is ready');
       }
     } catch {
-      setError('An unexpected error occurred. Please try again.');
-      toast.error('Failed to retry generation');
-      await refreshProject();
+      await handleGenerationFailure(
+        'An unexpected error occurred. Please try again.',
+        'Failed to retry generation'
+      );
     } finally {
+      inFlightRef.current = false;
       setIsRetrying(false);
     }
   }

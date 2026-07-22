@@ -1,10 +1,25 @@
-import {
-  Document,
-  HeadingLevel,
-  Packer,
-  Paragraph,
-  TextRun,
-} from 'docx';
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
+
+export const DOCX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const OBJECT_URL_CLEANUP_DELAY_MS = 60_000;
+
+export type ResumeExportErrorCode =
+  | 'MISSING_RESUME_CONTENT'
+  | 'EMPTY_DOCUMENT'
+  | 'INVALID_DOCUMENT'
+  | 'DOWNLOAD_FAILED';
+
+export class ResumeExportError extends Error {
+  constructor(
+    public readonly code: ResumeExportErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ResumeExportError';
+  }
+}
 
 const RESUME_SECTION_HEADINGS = new Set([
   'summary',
@@ -32,12 +47,14 @@ const RESUME_SECTION_HEADINGS = new Set([
 ]);
 
 function sanitizeFilenamePart(value: string): string {
-  return value
+  const sanitized = value
     .trim()
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
     .replace(/\s+/g, '_')
     .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
+    .replace(/^[_\s.]+|[_\s.]+$/g, '');
+
+  return Array.from(sanitized).slice(0, 80).join('');
 }
 
 export function buildTailoredResumeFilename(
@@ -56,7 +73,17 @@ export function buildTailoredResumeFilename(
 }
 
 export function createTailoredResumeTextBlob(resumeText: string): Blob {
+  assertResumeContent(resumeText);
   return new Blob([resumeText], { type: 'text/plain;charset=utf-8' });
+}
+
+export function assertResumeContent(resumeText: string): void {
+  if (typeof resumeText !== 'string' || !resumeText.trim()) {
+    throw new ResumeExportError(
+      'MISSING_RESUME_CONTENT',
+      'The generated résumé is empty. Please regenerate it before downloading.'
+    );
+  }
 }
 
 function stripBulletPrefix(line: string): string {
@@ -160,7 +187,11 @@ function buildDocxParagraphs(resumeText: string): Paragraph[] {
   return paragraphs;
 }
 
-export async function createTailoredResumeDocxBlob(resumeText: string): Promise<Blob> {
+export async function createTailoredResumeDocxBlob(
+  resumeText: string
+): Promise<Blob> {
+  assertResumeContent(resumeText);
+
   const doc = new Document({
     sections: [
       {
@@ -170,15 +201,77 @@ export async function createTailoredResumeDocxBlob(resumeText: string): Promise<
     ],
   });
 
-  return Packer.toBlob(doc);
+  const blob = await Packer.toBlob(doc);
+  await validateDocxBlob(blob);
+  return blob;
+}
+
+export async function validateDocxBlob(blob: Blob): Promise<void> {
+  if (blob.size === 0) {
+    throw new ResumeExportError(
+      'EMPTY_DOCUMENT',
+      'The Word document was empty. Please try generating it again.'
+    );
+  }
+
+  if (blob.type !== DOCX_MIME_TYPE) {
+    throw new ResumeExportError(
+      'INVALID_DOCUMENT',
+      'The Word document could not be created in the expected format.'
+    );
+  }
+
+  const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const hasZipSignature =
+    signature.length === 4 &&
+    signature[0] === 0x50 &&
+    signature[1] === 0x4b &&
+    signature[2] === 0x03 &&
+    signature[3] === 0x04;
+
+  if (!hasZipSignature) {
+    throw new ResumeExportError(
+      'INVALID_DOCUMENT',
+      'The Word document was malformed. Please try generating it again.'
+    );
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.rel = 'noopener';
-  anchor.click();
-  URL.revokeObjectURL(url);
+  if (blob.size === 0) {
+    throw new ResumeExportError(
+      'EMPTY_DOCUMENT',
+      'The generated download was empty. Please try again.'
+    );
+  }
+
+  let url: string | null = null;
+  let anchor: HTMLAnchorElement | null = null;
+
+  try {
+    url = URL.createObjectURL(blob);
+    anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = 'noopener';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+  } catch {
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    anchor?.remove();
+    throw new ResumeExportError(
+      'DOWNLOAD_FAILED',
+      'The browser could not start the download. Please check download permissions and try again.'
+    );
+  }
+
+  window.setTimeout(() => {
+    anchor?.remove();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+  }, OBJECT_URL_CLEANUP_DELAY_MS);
 }

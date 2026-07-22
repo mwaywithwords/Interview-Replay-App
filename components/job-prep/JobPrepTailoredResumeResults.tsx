@@ -4,16 +4,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleHelp,
   Copy,
   Download,
   FileText,
   Lightbulb,
   ListChecks,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { SecondaryButton } from '@/components/ui/button';
 import type { TailoredResumeResult } from '@/types';
+import {
+  accuracyCheckToneClasses,
+  resolveAccuracyCheckState,
+} from '@/lib/job-prep/accuracy-check';
 import {
   buildTailoredResumeFilename,
   createTailoredResumeDocxBlob,
@@ -51,7 +57,7 @@ function logResumeExport(
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+    <p className="text-muted-foreground/80 text-[11px] font-semibold tracking-[0.14em] uppercase">
       {children}
     </p>
   );
@@ -75,12 +81,13 @@ function BulletCard({
       className={cn(
         'border-border/50 bg-card/65 shadow-[var(--shadow-soft)] backdrop-blur',
         variant === 'warning' && 'border-warning/25',
-        variant === 'destructive' && 'border-destructive/25 bg-destructive/[0.03]'
+        variant === 'destructive' &&
+          'border-destructive/25 bg-destructive/[0.03]'
       )}
     >
       <CardContent className="p-5">
         <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-background">
+          <div className="border-border/70 bg-background flex h-8 w-8 items-center justify-center rounded-xl border">
             <Icon
               className={cn(
                 'h-4 w-4',
@@ -90,7 +97,7 @@ function BulletCard({
               )}
             />
           </div>
-          <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">
+          <h3 className="text-foreground text-sm font-semibold tracking-[-0.02em]">
             {title}
           </h3>
         </div>
@@ -99,14 +106,85 @@ function BulletCard({
             {items.map((item) => (
               <li
                 key={item}
-                className="rounded-xl border border-border/35 bg-background/45 px-3 py-2 text-sm font-medium leading-6 text-foreground"
+                className="border-border/35 bg-background/45 text-foreground rounded-xl border px-3 py-2 text-sm leading-6 font-medium"
               >
                 {item}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm font-medium leading-6 text-muted-foreground">{emptyMessage}</p>
+          <p className="text-muted-foreground text-sm leading-6 font-medium">
+            {emptyMessage}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AccuracyCheckCard({
+  warnings,
+  reviewItems,
+}: {
+  warnings: string[];
+  reviewItems: string[];
+}) {
+  const state = resolveAccuracyCheckState({ warnings, reviewItems });
+  const styles = accuracyCheckToneClasses[state.status];
+  const StatusIcon =
+    state.status === 'success'
+      ? CheckCircle2
+      : state.status === 'neutral'
+        ? CircleHelp
+        : AlertTriangle;
+
+  return (
+    <Card
+      role="status"
+      aria-label={state.accessibleLabel}
+      data-accuracy-status={state.status}
+      className={cn(
+        'border-border/50 bg-card/65 shadow-[var(--shadow-soft)] backdrop-blur',
+        styles.card
+      )}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <div className="border-border/70 bg-background flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border">
+            <StatusIcon
+              aria-hidden="true"
+              className={cn('h-4 w-4', styles.icon)}
+            />
+          </div>
+          <div className="min-w-0">
+            <SectionLabel>Accuracy check</SectionLabel>
+            <h3 className="text-foreground mt-1 text-sm font-semibold tracking-[-0.02em]">
+              {state.title}
+            </h3>
+            <p className="text-muted-foreground mt-1 text-sm leading-6 font-medium">
+              {state.description}
+            </p>
+          </div>
+        </div>
+
+        {warnings.length > 0 && (
+          <ul
+            className="mt-4 space-y-2"
+            aria-label="Claims to review or remove"
+          >
+            {warnings.map((warning) => (
+              <li
+                key={warning}
+                className="border-destructive/20 bg-background/45 text-foreground flex items-start gap-2 rounded-xl border px-3 py-2 text-sm leading-6 font-medium"
+              >
+                <AlertTriangle
+                  aria-hidden="true"
+                  className="text-destructive mt-1 h-4 w-4 shrink-0"
+                />
+                {warning}
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>
@@ -175,7 +253,10 @@ export function JobPrepTailoredResumeResults({
   function handleDownloadTxt() {
     try {
       const blob = createTailoredResumeTextBlob(result.tailored_resume_text);
-      downloadBlob(blob, buildTailoredResumeFilename('txt', companyName, roleTitle));
+      downloadBlob(
+        blob,
+        buildTailoredResumeFilename('txt', companyName, roleTitle)
+      );
       toast.success('Tailored résumé downloaded as plain text');
     } catch {
       toast.error(
@@ -232,7 +313,7 @@ export function JobPrepTailoredResumeResults({
         <CardContent className="p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
+              <FileText className="text-primary h-4 w-4" />
               <SectionLabel>Tailored résumé</SectionLabel>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -273,8 +354,8 @@ export function JobPrepTailoredResumeResults({
               </SecondaryButton>
             </div>
           </div>
-          <div className="max-h-[520px] overflow-y-auto rounded-xl border border-border/35 bg-background/45 p-4">
-            <pre className="whitespace-pre-wrap font-mono text-sm leading-6 text-foreground">
+          <div className="border-border/35 bg-background/45 max-h-[520px] overflow-y-auto rounded-xl border p-4">
+            <pre className="text-foreground font-mono text-sm leading-6 whitespace-pre-wrap">
               {result.tailored_resume_text}
             </pre>
           </div>
@@ -289,33 +370,38 @@ export function JobPrepTailoredResumeResults({
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <BulletCard
-          title="Truthfulness warnings"
-          icon={AlertTriangle}
-          items={result.truthfulness_warnings}
-          emptyMessage="No truthfulness warnings."
-          variant="destructive"
+        <AccuracyCheckCard
+          warnings={result.truthfulness_warnings}
+          reviewItems={result.suggested_additions_user_must_confirm}
         />
         <BulletCard
           title="Suggested additions (confirm before using)"
           icon={Lightbulb}
           items={result.suggested_additions_user_must_confirm}
           emptyMessage="No suggested additions."
-          variant="warning"
+          variant={
+            result.suggested_additions_user_must_confirm.length > 0
+              ? 'warning'
+              : 'default'
+          }
         />
       </div>
 
       {result.suggested_additions_user_must_confirm.length > 0 && (
-        <div className="rounded-2xl border border-warning/25 bg-warning/5 px-4 py-3 text-sm font-medium leading-6 text-muted-foreground">
-          Suggested additions are ideas only. Do not add them to your résumé unless they are
-          factually true.
+        <div className="border-warning/25 bg-warning/5 text-muted-foreground rounded-2xl border px-4 py-3 text-sm leading-6 font-medium">
+          Suggested additions are ideas only. Do not add them to your résumé
+          unless they are factually true.
         </div>
       )}
 
-      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/55 px-4 py-3">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Generated from your source résumé and saved profile only. Review before submitting.
+      <div className="border-border/70 bg-background/55 flex items-center gap-2 rounded-2xl border px-4 py-3">
+        <ShieldCheck
+          aria-hidden="true"
+          className="text-muted-foreground h-4 w-4 shrink-0"
+        />
+        <p className="text-muted-foreground text-sm font-medium">
+          Generated from your source résumé and saved profile only. Review
+          before submitting.
         </p>
       </div>
     </div>

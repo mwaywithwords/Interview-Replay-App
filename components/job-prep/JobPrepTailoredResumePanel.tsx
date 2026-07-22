@@ -7,6 +7,10 @@ import {
   runTailoredResumeGeneration,
 } from '@/app/actions/job-prep';
 import { parseTailoredResumeResult } from '@/lib/job-prep/tailored-resume';
+import {
+  resolveAccuracyCheckState,
+  type AccuracyCheckAvailability,
+} from '@/lib/job-prep/accuracy-check';
 import { JobPrepTailoredResumeResults } from '@/components/job-prep/JobPrepTailoredResumeResults';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +36,35 @@ interface JobPrepTailoredResumePanelProps {
   fitAnalysisComplete?: boolean;
 }
 
+function AccuracyCheckNotice({
+  availability,
+}: {
+  availability: Extract<
+    AccuracyCheckAvailability,
+    'not_evaluated' | 'unavailable'
+  >;
+}) {
+  const state = resolveAccuracyCheckState({ availability });
+
+  return (
+    <div
+      role="status"
+      aria-label={state.accessibleLabel}
+      data-accuracy-status={state.status}
+      className="border-border/70 bg-muted/30 flex items-start gap-2 rounded-2xl border px-4 py-3"
+    >
+      <AlertCircle
+        aria-hidden="true"
+        className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+      />
+      <div className="text-sm leading-6 font-medium">
+        <p className="text-foreground font-semibold">{state.title}</p>
+        <p className="text-muted-foreground">{state.description}</p>
+      </div>
+    </div>
+  );
+}
+
 export function JobPrepTailoredResumePanel({
   projectId,
   initialProject,
@@ -51,23 +84,24 @@ export function JobPrepTailoredResumePanel({
     [generation?.result]
   );
 
-  const refreshProject = useCallback(async (): Promise<JobPrepProjectWithDetails | null> => {
-    const { project: refreshedProject, error: fetchError } =
-      await getJobPrepProject(projectId);
+  const refreshProject =
+    useCallback(async (): Promise<JobPrepProjectWithDetails | null> => {
+      const { project: refreshedProject, error: fetchError } =
+        await getJobPrepProject(projectId);
 
-    if (fetchError) {
-      setError(fetchError);
+      if (fetchError) {
+        setError(fetchError);
+        return null;
+      }
+
+      if (refreshedProject) {
+        setProject(refreshedProject);
+        onProjectChange?.(refreshedProject);
+        return refreshedProject;
+      }
+
       return null;
-    }
-
-    if (refreshedProject) {
-      setProject(refreshedProject);
-      onProjectChange?.(refreshedProject);
-      return refreshedProject;
-    }
-
-    return null;
-  }, [projectId, onProjectChange]);
+    }, [projectId, onProjectChange]);
 
   const setOptimisticProcessingState = useCallback(() => {
     setProject((current) => {
@@ -117,7 +151,10 @@ export function JobPrepTailoredResumePanel({
     return () => clearInterval(interval);
   }, [generation?.status, refreshProject]);
 
-  async function handleGenerationFailure(errorMessage: string, toastTitle: string) {
+  async function handleGenerationFailure(
+    errorMessage: string,
+    toastTitle: string
+  ) {
     // The database is the source of truth. A failed server action (e.g. a
     // timed-out invoke) can still correspond to a job that is running or has
     // already completed, so re-read status before surfacing a failure.
@@ -219,7 +256,8 @@ export function JobPrepTailoredResumePanel({
 
   const isProcessing =
     generation?.status === 'processing' || isStarting || isRetrying;
-  const isCompleted = generation?.status === 'completed' && parsedResult !== null;
+  const isCompleted =
+    generation?.status === 'completed' && parsedResult !== null;
   const isFailed = generation?.status === 'failed' && !isProcessing;
   const isPending = !generation || generation.status === 'pending';
 
@@ -233,24 +271,26 @@ export function JobPrepTailoredResumePanel({
       )}
 
       {isPending && !isStarting && (
-        <div className="space-y-4 rounded-3xl border border-border/70 bg-background/55 p-5 shadow-[var(--shadow-soft)]">
+        <div className="border-border/70 bg-background/55 space-y-4 rounded-3xl border p-5 shadow-[var(--shadow-soft)]">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
+              <FileText className="text-primary h-5 w-5" />
+              <h4 className="text-foreground text-base font-semibold tracking-[-0.02em]">
                 Tailored Résumé
               </h4>
             </div>
-            <p className="text-sm font-medium leading-6 text-muted-foreground">
-              Reword and prioritize your existing experience for this role using only your
-              source résumé and saved profile. Nothing will be invented.
+            <p className="text-muted-foreground text-sm leading-6 font-medium">
+              Reword and prioritize your existing experience for this role using
+              only your source résumé and saved profile. Nothing will be
+              invented.
             </p>
             {!fitAnalysisComplete && (
-              <p className="text-xs font-medium text-muted-foreground">
+              <p className="text-muted-foreground text-xs font-medium">
                 Tip: run fit analysis first for better prioritization.
               </p>
             )}
           </div>
+          <AccuracyCheckNotice availability="not_evaluated" />
           <PrimaryButton
             onClick={handleGenerate}
             disabled={isProcessing}
@@ -263,16 +303,16 @@ export function JobPrepTailoredResumePanel({
       )}
 
       {isProcessing && (
-        <div className="space-y-4 rounded-3xl border border-border/70 bg-background/55 p-5 shadow-[var(--shadow-soft)]">
+        <div className="border-border/70 bg-background/55 space-y-4 rounded-3xl border p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
+                <FileText className="text-primary h-5 w-5" />
+                <h4 className="text-foreground text-base font-semibold tracking-[-0.02em]">
                   Tailoring résumé...
                 </h4>
               </div>
-              <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
+              <p className="text-muted-foreground mt-1 text-sm leading-6 font-medium">
                 ReplayAI is rewriting your résumé without adding new facts.
               </p>
             </div>
@@ -281,6 +321,7 @@ export function JobPrepTailoredResumePanel({
               Running
             </Badge>
           </div>
+          <AccuracyCheckNotice availability="not_evaluated" />
           <div className="space-y-3">
             <Skeleton className="h-40 rounded-2xl" />
             <Skeleton className="h-24 rounded-2xl" />
@@ -289,19 +330,20 @@ export function JobPrepTailoredResumePanel({
       )}
 
       {isFailed && (
-        <div className="space-y-4 rounded-3xl border border-destructive/25 bg-destructive/[0.04] p-5 shadow-[var(--shadow-soft)]">
+        <div className="border-destructive/25 bg-destructive/[0.04] space-y-4 rounded-3xl border p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start gap-3">
-            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <XCircle className="text-destructive mt-0.5 h-5 w-5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">
+              <h4 className="text-foreground text-base font-semibold tracking-[-0.02em]">
                 Generation failed
               </h4>
-              <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
+              <p className="text-muted-foreground mt-1 text-sm leading-6 font-medium">
                 {generation?.error_message ||
                   'ReplayAI could not generate a tailored résumé.'}
               </p>
             </div>
           </div>
+          <AccuracyCheckNotice availability="unavailable" />
           <SecondaryButton
             onClick={handleRetry}
             disabled={isRetrying}
@@ -320,10 +362,10 @@ export function JobPrepTailoredResumePanel({
 
       {isCompleted && parsedResult && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/55 px-4 py-3">
+          <div className="border-border/70 bg-background/55 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-success" />
-              <span className="text-sm font-semibold text-foreground">
+              <CheckCircle2 className="text-success h-4 w-4" />
+              <span className="text-foreground text-sm font-semibold">
                 Tailored résumé ready
               </span>
             </div>
@@ -356,14 +398,14 @@ export function JobPrepTailoredResumePanel({
         generation?.status === 'completed' &&
         !parsedResult &&
         !isProcessing && (
-          <div className="rounded-3xl border border-dashed border-border/80 bg-muted/30 px-6 py-10 text-center">
-            <AlertCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-            <h4 className="text-base font-semibold text-foreground">
+          <div className="border-border/80 bg-muted/30 rounded-3xl border border-dashed px-6 py-10 text-center">
+            <AlertCircle className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
+            <h4 className="text-foreground text-base font-semibold">
               Tailored résumé unavailable
             </h4>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">
-              The saved result could not be parsed. Try generating again.
-            </p>
+            <div className="mt-4 text-left">
+              <AccuracyCheckNotice availability="unavailable" />
+            </div>
             <SecondaryButton
               onClick={handleRetry}
               disabled={isRetrying}
